@@ -43,9 +43,9 @@ optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 loss_fun = ControlLoss()
 
 eval_env = CartPoleEnv()
-
+episode_length_mean, episode_length_std, loss_list = list(), list(), list()
 # TRAIN:
-for epoch in range(10):
+for epoch in range(5):
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
@@ -67,6 +67,7 @@ for epoch in range(10):
                 '[%d, %5d] loss: %.3f' %
                 (epoch + 1, i + 1, running_loss / 2000)
             )
+            loss_list.append(running_loss)
             running_loss = 0.0
 
     # evaluation:
@@ -90,8 +91,34 @@ for epoch in range(10):
                 episode_length_counter += 1
             success[it] = episode_length_counter
             eval_env._reset()
+        # save and output
+        episode_length_mean.append(round(np.mean(success), 3))
+        episode_length_std.append(round(np.std(success), 3))
         print(
-            "Average episode length: ", round(np.mean(success), 3), "std:",
-            round(np.std(success), 3)
+            "Average episode length: ", episode_length_mean[-1], "std:",
+            episode_length_std[-1]
         )
+
+episode_length_mean = np.array(episode_length_mean)
+episode_length_std = np.array(episode_length_std)
+plt.figure(figsize=(20, 10))
+x = np.arange(len(episode_length_mean))
+plt.plot(x, episode_length_mean, '-')
+plt.fill_between(
+    x,
+    episode_length_mean - episode_length_std,
+    episode_length_mean + episode_length_std,
+    alpha=0.2
+)
+plt.xlabel("Epoch")
+plt.ylabel("Average episode length")
+plt.savefig("models/performance.png")
+
+plt.figure(figsize=(20, 10))
+plt.plot(loss_list)
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.savefig("models/loss.png")
+
+torch.save(net, "models/model_pendulum")
 print('Finished Training')
