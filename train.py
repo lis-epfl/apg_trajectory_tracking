@@ -7,12 +7,12 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from dataset import Dataset, raw_states_to_torch
-from control_loss import ControlLoss
+from control_loss import control_loss_function
 from environment import CartPoleEnv
 
 OUT_SIZE = 1  # one action variable between -1 and 1
 DIM = 4  # input dimension
-NR_EVAL_ITERS = 10
+NR_EVAL_ITERS = 20
 
 
 class Net(nn.Module):
@@ -40,35 +40,11 @@ trainloader = torch.utils.data.DataLoader(
 )
 
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
-loss_fun = ControlLoss()
 
 eval_env = CartPoleEnv()
 episode_length_mean, episode_length_std, loss_list = list(), list(), list()
 # TRAIN:
-for epoch in range(5):
-
-    running_loss = 0.0
-    for i, data in enumerate(trainloader, 0):
-        # get the inputs; data is a list of [inputs, labels]
-        inputs, labels = data
-
-        # zero the parameter gradients
-        optimizer.zero_grad()
-
-        # forward + backward + optimize
-        outputs = net(inputs)
-        loss = loss_fun(outputs, labels)  # control_loss
-        loss.backward()
-        optimizer.step()
-        # print statistics
-        running_loss += loss.item()
-        if i % 300 == 299:  # print every 2000 mini-batches
-            print(
-                '[%d, %5d] loss: %.3f' %
-                (epoch + 1, i + 1, running_loss / 2000)
-            )
-            loss_list.append(running_loss)
-            running_loss = 0.0
+for epoch in range(50):
 
     # evaluation:
     with torch.no_grad():
@@ -83,12 +59,14 @@ for epoch in range(5):
                 )
                 # torch_state = torch.from_numpy(np.expand_dims(new_state,
                 #                                               0)).float()
-                action = torch.sigmoid(net(torch_state)).item() - .5
+                action = (torch.sigmoid(net(torch_state)).item() - .5) * 3
                 # 2 * (np.random.rand() - 0.5)
                 new_state, _, is_fine, _ = eval_env._step(action)
                 # print(torch_state.numpy(), new_state, action)
                 # print("action", action, "out:", out)
                 episode_length_counter += 1
+                if episode_length_counter > 250:
+                    break
             success[it] = episode_length_counter
             eval_env._reset()
         # save and output
@@ -98,6 +76,30 @@ for epoch in range(5):
             "Average episode length: ", episode_length_mean[-1], "std:",
             episode_length_std[-1]
         )
+
+    running_loss = 0.0
+    for i, data in enumerate(trainloader, 0):
+        # get the inputs; data is a list of [inputs, labels]
+        inputs, labels = data
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimize
+        outputs = net(inputs)
+        loss = control_loss_function(outputs, labels)  # control_loss
+
+        loss.backward()
+        optimizer.step()
+        # print statistics
+        running_loss += loss.item()
+        if i % 300 == 299:  # print every 2000 mini-batches
+            print(
+                '[%d, %5d] loss: %.3f' %
+                (epoch + 1, i + 1, running_loss / 2000)
+            )
+            loss_list.append(running_loss)
+            running_loss = 0.0
 
 episode_length_mean = np.array(episode_length_mean)
 episode_length_std = np.array(episode_length_std)
@@ -110,14 +112,16 @@ plt.fill_between(
     episode_length_mean + episode_length_std,
     alpha=0.2
 )
-plt.xlabel("Epoch")
-plt.ylabel("Average episode length")
+plt.xlabel("Epoch", fontsize=18)
+plt.ylabel("Average episode length", fontsize=18)
+plt.xticks(fontsize=18)
+plt.yticks(fontsize=18)
 plt.savefig("models/performance.png")
 
-plt.figure(figsize=(20, 10))
+plt.figure(figsize=(15, 8))
 plt.plot(loss_list)
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
+plt.xlabel("Epoch", fontsize=18)
+plt.ylabel("Loss", fontsize=18)
 plt.savefig("models/loss.png")
 
 torch.save(net, "models/model_pendulum")
