@@ -34,7 +34,9 @@ class ControlLoss(nn.Module):
         state: tensor size [?, 4] with x, x_dot, theta, theta_dot
         action: size [?] float between -1 and 1
         """
-        # x, x_dot, theta, theta_dot = state
+        # bring action into -1 1 range
+        action = torch.sigmoid(action) - .5
+
         x = state[:, 0]
         x_dot = state[:, 1]
         theta = state[:, 2]

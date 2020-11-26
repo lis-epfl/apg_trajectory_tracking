@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from dataset import Dataset
+from dataset import Dataset, raw_states_to_torch
 from control_loss import ControlLoss
 from environment import CartPoleEnv
 
@@ -28,7 +28,7 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
-        return torch.tanh(x)
+        return x
         # TODO: okay to do this in torch? or need to return logits
 
 
@@ -77,8 +77,12 @@ for epoch in range(10):
             episode_length_counter = 0
             new_state = eval_env.state
             while not is_fine:
-                torch_state = torch.from_numpy(new_state).float()
-                action = net(torch_state).item()
+                torch_state = raw_states_to_torch(
+                    new_state, mean=state_data.mean, std=state_data.std
+                )
+                # torch_state = torch.from_numpy(np.expand_dims(new_state,
+                #                                               0)).float()
+                action = torch.sigmoid(net(torch_state)).item() - .5
                 # 2 * (np.random.rand() - 0.5)
                 new_state, _, is_fine, _ = eval_env._step(action)
                 # print(torch_state.numpy(), new_state, action)
