@@ -26,17 +26,13 @@ class CartPoleEnv():
         self.tau = 0.02  # seconds between state updates
         self.muc = 0.0005
         self.mup = 0.000002
-        #np.random.seed(1)
-        #self.noise1=np.random.uniform(-0.25,0.25,None)
-        #self.force_mag=(self.force_mag+self.noise1)
-        #self.noise2=np.random.uniform(-0.5,0.5,None)
-        #self.force_mag=(self.force_mag+self.noise2)
 
         # Angle at which to fail the episode
         self.theta_threshold_radians = 12 * 2 * math.pi / 360
         self.x_threshold = 2.4
 
-        # Angle limit set to 2 * theta_threshold_radians so failing observation is still within bounds
+        # Angle limit set to 2 * theta_threshold_radians so failing observation
+        # is still within bounds
         high = np.array(
             [
                 self.x_threshold * 2,
@@ -45,24 +41,19 @@ class CartPoleEnv():
             ]
         )
 
-        # self.action_space = spaces.Discrete(2)
-        # self.observation_space = spaces.Box(-high, high)
-
-        # self._seed()
         self.viewer = None
         self.state = high * 0
 
         self.steps_beyond_done = None
 
     def _step(self, action):
-        # assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
+        """
+        Update state after action
+        """
+        # compute force
+        force = self.force_mag * action
+        # get state and compute next state
         x, x_dot, theta, theta_dot = self.state
-        #np.random.seed(1)
-        #theta= theta+theta*np.random.uniform(-0.25,0.25,None)
-        #theta= theta+theta*np.random.uniform(-0.50,0.5,None)
-        #theta= theta+theta*np.random.normal(0,0.316,None)
-        #theta= theta+theta*np.random.normal(0,0.447,None)
-        force = self.force_mag * action  # if action == 1 else -self.force_mag # CHANGED
         costheta = math.cos(theta)
         sintheta = math.sin(theta)
         sig = self.muc * np.sign(x_dot)
@@ -85,6 +76,8 @@ class CartPoleEnv():
         theta_dot = theta_dot + self.tau * thetaacc
         theta = theta + self.tau * theta_dot
         self.state = (x, x_dot, theta, theta_dot)
+
+        # Check whether still in feasible area etc
         done =  x < -self.x_threshold \
                 or x > self.x_threshold \
                 or theta < -self.theta_threshold_radians \
@@ -115,6 +108,9 @@ class CartPoleEnv():
         return np.array(self.state)
 
     def _render(self, mode='human', close=False):
+        """
+        Drawing function to visualize pendulum - Use after each update!
+        """
         if close:
             if self.viewer is not None:
                 self.viewer.close()
@@ -135,13 +131,18 @@ class CartPoleEnv():
         if self.viewer is None:
             import rendering
             self.viewer = rendering.Viewer(screen_width, screen_height)
-            l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
+            l, r, t, b = (
+                -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
+            )
             axleoffset = cartheight / 4.0
             cart = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
             self.carttrans = rendering.Transform()
             cart.add_attr(self.carttrans)
             self.viewer.add_geom(cart)
-            l, r, t, b = -polewidth / 2, polewidth / 2, polelen - polewidth / 2, -polewidth / 2
+            l, r, t, b = (
+                -polewidth / 2, polewidth / 2, polelen - polewidth / 2,
+                -polewidth / 2
+            )
             pole = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
             pole.set_color(.8, .6, .4)
             self.poletrans = rendering.Transform(translation=(0, axleoffset))

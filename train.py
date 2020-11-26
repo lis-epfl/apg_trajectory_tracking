@@ -46,7 +46,7 @@ episode_length_mean, episode_length_std, loss_list = list(), list(), list()
 # TRAIN:
 for epoch in range(50):
 
-    # evaluation:
+    # EVALUATION in environment
     with torch.no_grad():
         success = np.zeros(NR_EVAL_ITERS)
         for it in range(NR_EVAL_ITERS):
@@ -54,16 +54,18 @@ for epoch in range(50):
             episode_length_counter = 0
             new_state = eval_env.state
             while not is_fine:
+                # Transform state in the same way as the training data
+                # and normalize
                 torch_state = raw_states_to_torch(
                     new_state, mean=state_data.mean, std=state_data.std
                 )
-                # torch_state = torch.from_numpy(np.expand_dims(new_state,
-                #                                               0)).float()
-                action = (torch.sigmoid(net(torch_state)).item() - .5) * 3
-                # 2 * (np.random.rand() - 0.5)
+                # Predict optimal action:
+                action = torch.sigmoid(net(torch_state))
+                action = (action.item() - .5) * 3
+
+                # run action in environment
                 new_state, _, is_fine, _ = eval_env._step(action)
-                # print(torch_state.numpy(), new_state, action)
-                # print("action", action, "out:", out)
+                # track number of timesteps until failure
                 episode_length_counter += 1
                 if episode_length_counter > 250:
                     break
@@ -101,6 +103,7 @@ for epoch in range(50):
             loss_list.append(running_loss)
             running_loss = 0.0
 
+# PLOTTING
 episode_length_mean = np.array(episode_length_mean)
 episode_length_std = np.array(episode_length_std)
 plt.figure(figsize=(20, 10))
@@ -124,5 +127,6 @@ plt.xlabel("Epoch", fontsize=18)
 plt.ylabel("Loss", fontsize=18)
 plt.savefig("models/loss.png")
 
+# SAVE MODEL
 torch.save(net, "models/model_pendulum")
 print('Finished Training')

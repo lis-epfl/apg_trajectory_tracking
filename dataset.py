@@ -5,10 +5,12 @@ import numpy as np
 def construct_states(
     num_data, path_to_states=None, save_path="data/state_data.npy"
 ):
+    # Load precomputed dataset
     if path_to_states is not None:
         state_arr = np.load(path_to_states)
         return state_arr
 
+    # run a few episodes to get some states
     from environment import CartPoleEnv
     env = CartPoleEnv()
     data = []
@@ -19,7 +21,6 @@ def construct_states(
         while not is_fine:
             action = np.random.rand() - 0.5
             state, _, is_fine, _ = env._step(action)
-            # print("action", action, "out:", out)
             data.append(state)
             num_iters += 1
         env._reset()
@@ -30,18 +31,25 @@ def construct_states(
         np.mean(baseline_episode_length), "(std: ",
         np.std(baseline_episode_length), ")"
     )
+    # save data optionally
     if save_path is not None:
         np.save(save_path, data)
     return data[:num_data]
 
 
 def raw_states_to_torch(states, mean=None, std=None):
+    """
+    Helper function to convert numpy state array to normalized tensors
+    Argument states: 
+            One state (list of length 4) or array with x states (x times 4)
+    """
     return_mean = mean is None and std is None
 
     # either input one state at a time (evaluation) or an array
     if len(states.shape) == 1:
         states = np.expand_dims(states, 0)
 
+    # save mean and std column wise
     if mean is None:
         mean = np.mean(states, axis=0)
     if std is None:
