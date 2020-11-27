@@ -22,27 +22,18 @@ muc = 0.0005
 mup = 0.000002
 
 
-def control_loss_function(action, state):
-
-    # bring action into -1 1 range
-    action = torch.sigmoid(action) - .5
-    # get state
-    x_dot = state[:, 1]
-    theta = state[:, 2]
-    theta_dot = state[:, 3]
-    # normalize
-    # theta_normed = theta.clone()
-    # torch.sign(theta) * torch.maximum(
-    #     torch.abs(theta),
-    #     torch.ones(theta.size()) * .1
-    # )
-
+def state_to_theta(x_dot, theta, theta_dot, action):
     # compute next state
     force = max_force_mag * action
     costheta = torch.cos(theta)
     sintheta = torch.sin(theta)
     sig = muc * torch.sign(x_dot)
-    temp = force + polemass_length * theta_dot * theta_dot * sintheta
+    # add and multiply
+    temp = torch.add(
+        torch.squeeze(force),
+        polemass_length * torch.mul(theta_dot**2, sintheta)
+    )
+    # divide
     thetaacc = (
         gravity * sintheta - (costheta * (temp - sig)) -
         (mup * theta_dot / polemass_length)
@@ -51,8 +42,32 @@ def control_loss_function(action, state):
     # swapped these two lines
     theta_dot = theta_dot + tau * thetaacc
     theta = theta + tau * theta_dot
+    return theta
+
+
+def control_loss_function(action, state):
+
+    # bring action into -1 1 range
+    action = torch.sigmoid(action) - .5
+    # get state
+    x_dot = state[:, 1]
+    theta_orig = state[:, 2]
+    theta_dot = state[:, 3]
+    # normalize
+    # theta_normed = theta.clone()
+    # torch.sign(theta) * torch.maximum(
+    #     torch.abs(theta),
+    #     torch.ones(theta.size()) * .1
+    # )
+    theta = state_to_theta(x_dot, theta_orig, theta_dot, action)
+    # check the maximum possible force we can apply
+    action_opp_direction = torch.sign(theta) * torch.ones(x_dot.size()) * .5
+    # execute with the maximum force
+    theta_max_possible = state_to_theta(
+        x_dot, theta_orig, theta_dot, action_opp_direction
+    )
 
     # Compute loss: normalized version:
     # loss = torch.sum((theta / theta_normed - target_state)**2)
-    loss = torch.sum((theta - target_state)**2)
+    loss = torch.sum((theta - theta_max_possible)**2) * 100000
     return loss

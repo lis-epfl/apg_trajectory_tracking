@@ -51,7 +51,7 @@ def evaluate_in_environment(net, mean, std, nr_iters=1, render=False):
 
 if __name__ == "__main__":
     # make as args:
-    MODEL_NAME = "without_normalize"  # "best_model_2"
+    MODEL_NAME = "theta_max_normalize"  # "best_model_2"
 
     net = torch.load(os.path.join("models", MODEL_NAME, "model_pendulum"))
     net.eval()
