@@ -3,7 +3,7 @@ import numpy as np
 
 
 def construct_states(
-    num_data, path_to_states=None, save_path="data/state_data.npy"
+    num_data, path_to_states=None, save_path="models/state_data.npy"
 ):
     # Load precomputed dataset
     if path_to_states is not None:
@@ -37,7 +37,7 @@ def construct_states(
     return data[:num_data]
 
 
-def raw_states_to_torch(states, mean=None, std=None):
+def raw_states_to_torch(states, normalize=True, mean=None, std=None):
     """
     Helper function to convert numpy state array to normalized tensors
     Argument states: 
@@ -50,13 +50,17 @@ def raw_states_to_torch(states, mean=None, std=None):
         states = np.expand_dims(states, 0)
 
     # save mean and std column wise
-    if mean is None:
-        mean = np.mean(states, axis=0)
-    if std is None:
-        std = np.std(states, axis=0)
+    if normalize:
+        if mean is None:
+            mean = np.mean(states, axis=0)
+        if std is None:
+            std = np.std(states, axis=0)
+        states = (states - mean) / std
+    else:
+        mean = 0
+        std = 1
 
-    normed_states = (states - mean) / std
-    states_to_torch = torch.from_numpy(normed_states).float()
+    states_to_torch = torch.from_numpy(states).float()
 
     # if we computed mean and std here, return it
     if return_mean:

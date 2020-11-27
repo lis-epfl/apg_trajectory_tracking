@@ -39,7 +39,7 @@ def evaluate_in_environment(net, mean, std, nr_iters=1, render=False):
                 new_state, _, is_fine, _ = eval_env._step(action)
                 if render:
                     eval_env._render()
-                    time.sleep(.25)
+                    time.sleep(.2)
                 # track number of timesteps until failure
                 episode_length_counter += 1
                 if episode_length_counter > 250:
@@ -51,7 +51,7 @@ def evaluate_in_environment(net, mean, std, nr_iters=1, render=False):
 
 if __name__ == "__main__":
     # make as args:
-    MODEL_NAME = "best_model_2"
+    MODEL_NAME = "without_normalize"  # "best_model_2"
 
     net = torch.load(os.path.join("models", MODEL_NAME, "model_pendulum"))
     net.eval()
