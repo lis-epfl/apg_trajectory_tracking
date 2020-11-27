@@ -4,4 +4,4 @@ data/
 models/
 pendulum.code-workspace
 .DS_Store
-backup/
+backups/
