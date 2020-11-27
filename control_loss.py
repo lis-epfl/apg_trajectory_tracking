@@ -16,7 +16,7 @@ masspole = 0.1
 total_mass = (masspole + masscart)
 length = 0.5  # actually half the pole's length
 polemass_length = (masspole * length)
-max_force_mag = 10.0
+max_force_mag = 30.0
 tau = 0.02  # seconds between state updates
 muc = 0.0005
 mup = 0.000002
@@ -25,11 +25,17 @@ mup = 0.000002
 def control_loss_function(action, state):
 
     # bring action into -1 1 range
-    action = (torch.sigmoid(action) - .5) * 3
+    action = torch.sigmoid(action) - .5
     # get state
     x_dot = state[:, 1]
     theta = state[:, 2]
     theta_dot = state[:, 3]
+    # normalize
+    # theta_normed = theta.clone()
+    # torch.sign(theta) * torch.maximum(
+    #     torch.abs(theta),
+    #     torch.ones(theta.size()) * .1
+    # )
 
     # compute next state
     force = max_force_mag * action
@@ -46,6 +52,7 @@ def control_loss_function(action, state):
     theta_dot = theta_dot + tau * thetaacc
     theta = theta + tau * theta_dot
 
-    # Compute loss
+    # Compute loss: normalized version:
+    # loss = torch.sum((theta / theta_normed - target_state)**2)
     loss = torch.sum((theta - target_state)**2)
     return loss

@@ -60,7 +60,7 @@ for epoch in range(50):
                 '[%d, %5d] loss: %.3f' %
                 (epoch + 1, i + 1, running_loss / 2000)
             )
-            loss_list.append(running_loss)
+            loss_list.append(running_loss / 2000)
             running_loss = 0.0
 
 # PLOTTING

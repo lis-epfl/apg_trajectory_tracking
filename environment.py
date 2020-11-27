@@ -22,7 +22,7 @@ class CartPoleEnv():
         self.total_mass = (self.masspole + self.masscart)
         self.length = 0.5  # actually half the pole's length
         self.polemass_length = (self.masspole * self.length)
-        self.force_mag = 10.0
+        self.force_mag = 30.0
         self.tau = 0.02  # seconds between state updates
         self.muc = 0.0005
         self.mup = 0.000002

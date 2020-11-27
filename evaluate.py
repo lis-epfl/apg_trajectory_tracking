@@ -33,7 +33,7 @@ def evaluate_in_environment(net, mean, std, nr_iters=1, render=False):
                 )
                 # Predict optimal action:
                 action = torch.sigmoid(net(torch_state))
-                action = (action.item() - .5) * 3
+                action = action.item() - .5
 
                 # run action in environment
                 new_state, _, is_fine, _ = eval_env._step(action)
