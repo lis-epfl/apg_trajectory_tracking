@@ -3,34 +3,15 @@ import numpy as np
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 
-from dataset import Dataset, raw_states_to_torch
+from dataset import Dataset
 from control_loss import control_loss_function
+from evaluate import evaluate_in_environment
 from environment import CartPoleEnv
+from model import Net
 
-OUT_SIZE = 1  # one action variable between -1 and 1
-DIM = 4  # input dimension
 NR_EVAL_ITERS = 20
-
-
-class Net(nn.Module):
-
-    def __init__(self):
-        super(Net, self).__init__()
-        # conf: in channels, out channels, kernel size
-        self.fc1 = nn.Linear(DIM, 100)
-        self.fc2 = nn.Linear(100, 50)
-        self.fc3 = nn.Linear(50, OUT_SIZE)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-        # TODO: okay to do this in torch? or need to return logits
-
 
 net = Net()
 
@@ -47,37 +28,16 @@ episode_length_mean, episode_length_std, loss_list = list(), list(), list()
 for epoch in range(50):
 
     # EVALUATION in environment
-    with torch.no_grad():
-        success = np.zeros(NR_EVAL_ITERS)
-        for it in range(NR_EVAL_ITERS):
-            is_fine = False
-            episode_length_counter = 0
-            new_state = eval_env.state
-            while not is_fine:
-                # Transform state in the same way as the training data
-                # and normalize
-                torch_state = raw_states_to_torch(
-                    new_state, mean=state_data.mean, std=state_data.std
-                )
-                # Predict optimal action:
-                action = torch.sigmoid(net(torch_state))
-                action = (action.item() - .5) * 3
-
-                # run action in environment
-                new_state, _, is_fine, _ = eval_env._step(action)
-                # track number of timesteps until failure
-                episode_length_counter += 1
-                if episode_length_counter > 250:
-                    break
-            success[it] = episode_length_counter
-            eval_env._reset()
-        # save and output
-        episode_length_mean.append(round(np.mean(success), 3))
-        episode_length_std.append(round(np.std(success), 3))
-        print(
-            "Average episode length: ", episode_length_mean[-1], "std:",
-            episode_length_std[-1]
-        )
+    success = evaluate_in_environment(
+        net, state_data.mean, state_data.std, nr_iters=NR_EVAL_ITERS
+    )
+    # save and output
+    episode_length_mean.append(round(np.mean(success), 3))
+    episode_length_std.append(round(np.std(success), 3))
+    print(
+        "Average episode length: ", episode_length_mean[-1], "std:",
+        episode_length_std[-1]
+    )
 
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):

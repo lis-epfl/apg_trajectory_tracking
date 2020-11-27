@@ -42,7 +42,7 @@ class CartPoleEnv():
         )
 
         self.viewer = None
-        self.state = high * 0
+        self.state = self._reset()
 
         self.steps_beyond_done = None
 
