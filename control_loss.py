@@ -59,13 +59,18 @@ def control_loss_function(action, state):
     #     torch.abs(theta),
     #     torch.ones(theta.size()) * .1
     # )
+
     theta = state_to_theta(x_dot, theta_orig, theta_dot, action)
     # check the maximum possible force we can apply
-    action_opp_direction = torch.sign(theta) * torch.ones(x_dot.size()) * .5
+    direction = torch.sign(theta_orig)
+    action_opp_direction = direction * torch.ones(x_dot.size()) * .5
     # execute with the maximum force
     theta_max_possible = state_to_theta(
         x_dot, theta_orig, theta_dot, action_opp_direction
     )
+    theta_max_possible = torch.maximum(
+        theta_max_possible * direction, torch.zeros(theta.size())
+    ) * direction
 
     # Compute loss: normalized version:
     # loss = torch.sum((theta / theta_normed - target_state)**2)
