@@ -23,20 +23,24 @@ trainloader = torch.utils.data.DataLoader(
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 eval_env = CartPoleEnv()
-episode_length_mean, episode_length_std, loss_list = list(), list(), list()
+episode_length_mean, episode_length_std, loss_list, pole_angles = (
+    list(), list(), list(), list()
+)
 # TRAIN:
-for epoch in range(50):
+for epoch in range(20):
 
     # EVALUATION in environment
-    success = evaluate_in_environment(
+    success, angles = evaluate_in_environment(
         net, state_data.mean, state_data.std, nr_iters=NR_EVAL_ITERS
     )
     # save and output
+    pole_angles.append(np.mean(angles))
     episode_length_mean.append(round(np.mean(success), 3))
     episode_length_std.append(round(np.std(success), 3))
     print(
-        "Average episode length: ", episode_length_mean[-1], "std:",
-        episode_length_std[-1]
+        "Average episode length: ",
+        episode_length_mean[-1], "std:", episode_length_std[-1], "angles:",
+        round(pole_angles[-1], 3), "angle std:", round(np.std(angles), 3)
     )
 
     running_loss = 0.0
@@ -86,6 +90,12 @@ plt.plot(loss_list)
 plt.xlabel("Epoch", fontsize=18)
 plt.ylabel("Loss", fontsize=18)
 plt.savefig("models/loss.png")
+
+plt.figure(figsize=(15, 8))
+plt.plot(pole_angles)
+plt.xlabel("Epoch", fontsize=18)
+plt.ylabel("Pole angles", fontsize=18)
+plt.savefig("models/pole_angles.png")
 
 # SAVE MODEL
 torch.save(net, "models/model_pendulum")

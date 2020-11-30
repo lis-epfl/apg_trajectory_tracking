@@ -21,6 +21,8 @@ tau = 0.02  # seconds between state updates
 muc = 0.0005
 mup = 0.000002
 
+LAMBDA = 5
+
 
 def state_to_theta(x_dot, theta, theta_dot, action):
     # compute next state
@@ -42,7 +44,7 @@ def state_to_theta(x_dot, theta, theta_dot, action):
     # swapped these two lines
     theta_dot = theta_dot + tau * thetaacc
     theta = theta + tau * theta_dot
-    return theta
+    return theta, theta_dot
 
 
 def control_loss_function(action, state):
@@ -60,12 +62,12 @@ def control_loss_function(action, state):
     #     torch.ones(theta.size()) * .1
     # )
 
-    theta = state_to_theta(x_dot, theta_orig, theta_dot, action)
+    theta, theta_dot_new = state_to_theta(x_dot, theta_orig, theta_dot, action)
     # check the maximum possible force we can apply
     direction = torch.sign(theta_orig)
     action_opp_direction = direction * torch.ones(x_dot.size()) * .5
     # execute with the maximum force
-    theta_max_possible = state_to_theta(
+    theta_max_possible, _ = state_to_theta(
         x_dot, theta_orig, theta_dot, action_opp_direction
     )
     theta_max_possible = torch.maximum(
@@ -74,5 +76,7 @@ def control_loss_function(action, state):
 
     # Compute loss: normalized version:
     # loss = torch.sum((theta / theta_normed - target_state)**2)
-    loss = torch.sum((theta - theta_max_possible)**2) * 100000
+    angle_loss = torch.sum((theta - theta_max_possible)**2) * 100000
+    velocity_loss = torch.sum(theta_dot_new**2)  #  / theta_orig
+    loss = angle_loss + LAMBDA * velocity_loss
     return loss
