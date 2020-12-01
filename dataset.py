@@ -5,6 +5,11 @@ import numpy as np
 def construct_states(
     num_data, path_to_states=None, save_path="models/state_data.npy"
 ):
+    # define parts of the dataset:
+    randomized_runs = .25
+    upper_balancing = .5
+    one_direction = 1
+
     # Load precomputed dataset
     if path_to_states is not None:
         state_arr = np.load(path_to_states)
@@ -14,27 +19,35 @@ def construct_states(
     from environment import CartPoleEnv
     env = CartPoleEnv()
     data = []
-    baseline_episode_length = list()
-    while len(data) < num_data:
-        num_iters = 0
-        if len(data) > 0.8 * num_data:
-            env.state = (np.random.rand(4) - .5) * .1
-        # run 100 steps then reset
+    # randimized runs
+    while len(data) < num_data * randomized_runs:
+        # run 100 steps then reset (randomized runs)
         for _ in range(100):
             action = np.random.rand() - 0.5
             state, _, _, _ = env._step(action)
             data.append(state)
-            num_iters += 1
         env._reset()
-        baseline_episode_length.append(num_iters)
+
+    # after randomized runs: run balancing
+    while len(data) < upper_balancing * num_data:
+        fine = False
+        env.state = (np.random.rand(4) - .5) * .1
+        while not fine:
+            action = np.random.rand() - 0.5
+            state, _, fine, _ = env._step(action)
+            data.append(state)
+        env._reset()
+
+    # add one directional steps
+    while len(data) < num_data * one_direction:
+        action = (-.5) * ((np.random.rand() > .5) * 2 - 1)
+        for _ in range(100):
+            state, _, fine, _ = env._step(action)
+            data.append(state)
+        env._reset()
+
     data = np.array(data)
-    print(
-        "generated data:",
-        data.shape,
-        # "BASELINE:",
-        # np.mean(baseline_episode_length), "(std: ",
-        # np.std(baseline_episode_length), ")"
-    )
+    print("generated data:", data.shape)
     # save data optionally
     if save_path is not None:
         np.save(save_path, data)

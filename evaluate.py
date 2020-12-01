@@ -7,6 +7,7 @@ import numpy as np
 import os
 import time
 import argparse
+from control_loss import control_loss_function
 
 
 class Evaluator:
@@ -15,7 +16,9 @@ class Evaluator:
         self.mean = mean
         self.std = std
 
-    def make_swingup(self, net, nr_iters=3, max_iters=500, render=False):
+    def make_swingup(
+        self, net, optimizer=None, nr_iters=3, max_iters=500, render=False
+    ):
         """
         Check if the pendulum can make a swing up
         """
@@ -24,6 +27,7 @@ class Evaluator:
         with torch.no_grad():
             success = np.zeros(nr_iters)
             for it in range(nr_iters):
+                # np.random.seed(it + 300)
                 random_hanging_state = (np.random.rand(4) - .5)
                 random_hanging_state[2] = (-1) * (
                     (np.random.rand() > .5) * 2 - 1
@@ -40,15 +44,23 @@ class Evaluator:
                         new_state, mean=self.mean, std=self.std
                     )
                     # Predict optimal action:
-                    action = torch.sigmoid(net(torch_state))
+                    predicted_action = net(torch_state)
+                    action = torch.sigmoid(predicted_action)
                     action = action.item() - .5
+
+                    if optimizer is not None:
+                        loss = control_loss_function(
+                            predicted_action, torch_state
+                        )
+                        loss.backward()
+                        optimizer.step()
 
                     # run action in environment
                     new_state, _, _, _ = eval_env._step(action)
                     # print(new_state)
                     if render:
                         eval_env._render()
-                        time.sleep(.2)
+                        time.sleep(.1)
                     # check only whether it was able to swing up the pendulum
                     if np.abs(new_state[2]) < np.pi / 15 and not render:
                         made_it = 1
@@ -119,7 +131,7 @@ class Evaluator:
                 if render:
                     eval_env.state = self.mean + (
                         np.random.rand(len(self.mean)) - .5
-                    ) * .2 * self.std
+                    ) * .6 * self.std
 
                 angles = list()
                 # Start balancing
@@ -138,7 +150,7 @@ class Evaluator:
                     angles.append(np.absolute(new_state[2]))
                     if render:
                         eval_env._render()
-                        time.sleep(.2)
+                        time.sleep(.1)
                     # track number of timesteps until failure
                     episode_length_counter += 1
                     if episode_length_counter > 250:

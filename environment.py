@@ -176,9 +176,9 @@ class CartPoleEnv():
 
 
 if __name__ == "__main__":
-    data = np.load("models/state_data.npy")
+    data = np.load("models/new_dataset_good_training/state_data.npy")
     env = CartPoleEnv()
-    for i in range(1000):
+    for i in range(9000, len(data)):
         env.state = data[i]
         # sign = np.sign(np.random.rand() - 0.5)
         # if i % 2 == 0:

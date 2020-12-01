@@ -28,14 +28,16 @@ eval_env = CartPoleEnv()
     pole_angle_std
 ) = (list(), list(), list(), list(), list())
 evaluator = Evaluator(state_data.mean, state_data.std)
+NR_EPOCHS = 20
 # TRAIN:
-for epoch in range(50):
+for epoch in range(NR_EPOCHS):
 
     # EVALUATION:
     # episode length
     angles = evaluator.run_for_fixed_length(net, nr_iters=NR_EVAL_ITERS)
     success, _ = evaluator.evaluate_in_environment(net, nr_iters=NR_EVAL_ITERS)
-    swing_up = evaluator.make_swingup(net)
+    # if np.mean(success) > 200:
+    # swing_up = evaluator.make_swingup(net, optimizer=optimizer)
     # save and output
     pole_angle_mean.append(round(np.mean(angles), 3))
     pole_angle_std.append(round(np.std(angles), 3))
@@ -43,10 +45,15 @@ for epoch in range(50):
     episode_length_std.append(round(np.std(success), 3))
     print(
         "Average episode length: ",
-        episode_length_mean[-1], "std:", episode_length_std[-1], "angles:",
-        round(pole_angle_mean[-1], 3), "angle std:", round(np.std(angles),
-                                                           3), "swing up:",
-        np.mean(swing_up)
+        episode_length_mean[-1],
+        "std:",
+        episode_length_std[-1],
+        "angles:",
+        round(pole_angle_mean[-1], 3),
+        "angle std:",
+        round(np.std(angles), 3),
+        "swing up:",
+        # np.mean(swing_up)
     )
 
     try:
@@ -60,7 +67,11 @@ for epoch in range(50):
 
             # forward + backward + optimize
             outputs = net(inputs)
-            loss = control_loss_function(outputs, labels)  # control_loss
+            # if i > 1230:
+            #     print(torch.sigmoid(outputs) - .5)
+            loss = control_loss_function(
+                outputs, labels, lambda_factor=.5 * epoch / NR_EPOCHS
+            )
             loss.backward()
             optimizer.step()
             # print statistics
