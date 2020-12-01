@@ -10,26 +10,30 @@ def construct_states(
         state_arr = np.load(path_to_states)
         return state_arr
 
-    # run a few episodes to get some states
+    # Sample states
     from environment import CartPoleEnv
     env = CartPoleEnv()
     data = []
     baseline_episode_length = list()
     while len(data) < num_data:
-        is_fine = False
         num_iters = 0
-        while not is_fine:
+        if len(data) > 0.8 * num_data:
+            env.state = (np.random.rand(4) - .5) * .1
+        # run 100 steps then reset
+        for _ in range(100):
             action = np.random.rand() - 0.5
-            state, _, is_fine, _ = env._step(action)
+            state, _, _, _ = env._step(action)
             data.append(state)
             num_iters += 1
         env._reset()
         baseline_episode_length.append(num_iters)
     data = np.array(data)
     print(
-        "generated data:", data.shape, "BASELINE:",
-        np.mean(baseline_episode_length), "(std: ",
-        np.std(baseline_episode_length), ")"
+        "generated data:",
+        data.shape,
+        # "BASELINE:",
+        # np.mean(baseline_episode_length), "(std: ",
+        # np.std(baseline_episode_length), ")"
     )
     # save data optionally
     if save_path is not None:
@@ -37,7 +41,7 @@ def construct_states(
     return data[:num_data]
 
 
-def raw_states_to_torch(states, normalize=True, mean=None, std=None):
+def raw_states_to_torch(states, normalize=False, mean=None, std=None):
     """
     Helper function to convert numpy state array to normalized tensors
     Argument states: 

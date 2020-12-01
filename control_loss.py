@@ -21,8 +21,6 @@ tau = 0.02  # seconds between state updates
 muc = 0.0005
 mup = 0.000002
 
-LAMBDA = 5
-
 
 def state_to_theta(x_dot, theta, theta_dot, action):
     # compute next state
@@ -54,7 +52,7 @@ def control_loss_function(action, state):
     # get state
     x_dot = state[:, 1]
     theta_orig = state[:, 2]
-    theta_dot = state[:, 3]
+    theta_dot_orig = state[:, 3]
     # normalize
     # theta_normed = theta.clone()
     # torch.sign(theta) * torch.maximum(
@@ -62,21 +60,39 @@ def control_loss_function(action, state):
     #     torch.ones(theta.size()) * .1
     # )
 
-    theta, theta_dot_new = state_to_theta(x_dot, theta_orig, theta_dot, action)
+    theta, theta_dot = state_to_theta(
+        x_dot, theta_orig, theta_dot_orig, action
+    )
     # check the maximum possible force we can apply
     direction = torch.sign(theta_orig)
     action_opp_direction = direction * torch.ones(x_dot.size()) * .5
     # execute with the maximum force
     theta_max_possible, _ = state_to_theta(
-        x_dot, theta_orig, theta_dot, action_opp_direction
+        x_dot, theta_orig, theta_dot_orig, action_opp_direction
     )
     theta_max_possible = torch.maximum(
         theta_max_possible * direction, torch.zeros(theta.size())
     ) * direction
 
     # Compute loss: normalized version:
-    # loss = torch.sum((theta / theta_normed - target_state)**2)
-    angle_loss = torch.sum((theta - theta_max_possible)**2) * 100000
-    velocity_loss = torch.sum(theta_dot_new**2)  #  / theta_orig
-    loss = angle_loss + LAMBDA * velocity_loss
-    return loss
+    # # Working version:
+    angle_loss = (theta - theta_max_possible)**2 * 100000
+    velocity_loss = theta_dot**2 - theta_dot_orig**2  # TODO
+    # loss = angle_loss + velocity_loss
+
+    # New version for swing up
+    # TODO: compare values for angle and velocity loss
+    LAMBDA = 1
+    factor = (-1) * torch.cos(theta_orig)
+    loss = LAMBDA * (1 - factor) * angle_loss - factor * velocity_loss
+    # print("orig:")
+    # print(theta_orig)
+    # print("prev theta dot:", theta_dot_orig)
+    # print("now theta dot:", theta_dot)
+    # print("losses:")
+    # print(angle_loss)
+    # print(velocity_loss)
+    # print("Factor:")
+    # print(factor)
+    # print(fail)
+    return torch.sum(loss)

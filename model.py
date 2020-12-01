@@ -1,5 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
+import numpy as np
 
 OUT_SIZE = 1  # one action variable between -1 and 1
 DIM = 4  # input dimension
@@ -15,6 +17,7 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(50, OUT_SIZE)
 
     def forward(self, x):
+        x = x * torch.from_numpy(np.array([0, 1, 1, 1]))
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)

@@ -33,11 +33,12 @@ class CartPoleEnv():
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds
-        high = np.array(
+        self.state_limits = np.array(
             [
-                self.x_threshold * 2,
-                np.finfo(np.float32).max, self.theta_threshold_radians * 2,
-                np.finfo(np.float32).max
+                0,  # cart always starts in midle
+                0,  # cart always starts without speed 
+                np.pi * 2,
+                10
             ]
         )
 
@@ -75,6 +76,10 @@ class CartPoleEnv():
         x = x + self.tau * x_dot
         theta_dot = theta_dot + self.tau * thetaacc
         theta = theta + self.tau * theta_dot
+        if theta > np.pi:
+            theta = theta - 2 * np.pi
+        if theta <= -np.pi:
+            theta = 2 * np.pi + theta
         self.state = (x, x_dot, theta, theta_dot)
 
         # Check whether still in feasible area etc
@@ -91,17 +96,18 @@ class CartPoleEnv():
             self.steps_beyond_done = 0
             reward = 1.0
         else:
-            if self.steps_beyond_done == 0:
-                logger.warning(
-                    "You are calling 'step()' even though this environment has already returned done = True. You should always call 'reset()' once you receive 'done = True' -- any further steps are undefined behavior."
-                )
+            # if self.steps_beyond_done == 0:
+            #     logger.warning(
+            #         "You are calling 'step()' even though this environment has already returned done = True. You should always call 'reset()' once you receive 'done = True' -- any further steps are undefined behavior."
+            #     )
             self.steps_beyond_done += 1
             reward = 0.0
 
         return np.array(self.state), reward, done, {}
 
     def _reset(self):
-        self.state = (np.random.rand(4) - .5) * .1
+
+        self.state = (np.random.rand(4) - .5) * self.state_limits
         # this achieves the same as below because then min is -0.05
         # self.np_random.uniform(low=-0.05, high=0.05, size=(4, ))
         self.steps_beyond_done = None
@@ -162,7 +168,7 @@ class CartPoleEnv():
             return None
 
         x = self.state
-        cartx = x[0] * scale + screen_width / 2.0  # MIDDLE OF CART
+        cartx = (x[0] * scale + screen_width / 2.0) % 600  # MIDDLE OF CART
         self.carttrans.set_translation(cartx, carty)
         self.poletrans.set_rotation(-x[2])
 
@@ -170,14 +176,18 @@ class CartPoleEnv():
 
 
 if __name__ == "__main__":
+    data = np.load("models/state_data.npy")
     env = CartPoleEnv()
-    for i in range(50):
+    for i in range(1000):
+        env.state = data[i]
         # sign = np.sign(np.random.rand() - 0.5)
         # if i % 2 == 0:
         #     sign = -1
         # else:
         #     sign = 1
-        action = 2 * (np.random.rand() - 0.5)
-        out = env._step(action)
-        print("action", action, "out:", out)
+
+        # USUAL pipeline
+        # action = 2 * (np.random.rand() - 0.5)
+        # out = env._step(action)
+        # print("action", action, "out:", out)
         env._render()
