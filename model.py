@@ -17,7 +17,7 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(50, OUT_SIZE)
 
     def forward(self, x):
-        x = x * torch.from_numpy(np.array([0, 1, 1, 1]))
+        # x = x * torch.from_numpy(np.array([0, 1, 1, 1]))
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)

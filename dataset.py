@@ -6,7 +6,7 @@ def construct_states(
     num_data, path_to_states=None, save_path="models/state_data.npy"
 ):
     # define parts of the dataset:
-    randomized_runs = .25
+    randomized_runs = .5
     upper_balancing = .75
     one_direction = 1
 
@@ -22,7 +22,7 @@ def construct_states(
     # randimized runs
     while len(data) < num_data * randomized_runs:
         # run 100 steps then reset (randomized runs)
-        for _ in range(100):
+        for _ in range(10):
             action = np.random.rand() - 0.5
             state, _, _, _ = env._step(action)
             data.append(state)
@@ -31,7 +31,7 @@ def construct_states(
     # after randomized runs: run balancing
     while len(data) < upper_balancing * num_data:
         fine = False
-        env.state = (np.random.rand(4) - .5) * .1
+        env.state[2] = (np.random.rand(1) - .5) * .1
         while not fine:
             action = np.random.rand() - 0.5
             state, _, fine, _ = env._step(action)
@@ -41,7 +41,7 @@ def construct_states(
     # add one directional steps
     while len(data) < num_data * one_direction:
         action = (-.5) * ((np.random.rand() > .5) * 2 - 1)
-        for _ in range(100):
+        for _ in range(30):
             state, _, fine, _ = env._step(action)
             data.append(state)
         env._reset()
@@ -68,11 +68,10 @@ def raw_states_to_torch(states, normalize=False, mean=None, std=None):
 
     # save mean and std column wise
     if normalize:
-        if mean is None:
-            mean = np.mean(states, axis=0)
+        # can't use mean!
         if std is None:
             std = np.std(states, axis=0)
-        states = (states - mean) / std
+        states = states / std
     else:
         mean = 0
         std = 1

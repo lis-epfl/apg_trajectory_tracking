@@ -36,8 +36,8 @@ class CartPoleEnv():
         # is still within bounds
         self.state_limits = np.array(
             [
-                0,  # cart always starts in midle
-                0,  # cart always starts without speed 
+                2.4,  # cart always starts in midle
+                1,  # cart always starts without speed 
                 np.pi * 2,
                 10
             ]
@@ -81,6 +81,10 @@ class CartPoleEnv():
             theta = theta - 2 * np.pi
         if theta <= -np.pi:
             theta = 2 * np.pi + theta
+
+        # change x such that it is not higher than 3
+        x = ((x * 100 + 240) % 480 - 240) / 100
+
         self.state = (x, x_dot, theta, theta_dot)
 
         # Check whether still in feasible area etc
@@ -177,7 +181,7 @@ class CartPoleEnv():
 
 
 if __name__ == "__main__":
-    data = np.load("models/fail/state_data.npy")
+    data = np.load("models/state_data.npy")
     env = CartPoleEnv()
     pick_random_starts = np.random.permutation(len(data))[:100]
     for i in pick_random_starts:

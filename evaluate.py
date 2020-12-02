@@ -169,10 +169,10 @@ if __name__ == "__main__":
     net.eval()
 
     data_arr = np.load(os.path.join("models", MODEL_NAME, "state_data.npy"))
-    mean = np.mean(data_arr, axis=0)
-    std = np.std(data_arr, axis=0)
-    # mean = np.zeros(4)
-    # std = np.ones(4)
+    # mean = np.mean(data_arr, axis=0)
+    # std = np.std(data_arr, axis=0)
+    mean = np.zeros(4)
+    std = np.ones(4)
 
     evaluator = Evaluator(mean, std)
     # angles = evaluator.run_for_fixed_length(net, render=True)

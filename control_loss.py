@@ -22,12 +22,19 @@ muc = 0.0005
 mup = 0.000002
 
 
-def state_to_theta(x_dot, theta, theta_dot, action):
-    # compute next state
+def state_to_theta(state, action):
+    """
+    Compute new state from state and action
+    """
+    # get state
+    (x, x_dot, theta, theta_dot) = state
+
+    # helper variables
     force = max_force_mag * action
     costheta = torch.cos(theta)
     sintheta = torch.sin(theta)
     sig = muc * torch.sign(x_dot)
+
     # add and multiply
     temp = torch.add(
         torch.squeeze(force),
@@ -46,8 +53,9 @@ def state_to_theta(x_dot, theta, theta_dot, action):
     # add velocity of cart
     xacc = (temp - (polemass_length * thetaacc * costheta) - sig) / total_mass
     x_dot = x_dot + tau * xacc
+    x = x + tau * x_dot
 
-    return x_dot, theta, theta_dot
+    return (x, x_dot, theta, theta_dot)
 
 
 def control_loss_function(action, state, lambda_factor=.4, printout=0):
@@ -55,9 +63,11 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # bring action into -1 1 range
     action = torch.sigmoid(action) - .5
     # get state
+    x_orig = state[:, 0]
     x_dot_orig = state[:, 1]
     theta_orig = state[:, 2]
     theta_dot_orig = state[:, 3]
+
     nr_actions = action.size()[1]
     # normalize
     # theta_normed = theta.clone()
@@ -65,56 +75,45 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     #     torch.abs(theta),
     #     torch.ones(theta.size()) * .1
     # )
+    state = (x_orig, x_dot_orig, theta_orig, theta_dot_orig)
 
     # check the maximum possible force we can apply
     direction = torch.sign(theta_orig)
     action_opp_direction = direction * torch.ones(x_dot_orig.size()) * .5 * .5
-    x_dot_max_orig, theta_max_orig, theta_dot_max_orig = (
-        x_dot_orig, theta_orig, theta_dot_orig
-    )
+    state_max = state
 
-    # set current state
-    x_dot, theta, theta_dot = (x_dot_orig, theta_orig, theta_dot_orig)
-    # print("theta_orig", theta_orig)
-    # Run in loop
     for i in range(nr_actions):
-        x_dot, theta, theta_dot = state_to_theta(
-            x_dot, theta, theta_dot, action[:, i]
-        )
-        # print("action", action[:, i])
-        # print("theta in loop", theta)
+        state = state_to_theta(state, action[:, i])
 
         # # execute with the maximum force
-        # print(action_opp_direction[0].item())
-        # print("current best theta", theta_max_orig[0].item())
-        x_dot_max_orig, theta_max_orig, theta_dot_max_orig = state_to_theta(
-            x_dot_max_orig, theta_max_orig, theta_dot_max_orig,
-            action_opp_direction
-        )
+        state_max = state_to_theta(state_max, action_opp_direction)
+
+    # extract necessary variables from state
+    (x, x_dot, theta, theta_dot) = state
+    theta_max = state_max[2]
 
     # maximum possible musn't cross the zero point
     theta_max_possible = torch.maximum(
-        theta_max_orig * direction, torch.zeros(theta_orig.size())
+        theta_max * direction, torch.zeros(theta_orig.size())
     ) * direction
 
     # Compute loss: normalized version:
-    # # Working version:
-    # print("theta", theta)
-    # print("theta_max_possible", theta_max_possible)
     angle_loss = (theta - theta_max_possible)**2
 
     # angle_acc = torch.abs(theta_dot) - torch.abs(theta_dot_orig)
     cart_acc = torch.abs(x_dot) - torch.abs(x_dot_orig)
-    # # loss = angle_loss + velocity_loss
 
-    # # New version for swing up --> minimize angle acceleration in upper part
-    # # and maximize it in lower part
+    # Cosine loss: minimize angle acceleration in upper part
+    # and maximize it in lower part
     factor = 2 * torch.cos(theta) + 1  # shift up: 2 * torch.cos(theta) + 1
-    # # norm on action to prohibit large push the whole time plus
-    # # angle loss
+
     # loss = .2 * (1 + factor) * angle_loss + factor * (angle_acc + cart_acc)
-    loss = angle_loss  # + factor * cart_acc
-    # print("orig:")
+    # the higher the angle in the beginning, the more we allow to move the cart
+    regularize_x = torch.maximum(
+        torch.zeros(theta_orig.size()), (3 - np.abs(theta_orig))
+    )
+    loss = angle_loss + .1 * lambda_factor * regularize_x * x**2
+
     if printout:
         print("actions:", action[0])
         print(
