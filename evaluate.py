@@ -16,9 +16,7 @@ class Evaluator:
         self.mean = mean
         self.std = std
 
-    def make_swingup(
-        self, net, optimizer=None, nr_iters=3, max_iters=500, render=False
-    ):
+    def make_swingup(self, net, nr_iters=3, max_iters=500, render=False):
         """
         Check if the pendulum can make a swing up
         """
@@ -45,26 +43,19 @@ class Evaluator:
                     )
                     # Predict optimal action:
                     predicted_action = net(torch_state)
-                    action = torch.sigmoid(predicted_action)
-                    action = action.item() - .5
-
-                    if optimizer is not None:
-                        loss = control_loss_function(
-                            predicted_action, torch_state
-                        )
-                        loss.backward()
-                        optimizer.step()
-
-                    # run action in environment
-                    new_state, _, _, _ = eval_env._step(action)
-                    # print(new_state)
-                    if render:
-                        eval_env._render()
-                        time.sleep(.1)
-                    # check only whether it was able to swing up the pendulum
-                    if np.abs(new_state[2]) < np.pi / 15 and not render:
-                        made_it = 1
-                        break
+                    action_seq = torch.sigmoid(predicted_action) - .5
+                    # print([round(act, 2) for act in action_seq[0].numpy()])
+                    for action in action_seq[0].numpy():
+                        # run action in environment
+                        new_state, _, _, _ = eval_env._step(action)
+                        # print(new_state)
+                        if render:
+                            eval_env._render()
+                            time.sleep(.1)
+                        # check only whether it was able to swing up the pendulum
+                        if np.abs(new_state[2]) < np.pi / 15 and not render:
+                            made_it = 1
+                            break
                 success[it] = made_it
                 eval_env._reset()
         return success
@@ -98,7 +89,7 @@ class Evaluator:
                         new_state, mean=self.mean, std=self.std
                     )
                     # Predict optimal action:
-                    action = torch.sigmoid(net(torch_state))
+                    action = torch.sigmoid(net(torch_state))[0, 0]
                     action = action.item() - .5
 
                     # run action in environment
@@ -142,7 +133,7 @@ class Evaluator:
                         new_state, mean=self.mean, std=self.std
                     )
                     # Predict optimal action:
-                    action = torch.sigmoid(net(torch_state))
+                    action = torch.sigmoid(net(torch_state))[0, 0]
                     action = action.item() - .5
 
                     # run action in environment
@@ -178,11 +169,11 @@ if __name__ == "__main__":
     net = torch.load(os.path.join("models", MODEL_NAME, "model_pendulum"))
     net.eval()
 
-    # data_arr = np.load(os.path.join("models", MODEL_NAME, "state_data.npy"))
-    # mean = np.mean(data_arr, axis=0)
-    # std = np.std(data_arr, axis=0)
-    mean = np.zeros(4)
-    std = np.ones(4)
+    data_arr = np.load(os.path.join("models", MODEL_NAME, "state_data.npy"))
+    mean = np.mean(data_arr, axis=0)
+    std = np.std(data_arr, axis=0)
+    # mean = np.zeros(4)
+    # std = np.ones(4)
 
     evaluator = Evaluator(mean, std)
     # angles = evaluator.run_for_fixed_length(net, render=True)

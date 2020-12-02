@@ -28,7 +28,7 @@ eval_env = CartPoleEnv()
     pole_angle_std
 ) = (list(), list(), list(), list(), list())
 evaluator = Evaluator(state_data.mean, state_data.std)
-NR_EPOCHS = 20
+NR_EPOCHS = 50
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 
@@ -37,23 +37,20 @@ for epoch in range(NR_EPOCHS):
     angles = evaluator.run_for_fixed_length(net, nr_iters=NR_EVAL_ITERS)
     success, _ = evaluator.evaluate_in_environment(net, nr_iters=NR_EVAL_ITERS)
     # if np.mean(success) > 200:
-    # swing_up = evaluator.make_swingup(net, optimizer=optimizer)
+    swing_up = evaluator.make_swingup(net)
     # save and output
     pole_angle_mean.append(round(np.mean(angles), 3))
     pole_angle_std.append(round(np.std(angles), 3))
     episode_length_mean.append(round(np.mean(success), 3))
     episode_length_std.append(round(np.std(success), 3))
+    print()
+    print()
     print(
         "Average episode length: ",
-        episode_length_mean[-1],
-        "std:",
-        episode_length_std[-1],
-        "angles:",
-        round(pole_angle_mean[-1], 3),
-        "angle std:",
-        round(np.std(angles), 3),
-        "swing up:",
-        # np.mean(swing_up)
+        episode_length_mean[-1], "std:", episode_length_std[-1], "angles:",
+        round(pole_angle_mean[-1], 3), "angle std:", round(np.std(angles),
+                                                           3), "swing up:",
+        np.mean(swing_up)
     )
 
     try:
@@ -77,6 +74,8 @@ for epoch in range(NR_EPOCHS):
             # print statistics
             running_loss += loss.item()
             if i % 300 == 299:  # print every 2000 mini-batches
+                # loss = control_loss_function(outputs, labels, printout=True)
+                # print()
                 print(
                     '[%d, %5d] loss: %.3f' %
                     (epoch + 1, i + 1, running_loss / 2000)

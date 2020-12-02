@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 
-OUT_SIZE = 1  # one action variable between -1 and 1
+OUT_SIZE = 5  # one action variable between -1 and 1
 DIM = 4  # input dimension
 
 
@@ -22,4 +22,3 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
-        # TODO: okay to do this in torch? or need to return logits

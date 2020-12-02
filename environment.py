@@ -7,6 +7,7 @@ import logging
 import math
 import numpy as np
 logger = logging.getLogger(__name__)
+import time
 
 
 class CartPoleEnv():
@@ -176,10 +177,15 @@ class CartPoleEnv():
 
 
 if __name__ == "__main__":
-    data = np.load("models/new_dataset_good_training/state_data.npy")
+    data = np.load("models/fail/state_data.npy")
     env = CartPoleEnv()
-    for i in range(9000, len(data)):
-        env.state = data[i]
+    pick_random_starts = np.random.permutation(len(data))[:100]
+    for i in pick_random_starts:
+        for j in range(10):
+            env.state = data[i + j]
+            env._render()
+            time.sleep(.1)
+        time.sleep(1)
         # sign = np.sign(np.random.rand() - 0.5)
         # if i % 2 == 0:
         #     sign = -1
@@ -190,4 +196,3 @@ if __name__ == "__main__":
         # action = 2 * (np.random.rand() - 0.5)
         # out = env._step(action)
         # print("action", action, "out:", out)
-        env._render()

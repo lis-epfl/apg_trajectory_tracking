@@ -7,7 +7,7 @@ def construct_states(
 ):
     # define parts of the dataset:
     randomized_runs = .25
-    upper_balancing = .5
+    upper_balancing = .75
     one_direction = 1
 
     # Load precomputed dataset
