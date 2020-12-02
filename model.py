@@ -3,7 +3,7 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 
-OUT_SIZE = 5  # one action variable between -1 and 1
+OUT_SIZE = 10  # one action variable between -1 and 1
 DIM = 4  # input dimension
 
 

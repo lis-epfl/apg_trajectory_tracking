@@ -101,18 +101,19 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # # Working version:
     # print("theta", theta)
     # print("theta_max_possible", theta_max_possible)
-    loss = (theta - theta_max_possible)**2
+    angle_loss = (theta - theta_max_possible)**2
 
     # angle_acc = torch.abs(theta_dot) - torch.abs(theta_dot_orig)
-    # cart_acc = torch.abs(x_dot) - torch.abs(x_dot_orig)
+    cart_acc = torch.abs(x_dot) - torch.abs(x_dot_orig)
     # # loss = angle_loss + velocity_loss
 
     # # New version for swing up --> minimize angle acceleration in upper part
     # # and maximize it in lower part
-    # factor = torch.cos(theta)  # shift up: 2 * torch.cos(theta) + 1
+    factor = 2 * torch.cos(theta) + 1  # shift up: 2 * torch.cos(theta) + 1
     # # norm on action to prohibit large push the whole time plus
     # # angle loss
     # loss = .2 * (1 + factor) * angle_loss + factor * (angle_acc + cart_acc)
+    loss = angle_loss  # + factor * cart_acc
     # print("orig:")
     if printout:
         print("actions:", action[0])
@@ -127,7 +128,9 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         # print()
         # print("cart acc loss", cart_acc)
         # print("losses:")
-        print("angle loss", loss[0].item())
+        print("angle loss", angle_loss[0].item())
+        print("factor:", factor)
+        print("angle_acc", angle_acc)
         # print("angle acc loss", angle_acc)
     # print(fail)
     return torch.sum(loss)  # + angle_acc)

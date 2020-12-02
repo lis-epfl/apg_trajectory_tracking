@@ -16,11 +16,10 @@ class Evaluator:
         self.mean = mean
         self.std = std
 
-    def make_swingup(self, net, nr_iters=3, max_iters=500, render=False):
+    def make_swingup(self, net, nr_iters=3, max_iters=300, render=False):
         """
         Check if the pendulum can make a swing up
         """
-        # TODO: might need to increase max iters
         eval_env = CartPoleEnv()
         with torch.no_grad():
             success = np.zeros(nr_iters)
