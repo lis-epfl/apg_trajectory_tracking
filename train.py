@@ -27,7 +27,8 @@ eval_env = CartPoleEnv()
     episode_length_mean, episode_length_std, loss_list, pole_angle_mean,
     pole_angle_std
 ) = (list(), list(), list(), list(), list())
-evaluator = Evaluator(state_data.mean, state_data.std)
+
+evaluator = Evaluator(state_data.std)
 NR_EPOCHS = 20
 # TRAIN:
 for epoch in range(NR_EPOCHS):
@@ -64,7 +65,7 @@ for epoch in range(NR_EPOCHS):
 
             # forward + backward + optimize
             outputs = net(inputs)
-            lam = .5  # epoch / NR_EPOCHS
+            lam = 0  # episode_length_mean[-1] / 250  # epoch / NR_EPOCHS
             loss = control_loss_function(outputs, labels, lambda_factor=lam)
             loss.backward()
             optimizer.step()

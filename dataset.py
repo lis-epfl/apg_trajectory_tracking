@@ -31,7 +31,7 @@ def construct_states(
     # after randomized runs: run balancing
     while len(data) < upper_balancing * num_data:
         fine = False
-        env.state[2] = (np.random.rand(1) - .5) * .1
+        env.state[2] = (np.random.rand(1) - .5) * .2
         while not fine:
             action = np.random.rand() - 0.5
             state, _, fine, _ = env._step(action)
@@ -54,13 +54,13 @@ def construct_states(
     return data[:num_data]
 
 
-def raw_states_to_torch(states, normalize=False, mean=None, std=None):
+def raw_states_to_torch(states, normalize=False, std=None):
     """
     Helper function to convert numpy state array to normalized tensors
-    Argument states: 
+    Argument states:
             One state (list of length 4) or array with x states (x times 4)
     """
-    return_mean = mean is None and std is None
+    return_std = std is None
 
     # either input one state at a time (evaluation) or an array
     if len(states.shape) == 1:
@@ -79,8 +79,8 @@ def raw_states_to_torch(states, normalize=False, mean=None, std=None):
     states_to_torch = torch.from_numpy(states).float()
 
     # if we computed mean and std here, return it
-    if return_mean:
-        return states_to_torch, mean, std
+    if return_std:
+        return states_to_torch, std
     return states_to_torch
 
 
@@ -91,7 +91,7 @@ class Dataset(torch.utils.data.Dataset):
         state_arr_numpy = construct_states(
             num_states, path_to_states=path_to_states
         )
-        state_arr, self.mean, self.std = raw_states_to_torch(state_arr_numpy)
+        state_arr, self.std = raw_states_to_torch(state_arr_numpy)
         self.labels = state_arr
         self.states = state_arr
 

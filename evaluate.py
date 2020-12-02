@@ -12,8 +12,7 @@ from control_loss import control_loss_function
 
 class Evaluator:
 
-    def __init__(self, mean, std):
-        self.mean = mean
+    def __init__(self, std):
         self.std = std
 
     def make_swingup(self, net, nr_iters=3, max_iters=300, render=False):
@@ -37,9 +36,7 @@ class Evaluator:
                 for _ in range(max_iters):
                     # Transform state in the same way as the training data
                     # and normalize
-                    torch_state = raw_states_to_torch(
-                        new_state, mean=self.mean, std=self.std
-                    )
+                    torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     predicted_action = net(torch_state)
                     action_seq = torch.sigmoid(predicted_action) - .5
@@ -75,8 +72,8 @@ class Evaluator:
                 # To make the randomization stronger, so the performance is better
                 # visible:
                 if render:
-                    eval_env.state = self.mean + (
-                        np.random.rand(len(self.mean)) - .5
+                    eval_env.state = (
+                        np.random.rand(len(self.std)) - .5
                     ) * 2 * self.std
 
                 angles = list()
@@ -84,9 +81,7 @@ class Evaluator:
                 for _ in range(episode_length):
                     # Transform state in the same way as the training data
                     # and normalize
-                    torch_state = raw_states_to_torch(
-                        new_state, mean=self.mean, std=self.std
-                    )
+                    torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     action = torch.sigmoid(net(torch_state))[0, 0]
                     action = action.item() - .5
@@ -128,9 +123,7 @@ class Evaluator:
                 while not is_fine:
                     # Transform state in the same way as the training data
                     # and normalize
-                    torch_state = raw_states_to_torch(
-                        new_state, mean=self.mean, std=self.std
-                    )
+                    torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     action = torch.sigmoid(net(torch_state))[0, 0]
                     action = action.item() - .5
@@ -169,12 +162,9 @@ if __name__ == "__main__":
     net.eval()
 
     data_arr = np.load(os.path.join("models", MODEL_NAME, "state_data.npy"))
-    # mean = np.mean(data_arr, axis=0)
-    # std = np.std(data_arr, axis=0)
-    mean = np.zeros(4)
-    std = np.ones(4)
+    std = np.std(data_arr, axis=0)
 
-    evaluator = Evaluator(mean, std)
+    evaluator = Evaluator(std)
     # angles = evaluator.run_for_fixed_length(net, render=True)
     success = evaluator.make_swingup(net, render=True)
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
