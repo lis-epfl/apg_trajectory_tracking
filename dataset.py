@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import os
 
 
 def construct_states(
@@ -47,7 +48,13 @@ def construct_states(
         env._reset()
 
     data = np.array(data)
-    print("generated data:", data.shape)
+    print("generated random data:", data.shape)
+    eval_data = [data, data * (-1)]
+    for name in os.listdir("data"):
+        if name[0] != ".":
+            eval_data.append(np.load(os.path.join("data", name)))
+    data = np.concatenate(eval_data, axis=0)
+    print("shape after adding evaluation data", data.shape)
     # save data optionally
     if save_path is not None:
         np.save(save_path, data)

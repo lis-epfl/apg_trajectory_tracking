@@ -77,10 +77,10 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # )
     state = (x_orig, x_dot_orig, theta_orig, theta_dot_orig)
 
-    # # check the maximum possible force we can apply
-    # direction = torch.sign(theta_orig)
-    # action_opp_direction = direction * torch.ones(x_dot_orig.size()) * .5 * .5
-    # state_max = state
+    # check the maximum possible force we can apply
+    direction = torch.sign(theta_orig)
+    action_opp_direction = direction * torch.ones(x_dot_orig.size()) * .5 * .5
+    state_max = state
 
     # check which direction for position --> if we are in positive part, we
     # need to move left (negative action)
@@ -94,7 +94,7 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         state = state_to_theta(state, action[:, i])
 
         # execute with the maximum force
-        # state_max = state_to_theta(state_max, action_opp_direction)
+        state_max = state_to_theta(state_max, action_opp_direction)
 
         # execute to get the cart in the middle
         # state_pos = state_to_theta(state_pos, action_opp_position)
@@ -102,10 +102,10 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # extract necessary variables from state
     (x, x_dot, theta, theta_dot) = state
 
-    # # maximum possible musn't cross the zero point
-    # theta_max_possible = torch.maximum(
-    #     state_max[2] * direction, torch.zeros(theta_orig.size())
-    # ) * direction
+    # maximum possible musn't cross the zero point
+    theta_max_possible = torch.maximum(
+        state_max[2] * direction, torch.zeros(theta_orig.size())
+    ) * direction
 
     # # same for position
     # pos_max_possible = torch.maximum(
@@ -113,9 +113,10 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # ) * direction
 
     # Compute loss: normalized version:
-    angle_loss = (theta / 3.2)**2
-    position_loss = (x / 2.4)**2
-    acc_loss = (x_dot / 5)**2
+    angle_loss = (theta - theta_max_possible)**2
+    factor = direction * theta_orig / 3.2  # between 0 and 1
+    position_loss = (x / 2.4)**2 * 10
+    vel_loss = (x_dot / 10)**2 * .3
 
     # print("x_dot", x_dot_orig[0].item())
     # print("x orig", x_orig[0].item())
@@ -136,7 +137,8 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # regularize_x = torch.maximum(
     #     torch.zeros(theta_orig.size()), (.2 - torch.abs(theta_orig))
     # )
-    loss = angle_loss + position_loss + acc_loss  # 5 * regularize_x * position_loss
+    loss = 13 * angle_loss + factor * (position_loss + vel_loss)
+    # 5 * regularize_x * position_loss
 
     if printout:
         print("actions:", action[0])
@@ -154,8 +156,10 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         # print()
         # print("cart acc loss", cart_acc)
         # print("losses:")
-        print("theta", theta[0].item())
         print("position_loss", position_loss[0].item())
+        print("acc_loss", vel_loss[0].item())
+        print("factor", factor[0].item())
+        print("together", (factor * (position_loss + vel_loss))[0].item())
         # print("position_loss actual", (regularize_x * position_loss)[0].item())
         # print("x", x[0].item())
         # print("x actual", (.1 * lambda_factor * regularize_x * x**2)[0].item())
