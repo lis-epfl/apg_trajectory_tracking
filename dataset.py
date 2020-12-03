@@ -21,7 +21,7 @@ def construct_states(
     env = CartPoleEnv()
     data = []
     # randimized runs
-    while len(data) < num_data * randomized_runs:
+    while len(data) < num_data:
         # run 100 steps then reset (randomized runs)
         for _ in range(10):
             action = np.random.rand() - 0.5
@@ -29,27 +29,34 @@ def construct_states(
             data.append(state)
         env._reset()
 
-    # after randomized runs: run balancing
-    while len(data) < upper_balancing * num_data:
-        fine = False
-        env.state[2] = (np.random.rand(1) - .5) * .2
-        while not fine:
-            action = np.random.rand() - 0.5
-            state, _, fine, _ = env._step(action)
-            data.append(state)
-        env._reset()
+    # # after randomized runs: run balancing
+    # while len(data) < num_data:
+    #     fine = False
+    #     # only theta between -0.5 and 0.5
+    #     env.state[2] = (np.random.rand(1) - .5) * .2
+    #     while not fine:
+    #         action = np.random.rand() - 0.5
+    #         state, _, fine, _ = env._step(action)
+    #         data.append(state)
+    #     env._reset()
 
-    # add one directional steps
-    while len(data) < num_data * one_direction:
-        action = (-.5) * ((np.random.rand() > .5) * 2 - 1)
-        for _ in range(30):
-            state, _, fine, _ = env._step(action)
-            data.append(state)
-        env._reset()
-
+    # # add one directional steps
+    # while len(data) < num_data * one_direction:
+    #     action = (-.5) * ((np.random.rand() > .5) * 2 - 1)
+    #     for _ in range(30):
+    #         state, _, fine, _ = env._step(action)
+    #         data.append(state)
+    #     env._reset()
+    #
     data = np.array(data)
+
+    # # sample only states, no sequences
+    # state_limits = np.array([2.4, 5, np.pi, 5])
+    # uniform_samples = np.random.rand(num_data, 4) * 2 - 1
+    # data = uniform_samples * state_limits
+
     print("generated random data:", data.shape)
-    eval_data = [data, data * (-1)]
+    eval_data = [data]  # augmentation: , data * (-1)
     for name in os.listdir("data"):
         if name[0] != ".":
             eval_data.append(np.load(os.path.join("data", name)))

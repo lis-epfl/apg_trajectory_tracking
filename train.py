@@ -15,7 +15,7 @@ NR_EVAL_ITERS = 20
 
 net = Net()
 
-state_data = Dataset(num_states=10000)
+state_data = Dataset(num_states=15000)
 trainloader = torch.utils.data.DataLoader(
     state_data, batch_size=8, shuffle=True, num_workers=0
 )
@@ -29,7 +29,7 @@ eval_env = CartPoleEnv()
 ) = (list(), list(), list(), list(), list())
 
 evaluator = Evaluator(state_data.std)
-NR_EPOCHS = 40
+NR_EPOCHS = 20
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 
@@ -53,6 +53,9 @@ for epoch in range(NR_EPOCHS):
     )
     # "angles:",
     #round(pole_angle_mean[-1], 3), "angle std:", round(np.std(angles),3),
+    # Early stopping:
+    if np.sum(swing_up_mean) < 1 and np.sum(swing_up_std) < 2:
+        break
 
     try:
         running_loss = 0.0
@@ -69,7 +72,7 @@ for epoch in range(NR_EPOCHS):
 
             # forward + backward + optimize
             outputs = net(inputs)
-            lam = 0  # episode_length_mean[-1] / 250  # epoch / NR_EPOCHS
+            lam = epoch / NR_EPOCHS
             loss = control_loss_function(outputs, labels, lambda_factor=lam)
             loss.backward()
             optimizer.step()

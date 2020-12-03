@@ -23,7 +23,7 @@ class CartPoleEnv():
         self.total_mass = (self.masspole + self.masscart)
         self.length = 0.5  # actually half the pole's length
         self.polemass_length = (self.masspole * self.length)
-        self.force_mag = 30.0
+        self.force_mag = 30.0  # prev 30
         self.tau = 0.02  # seconds between state updates
         self.muc = 0.0005
         self.mup = 0.000002
@@ -34,14 +34,7 @@ class CartPoleEnv():
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds
-        self.state_limits = np.array(
-            [
-                2.4,  # cart always starts in midle
-                1,  # cart always starts without speed 
-                np.pi * 2,
-                10
-            ]
-        )
+        self.state_limits = np.array([2.4, 5, np.pi, 5])
 
         self.viewer = None
         self.state = self._reset()
@@ -111,8 +104,8 @@ class CartPoleEnv():
         return np.array(self.state), reward, done, {}
 
     def _reset(self):
-
-        self.state = (np.random.rand(4) - .5) * self.state_limits
+        # sample uniformly in the states
+        self.state = (np.random.rand(4) * 2 - 1) * self.state_limits
         # this achieves the same as below because then min is -0.05
         # self.np_random.uniform(low=-0.05, high=0.05, size=(4, ))
         self.steps_beyond_done = None
@@ -181,12 +174,13 @@ class CartPoleEnv():
 
 
 if __name__ == "__main__":
-    data = np.load("models/state_data.npy")
+    data = np.load("models/minimize_x/state_data.npy")
     env = CartPoleEnv()
     pick_random_starts = np.random.permutation(len(data))[:100]
     for i in pick_random_starts:
+        env.state = data[i]
         for j in range(10):
-            env.state = data[i + j]
+            env._step(np.random.rand(1) - .5)
             env._render()
             time.sleep(.1)
         time.sleep(1)

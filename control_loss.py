@@ -141,30 +141,22 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # 5 * regularize_x * position_loss
 
     if printout:
-        print("actions:", action[0])
-        print(
-            "theta before",
-            theta_orig[0].item(),
-            "theta after",
-            theta[0].item(
-            ),  # "theta max possible", theta_max_possible[0].item()
-        )
-        # print("action", action)
-        # print("factor", factor)
-        # print("prev theta dot:", theta_dot_orig)
-        # print("now theta dot:", theta_dot)
-        # print()
-        # print("cart acc loss", cart_acc)
+        # print(
+        #     "x before",
+        #     x_orig[0].item(),
+        #     "x after",
+        #     x[0].item(),  # "theta max possible", theta_max_possible[0].item()
+        # )
         # print("losses:")
+        print("lambda factor", lambda_factor)
         print("position_loss", position_loss[0].item())
-        print("acc_loss", vel_loss[0].item())
+        print("vel_loss", vel_loss[0].item())
         print("factor", factor[0].item())
-        print("together", (factor * (position_loss + vel_loss))[0].item())
-        # print("position_loss actual", (regularize_x * position_loss)[0].item())
-        # print("x", x[0].item())
-        # print("x actual", (.1 * lambda_factor * regularize_x * x**2)[0].item())
-        print("angle loss", angle_loss[0].item())
+        print(
+            "together",
+            (.1 * lambda_factor * (position_loss + vel_loss))[0].item()
+        )
+        print("angle loss", 13 * angle_loss[0].item())
         print()
-        # print("angle acc loss", angle_acc)
     # print(fail)
     return torch.sum(loss)  # + angle_acc)

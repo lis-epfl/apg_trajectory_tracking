@@ -68,7 +68,7 @@ class Evaluator:
                         #     break
                 # success[it] = made_it
                 eval_env._reset()
-        success = np.array(success)
+        success = np.absolute(np.array(success))
         mean_rounded = [round(m, 2) for m in np.mean(success, axis=0)]
         std_rounded = [round(m, 2) for m in np.std(success, axis=0)]
         return mean_rounded, std_rounded
@@ -123,17 +123,17 @@ class Evaluator:
             # observe also the oscillation
             avg_angle = np.zeros(nr_iters)
             for it in range(nr_iters):
-                eval_env.state = (np.random.rand(4) - .5) * .1
+                eval_env.state[2] = (np.random.rand(1) - .5) * .2
                 is_fine = False
                 episode_length_counter = 0
                 new_state = eval_env.state
 
                 # To make the randomization stronger, so the performance is better
                 # visible:
-                if render:
-                    eval_env.state = (
-                        np.random.rand(len(self.std)) - .5
-                    ) * .4 * self.std
+                # if render:
+                #     eval_env.state = (
+                #         np.random.rand(len(self.std)) - .5
+                #     ) * .4 * self.std
 
                 angles = list()
                 # Start balancing
@@ -143,6 +143,8 @@ class Evaluator:
                     torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     action_seq = torch.sigmoid(net(torch_state)) - .5
+                    if render:
+                        print("state before", new_state)
                     for action in action_seq[0].numpy():
                         # run action in environment
                         new_state, _, is_fine, _ = eval_env._step(action)
@@ -152,6 +154,8 @@ class Evaluator:
                             time.sleep(.1)
                         # track number of timesteps until failure
                         episode_length_counter += 1
+                    if render:
+                        print("state after", new_state)
                     if episode_length_counter > 250:
                         break
                 avg_angle[it] = np.mean(angles)
@@ -187,13 +191,13 @@ if __name__ == "__main__":
 
     evaluator = Evaluator(std)
     # angles = evaluator.run_for_fixed_length(net, render=True)
-    # success, angles = evaluator.evaluate_in_environment(net, render=True)
-    try:
-        _ = evaluator.make_swingup(net, max_iters=100, render=True)
-    except KeyboardInterrupt:
-        data_collection = np.array(data_collection)
-        do_it = input(
-            f"Name to save collection of data with size {data_collection.shape}?"
-        )
-        if len(do_it) > 2:
-            np.save(os.path.join("data", do_it + ".npy"), data_collection)
+    success, angles = evaluator.evaluate_in_environment(net, render=True)
+    # try:
+    #     _ = evaluator.make_swingup(net, max_iters=100, render=True)
+    # except KeyboardInterrupt:
+    #     data_collection = np.array(data_collection)
+    #     do_it = input(
+    #         f"Name to save collection of data with size {data_collection.shape}?"
+    #     )
+    #     if len(do_it) > 2:
+    #         np.save(os.path.join("data", do_it + ".npy"), data_collection)
