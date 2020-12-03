@@ -20,7 +20,7 @@ trainloader = torch.utils.data.DataLoader(
     state_data, batch_size=8, shuffle=True, num_workers=0
 )
 
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.005, momentum=0.9)
 
 eval_env = CartPoleEnv()
 (
@@ -29,7 +29,7 @@ eval_env = CartPoleEnv()
 ) = (list(), list(), list(), list(), list())
 
 evaluator = Evaluator(state_data.std)
-NR_EPOCHS = 20
+NR_EPOCHS = 40
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 

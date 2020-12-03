@@ -6,8 +6,8 @@ def construct_states(
     num_data, path_to_states=None, save_path="models/state_data.npy"
 ):
     # define parts of the dataset:
-    randomized_runs = .5
-    upper_balancing = .75
+    randomized_runs = .8
+    upper_balancing = 1
     one_direction = 1
 
     # Load precomputed dataset

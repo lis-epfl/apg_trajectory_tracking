@@ -28,6 +28,7 @@ class Evaluator:
                 random_hanging_state[2] = (-1) * (
                     (np.random.rand() > .5) * 2 - 1
                 ) * (1 - (np.random.rand() * .2)) * np.pi
+                random_hanging_state[0] = 0
                 eval_env.state = random_hanging_state
                 new_state = eval_env.state
 
@@ -41,6 +42,9 @@ class Evaluator:
                     predicted_action = net(torch_state)
                     action_seq = torch.sigmoid(predicted_action) - .5
                     # print([round(act, 2) for act in action_seq[0].numpy()])
+                    # print("state", new_state)
+                    # print("new action seq", action_seq[0].numpy())
+                    # print()
                     for action in action_seq[0].numpy():
                         # run action in environment
                         new_state, _, _, _ = eval_env._step(action)
@@ -114,9 +118,9 @@ class Evaluator:
                 # To make the randomization stronger, so the performance is better
                 # visible:
                 if render:
-                    eval_env.state = self.mean + (
-                        np.random.rand(len(self.mean)) - .5
-                    ) * .6 * self.std
+                    eval_env.state = (
+                        np.random.rand(len(self.std)) - .5
+                    ) * .4 * self.std
 
                 angles = list()
                 # Start balancing
@@ -125,17 +129,16 @@ class Evaluator:
                     # and normalize
                     torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
-                    action = torch.sigmoid(net(torch_state))[0, 0]
-                    action = action.item() - .5
-
-                    # run action in environment
-                    new_state, _, is_fine, _ = eval_env._step(action)
-                    angles.append(np.absolute(new_state[2]))
-                    if render:
-                        eval_env._render()
-                        time.sleep(.1)
-                    # track number of timesteps until failure
-                    episode_length_counter += 1
+                    action_seq = torch.sigmoid(net(torch_state)) - .5
+                    for action in action_seq[0].numpy():
+                        # run action in environment
+                        new_state, _, is_fine, _ = eval_env._step(action)
+                        angles.append(np.absolute(new_state[2]))
+                        if render:
+                            eval_env._render()
+                            time.sleep(.1)
+                        # track number of timesteps until failure
+                        episode_length_counter += 1
                     if episode_length_counter > 250:
                         break
                 avg_angle[it] = np.mean(angles)
