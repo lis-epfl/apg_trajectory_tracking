@@ -28,6 +28,7 @@ class Evaluator:
         # average over 50 runs # 10 is length of action sequence
         success = []  # np.zeros((success_over * 10 * nr_iters, 4))
         eval_env = CartPoleEnv()
+        collect_loss = []
         with torch.no_grad():
             for it in range(nr_iters):
                 ## set angle to somewhere at the bottom # TODO
@@ -50,11 +51,10 @@ class Evaluator:
                     torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     predicted_action = net(torch_state)
-                    # print(
-                    #     control_loss_function(
-                    #         predicted_action, torch_state, printout=1
-                    #     )
-                    # )
+                    collect_loss.append(
+                        control_loss_function(predicted_action,
+                                              torch_state).item()
+                    )
                     action_seq = torch.sigmoid(predicted_action) - .5
                     # print([round(act, 2) for act in action_seq[0].numpy()])
                     # if render:
@@ -80,7 +80,7 @@ class Evaluator:
         success = np.absolute(np.array(success))
         mean_rounded = [round(m, 2) for m in np.mean(success, axis=0)]
         std_rounded = [round(m, 2) for m in np.std(success, axis=0)]
-        return mean_rounded, std_rounded
+        return mean_rounded, std_rounded, collect_loss
 
     def evaluate_in_environment(self, net, nr_iters=1, render=False):
         """

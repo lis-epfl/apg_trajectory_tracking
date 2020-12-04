@@ -4,7 +4,9 @@ import os
 
 
 def construct_states(
-    num_data, path_to_states=None, save_path="models/state_data.npy"
+    num_data,
+    path_to_states=None,
+    save_path="models/minimize_x/state_data.npy"
 ):
     # define parts of the dataset:
     randomized_runs = .8

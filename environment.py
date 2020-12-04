@@ -34,7 +34,7 @@ class CartPoleEnv():
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds
-        self.state_limits = np.array([2.4, 10, np.pi, 10])
+        self.state_limits = np.array([2.4, 5, np.pi, 5])
 
         self.viewer = None
         self.state = self._reset()
@@ -106,9 +106,10 @@ class CartPoleEnv():
 
     def _reset(self):
         # sample uniformly in the states
-        gauss = np.random.normal(0, 1, 4) / 2.5
-        gauss[2] = np.random.rand(1) * 2 - 1
-        self.state = gauss * self.state_limits
+        # gauss = np.random.normal(0, 1, 4) / 2.5
+        # gauss[0] = (np.random.rand(1) * 2 - 1) * self.x_threshold
+        # gauss[2] = np.random.rand(1) * 2 - 1
+        self.state = (np.random.rand(4) * 2 - 1) * self.state_limits
         # self.state = (np.random.rand(4) * 2 - 1) * self.state_limits
         # this achieves the same as below because then min is -0.05
         # self.np_random.uniform(low=-0.05, high=0.05, size=(4, ))

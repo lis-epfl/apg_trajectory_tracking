@@ -91,15 +91,14 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # # angle_loss = 0
     # # pos_loss = 0
     loss = 0
-    weighting = torch.from_numpy(np.array([1, .5, 5, .5])).float()
+    weighting = torch.from_numpy(np.array([2, .5, 8, .3])).float()
 
     for i in range(nr_actions):
         state = state_to_theta(state, action[:, i])
-        loss += (state[:, 0])**2
-        # loss += .1 * i * torch.mv(state**2, weighting)
+        loss += .1 * torch.mv(torch.abs(state), weighting)
         # print(state**2)
         # execute with the maximum force
-        state_max = state_to_theta(state_max, action_opp_direction)
+        # state_max = state_to_theta(state_max, action_opp_direction)
 
         # loss += (state[2] - state_max[2])**2
         # print(loss)
@@ -110,43 +109,7 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         # loss += .1 * state[1]**2 + .1 * state[3]**2
 
     # add force loss
-    loss += .1 * (x_dot_orig + torch.sum(action, axis=1))**2
-
-    # extract necessary variables from state
-    # (x, x_dot, theta, theta_dot) = state
-
-    # # maximum possible musn't cross the zero point
-    theta_max_possible = torch.maximum(
-        state_max[:, 2] * direction, torch.zeros(theta_orig.size())
-    ) * direction
-    # print()
-    # print(loss)
-    loss += 10 * (state[:, 2] - theta_max_possible)**2
-
-    # print(loss)
-    # # # same for position
-    # pos_max_possible = torch.maximum(
-    #     state_pos[0] * direction, torch.zeros(theta_orig.size())
-    # ) * direction
-
-    # Compute loss: normalized version:
-    # angle_loss = 20 * (theta - theta_max_possible)**2
-    # factor = direction * theta_orig / 3.2  # between 0 and 1
-    # position_loss = (x - pos_max_possible)**2
-    # vel_loss = (x_dot / 10)**2 * .3
-
-    # Cosine loss: when theta is high, then factor is high
-    # factor = (-.5) * torch.cos(theta_orig) + .5 + .15
-    # shift up: 2 * torch.cos(theta) + 1
-
-    # loss = .2 * (1 + factor) * angle_loss + factor * (angle_acc + cart_acc)
-    # the higher the angle in the beginning, the more we allow to move the cart
-    # regularize_x = torch.maximum(
-    #     torch.zeros(theta_orig.size()), (.2 - torch.abs(theta_orig))
-    # )
-    # loss = angle_loss + .1 * pos_loss
-    # loss = angle_loss + (1 - factor) * (position_loss + vel_loss)
-    # 5 * regularize_x * position_loss
+    loss += .2 * (x_dot_orig + torch.sum(action, axis=1))**2
 
     if printout:
         # print(

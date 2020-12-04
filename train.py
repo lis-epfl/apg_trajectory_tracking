@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -38,7 +38,7 @@ for epoch in range(NR_EPOCHS):
     # angles = evaluator.run_for_fixed_length(net, nr_iters=NR_EVAL_ITERS)
     success, _ = evaluator.evaluate_in_environment(net, nr_iters=NR_EVAL_ITERS)
     # if np.mean(success) > 200:
-    swing_up_mean, swing_up_std = evaluator.make_swingup(net)
+    swing_up_mean, swing_up_std, eval_loss = evaluator.make_swingup(net)
     # save and output
     # pole_angle_mean.append(round(np.mean(angles), 3))
     # pole_angle_std.append(round(np.std(angles), 3))
@@ -49,7 +49,7 @@ for epoch in range(NR_EPOCHS):
     print(
         "Average episode length: ", episode_length_mean[-1], "std:",
         episode_length_std[-1], "swing up:", swing_up_mean, "std:",
-        swing_up_std
+        swing_up_std, "loss:", round(np.mean(eval_loss), 2)
     )
     # "angles:",
     #round(pole_angle_mean[-1], 3), "angle std:", round(np.std(angles),3),
@@ -91,6 +91,7 @@ for epoch in range(NR_EPOCHS):
         break
 
 # PLOTTING
+SAVE_PATH = "models/minimize_x"
 episode_length_mean = np.array(episode_length_mean)
 episode_length_std = np.array(episode_length_std)
 plt.figure(figsize=(20, 10))
@@ -106,13 +107,13 @@ plt.xlabel("Epoch", fontsize=18)
 plt.ylabel("Average episode length", fontsize=18)
 plt.xticks(fontsize=18)
 plt.yticks(fontsize=18)
-plt.savefig("models/performance.png")
+plt.savefig(os.path.join(SAVE_PATH, "performance.png"))
 
 plt.figure(figsize=(15, 8))
 plt.plot(loss_list)
 plt.xlabel("Epoch", fontsize=18)
 plt.ylabel("Loss", fontsize=18)
-plt.savefig("models/loss.png")
+plt.savefig(os.path.join(SAVE_PATH, "loss.png"))
 
 # pole_angle_mean = np.array(pole_angle_mean)
 # pole_angle_std = np.array(pole_angle_std)
@@ -131,5 +132,5 @@ plt.savefig("models/loss.png")
 # plt.savefig("models/pole_angles.png")
 
 # SAVE MODEL
-torch.save(net, "models/model_pendulum")
+torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
 print('Finished Training')
