@@ -95,6 +95,7 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
 
     for i in range(nr_actions):
         state = state_to_theta(state, action[:, i])
+        loss += (state[:, 0])**2
         # loss += .1 * i * torch.mv(state**2, weighting)
         # print(state**2)
         # execute with the maximum force
@@ -121,6 +122,7 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # print()
     # print(loss)
     loss += 10 * (state[:, 2] - theta_max_possible)**2
+
     # print(loss)
     # # # same for position
     # pos_max_possible = torch.maximum(

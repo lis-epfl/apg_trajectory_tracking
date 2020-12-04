@@ -20,7 +20,7 @@ class Evaluator:
         self.std = std
 
     def make_swingup(
-        self, net, nr_iters=3, max_iters=40, success_over=5, render=False
+        self, net, nr_iters=3, max_iters=100, success_over=30, render=False
     ):
         """
         Check if the pendulum can make a swing up
@@ -155,11 +155,12 @@ if __name__ == "__main__":
     # angles = evaluator.run_for_fixed_length(net, render=True)
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
     try:
-        _ = evaluator.make_swingup(net, max_iters=300, render=True)
+        _ = evaluator.make_swingup(net, max_iters=500, render=True)
     except KeyboardInterrupt:
-        data_collection = np.array(data_collection)
-        do_it = input(
-            f"Name to save collection of data with size {data_collection.shape}?"
-        )
-        if len(do_it) > 2:
-            np.save(os.path.join("data", do_it + ".npy"), data_collection)
+        pass
+    #     data_collection = np.array(data_collection)
+    #     do_it = input(
+    #         f"Name to save collection of data with size {data_collection.shape}?"
+    #     )
+    #     if len(do_it) > 2:
+    #         np.save(os.path.join("data", do_it + ".npy"), data_collection)
