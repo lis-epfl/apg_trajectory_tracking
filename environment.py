@@ -23,7 +23,7 @@ class CartPoleEnv():
         self.total_mass = (self.masspole + self.masscart)
         self.length = 0.5  # actually half the pole's length
         self.polemass_length = (self.masspole * self.length)
-        self.force_mag = 30.0  # prev 30
+        self.force_mag = 40.0  # prev 30 TODO
         self.tau = 0.02  # seconds between state updates
         self.muc = 0.0005
         self.mup = 0.000002
@@ -34,7 +34,7 @@ class CartPoleEnv():
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds
-        self.state_limits = np.array([2.4, 5, np.pi, 5])
+        self.state_limits = np.array([2.4, 10, np.pi, 10])
 
         self.viewer = None
         self.state = self._reset()
@@ -74,10 +74,11 @@ class CartPoleEnv():
             theta = theta - 2 * np.pi
         if theta <= -np.pi:
             theta = 2 * np.pi + theta
+        assert np.abs(theta) <= np.pi, "theta greater pi"
 
         # change x such that it is not higher than 3
         x = ((x * 100 + 240) % 480 - 240) / 100
-
+        assert np.abs(x) <= self.x_threshold
         self.state = (x, x_dot, theta, theta_dot)
 
         # Check whether still in feasible area etc
@@ -105,7 +106,10 @@ class CartPoleEnv():
 
     def _reset(self):
         # sample uniformly in the states
-        self.state = (np.random.rand(4) * 2 - 1) * self.state_limits
+        gauss = np.random.normal(0, 1, 4) / 2.5
+        gauss[2] = np.random.rand(1) * 2 - 1
+        self.state = gauss * self.state_limits
+        # self.state = (np.random.rand(4) * 2 - 1) * self.state_limits
         # this achieves the same as below because then min is -0.05
         # self.np_random.uniform(low=-0.05, high=0.05, size=(4, ))
         self.steps_beyond_done = None

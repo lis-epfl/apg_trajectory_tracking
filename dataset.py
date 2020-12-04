@@ -21,24 +21,25 @@ def construct_states(
     env = CartPoleEnv()
     data = []
     # randimized runs
-    while len(data) < num_data:
-        # run 100 steps then reset (randomized runs)
-        for _ in range(10):
-            action = np.random.rand() - 0.5
-            state, _, _, _ = env._step(action)
-            data.append(state)
-        env._reset()
-
-    # # after randomized runs: run balancing
-    # while len(data) < num_data:
-    #     fine = False
-    #     # only theta between -0.5 and 0.5
-    #     env.state[2] = (np.random.rand(1) - .5) * .2
-    #     while not fine:
+    # while len(data) < num_data * randomized_runs:
+    #     # run 100 steps then reset (randomized runs)
+    #     for _ in range(10):
     #         action = np.random.rand() - 0.5
-    #         state, _, fine, _ = env._step(action)
+    #         state, _, _, _ = env._step(action)
     #         data.append(state)
     #     env._reset()
+
+    # # after randomized runs: run balancing
+    while len(data) < num_data:
+        fine = False
+        # only theta between -0.5 and 0.5
+        # env.state = env.state * .5  # TODO
+        env.state[2] = (np.random.rand(1) - .5) * .2
+        while not fine:
+            action = np.random.rand() - 0.5
+            state, _, fine, _ = env._step(action)
+            data.append(state)
+        env._reset()
 
     # # add one directional steps
     # while len(data) < num_data * one_direction:
@@ -56,12 +57,12 @@ def construct_states(
     # data = uniform_samples * state_limits
 
     print("generated random data:", data.shape)
-    eval_data = [data]  # augmentation: , data * (-1)
-    for name in os.listdir("data"):
-        if name[0] != ".":
-            eval_data.append(np.load(os.path.join("data", name)))
-    data = np.concatenate(eval_data, axis=0)
-    print("shape after adding evaluation data", data.shape)
+    # eval_data = [data]  # augmentation: , data * (-1)
+    # for name in os.listdir("data"):
+    #     if name[0] != ".":
+    #         eval_data.append(np.load(os.path.join("data", name)))
+    # data = np.concatenate(eval_data, axis=0)
+    # print("shape after adding evaluation data", data.shape)
     # save data optionally
     if save_path is not None:
         np.save(save_path, data)

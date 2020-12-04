@@ -11,11 +11,11 @@ from evaluate import Evaluator
 from environment import CartPoleEnv
 from model import Net
 
-NR_EVAL_ITERS = 20
+NR_EVAL_ITERS = 10
 
 net = Net()
 
-state_data = Dataset(num_states=15000)
+state_data = Dataset(num_states=10000)
 trainloader = torch.utils.data.DataLoader(
     state_data, batch_size=8, shuffle=True, num_workers=0
 )
@@ -29,7 +29,7 @@ eval_env = CartPoleEnv()
 ) = (list(), list(), list(), list(), list())
 
 evaluator = Evaluator(state_data.std)
-NR_EPOCHS = 20
+NR_EPOCHS = 40
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 
@@ -54,7 +54,7 @@ for epoch in range(NR_EPOCHS):
     # "angles:",
     #round(pole_angle_mean[-1], 3), "angle std:", round(np.std(angles),3),
     # Early stopping:
-    if np.sum(swing_up_mean) < 1 and np.sum(swing_up_std) < 2:
+    if np.sum(swing_up_mean) < 1 and np.sum(swing_up_std) < 1:
         break
 
     try:

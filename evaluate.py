@@ -11,6 +11,8 @@ from control_loss import control_loss_function
 
 data_collection = []
 
+APPLY_UNTIL = 1
+
 
 class Evaluator:
 
@@ -28,13 +30,17 @@ class Evaluator:
         eval_env = CartPoleEnv()
         with torch.no_grad():
             for it in range(nr_iters):
-                # np.random.seed(it + 300)
-                random_hanging_state = (np.random.rand(4) - .5)
-                random_hanging_state[2] = (-1) * (
-                    (np.random.rand() > .5) * 2 - 1
-                ) * (1 - (np.random.rand() * .2)) * np.pi
-                random_hanging_state[0] = 0
-                eval_env.state = random_hanging_state
+                ## set angle to somewhere at the bottom # TODO
+                # random_hanging_state = (np.random.rand(4) - .5)
+                # random_hanging_state[2] = (-1) * (
+                #     (np.random.rand() > .5) * 2 - 1
+                # ) * (1 - (np.random.rand() * .2)) * np.pi
+                # eval_env.state = random_hanging_state
+                eval_env.state = eval_env.state * .25
+                eval_env.state[2] = (np.random.rand(1) - .5) * .2
+
+                # set x position to zero
+                # random_hanging_state[0] = 0 TODO
                 new_state = eval_env.state
 
                 # Start balancing
@@ -44,15 +50,18 @@ class Evaluator:
                     torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     predicted_action = net(torch_state)
-                    # control_loss_function(
-                    #     predicted_action, torch_state, printout=1
+                    # print(
+                    #     control_loss_function(
+                    #         predicted_action, torch_state, printout=1
+                    #     )
                     # )
                     action_seq = torch.sigmoid(predicted_action) - .5
                     # print([round(act, 2) for act in action_seq[0].numpy()])
-                    # print("state", new_state)
+                    # if render:
+                    #     print("state before", new_state)
                     # print("new action seq", action_seq[0].numpy())
                     # print()
-                    for action in action_seq[0].numpy():
+                    for action in action_seq[0].numpy()[:APPLY_UNTIL]:
                         # run action in environment
                         new_state, _, _, _ = eval_env._step(action)
                         data_collection.append(new_state)
@@ -73,46 +82,6 @@ class Evaluator:
         std_rounded = [round(m, 2) for m in np.std(success, axis=0)]
         return mean_rounded, std_rounded
 
-    def run_for_fixed_length(
-        self, net, episode_length=100, nr_iters=1, render=False
-    ):
-        """
-        Measure average angle deviation
-        """
-        # return only the angles
-        eval_env = CartPoleEnv()
-        with torch.no_grad():
-            # observe also the oscillation
-            avg_angle = np.zeros(nr_iters)
-            for it in range(nr_iters):
-                new_state = eval_env.state
-                # To make the randomization stronger, so the performance is better
-                # visible:
-                if render:
-                    eval_env.state = (
-                        np.random.rand(len(self.std)) - .5
-                    ) * 2 * self.std
-
-                angles = list()
-                # Start balancing
-                for _ in range(episode_length):
-                    # Transform state in the same way as the training data
-                    # and normalize
-                    torch_state = raw_states_to_torch(new_state, std=self.std)
-                    # Predict optimal action:
-                    action = torch.sigmoid(net(torch_state))[0, 0]
-                    action = action.item() - .5
-
-                    # run action in environment
-                    new_state, _, is_fine, _ = eval_env._step(action)
-                    angles.append(np.absolute(new_state[2]))
-                    if render:
-                        eval_env._render()
-                        time.sleep(.2)
-                avg_angle[it] = np.mean(angles)
-                eval_env._reset()
-        return avg_angle
-
     def evaluate_in_environment(self, net, nr_iters=1, render=False):
         """
         Measure success --> how long can we balance the pole on top
@@ -123,17 +92,12 @@ class Evaluator:
             # observe also the oscillation
             avg_angle = np.zeros(nr_iters)
             for it in range(nr_iters):
+                # only set the theta to the top, and reduce speed
+                eval_env.state = eval_env.state * .25
                 eval_env.state[2] = (np.random.rand(1) - .5) * .2
                 is_fine = False
                 episode_length_counter = 0
                 new_state = eval_env.state
-
-                # To make the randomization stronger, so the performance is better
-                # visible:
-                # if render:
-                #     eval_env.state = (
-                #         np.random.rand(len(self.std)) - .5
-                #     ) * .4 * self.std
 
                 angles = list()
                 # Start balancing
@@ -143,9 +107,7 @@ class Evaluator:
                     torch_state = raw_states_to_torch(new_state, std=self.std)
                     # Predict optimal action:
                     action_seq = torch.sigmoid(net(torch_state)) - .5
-                    if render:
-                        print("state before", new_state)
-                    for action in action_seq[0].numpy():
+                    for action in action_seq[0].numpy()[:APPLY_UNTIL]:
                         # run action in environment
                         new_state, _, is_fine, _ = eval_env._step(action)
                         angles.append(np.absolute(new_state[2]))
@@ -154,8 +116,8 @@ class Evaluator:
                             time.sleep(.1)
                         # track number of timesteps until failure
                         episode_length_counter += 1
-                    if render:
-                        print("state after", new_state)
+                    # if render:
+                    #     print("state after", new_state)
                     if episode_length_counter > 250:
                         break
                 avg_angle[it] = np.mean(angles)
@@ -191,13 +153,13 @@ if __name__ == "__main__":
 
     evaluator = Evaluator(std)
     # angles = evaluator.run_for_fixed_length(net, render=True)
-    success, angles = evaluator.evaluate_in_environment(net, render=True)
-    # try:
-    #     _ = evaluator.make_swingup(net, max_iters=100, render=True)
-    # except KeyboardInterrupt:
-    #     data_collection = np.array(data_collection)
-    #     do_it = input(
-    #         f"Name to save collection of data with size {data_collection.shape}?"
-    #     )
-    #     if len(do_it) > 2:
-    #         np.save(os.path.join("data", do_it + ".npy"), data_collection)
+    # success, angles = evaluator.evaluate_in_environment(net, render=True)
+    try:
+        _ = evaluator.make_swingup(net, max_iters=300, render=True)
+    except KeyboardInterrupt:
+        data_collection = np.array(data_collection)
+        do_it = input(
+            f"Name to save collection of data with size {data_collection.shape}?"
+        )
+        if len(do_it) > 2:
+            np.save(os.path.join("data", do_it + ".npy"), data_collection)
