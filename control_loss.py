@@ -76,9 +76,9 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # state = (x_orig, x_dot_orig, theta_orig, theta_dot_orig)
 
     # check the maximum possible force we can apply
-    direction = torch.sign(theta_orig)
-    action_opp_direction = direction * torch.ones(x_dot_orig.size()) * .5 * .5
-    state_max = state
+    # direction = torch.sign(theta_orig)
+    # action_opp_direction = direction * torch.ones(x_dot_orig.size()) * .5 * .5
+    # state_max = state
 
     # # check which direction for position --> if we are in positive part, we
     # # need to move left (negative action)
@@ -91,11 +91,22 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     # # angle_loss = 0
     # # pos_loss = 0
     loss = 0
-    weighting = torch.from_numpy(np.array([2, .5, 8, .3])).float()
+    # working best so far;
+    # weighting = torch.from_numpy(np.array([10, .5, 9, .3])).float()
+    weighting = torch.from_numpy(np.array([1, 1, 0, 0])).float()
+    # compute previously best state
+    # prev_weighted = torch.mv(torch.abs(state), weighting)
 
     for i in range(nr_actions):
         state = state_to_theta(state, action[:, i])
-        loss += .1 * torch.mv(torch.abs(state), weighting)
+        abs_state = torch.abs(state)
+
+        pos_loss = abs_state[:, 0]
+        # velocity losss is low when x is high
+        vel_loss = .1 * abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
+        angle_loss = abs_state[:, 2] + .1 * abs_state[:, 3]
+        loss += pos_loss + vel_loss + angle_loss
+        # .1 * torch.mv(abs_state, weighting)  # * prev_weighted
         # print(state**2)
         # execute with the maximum force
         # state_max = state_to_theta(state_max, action_opp_direction)
@@ -104,12 +115,14 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         # print(loss)
         # execute to get the cart in the middle
         # state_pos = state_to_theta(state_pos, action_opp_position)
+        # loss += 5 * (state[:, 0] - state_pos[:, 0])**2
+
         # loss += .1 * state[0]**2  # (state[0] - state_pos[0])**2
         # print(loss, "with x:")
         # loss += .1 * state[1]**2 + .1 * state[3]**2
 
     # add force loss
-    loss += .2 * (x_dot_orig + torch.sum(action, axis=1))**2
+    # loss += .2 * (x_dot_orig + torch.sum(action, axis=1))**2
 
     if printout:
         # print(

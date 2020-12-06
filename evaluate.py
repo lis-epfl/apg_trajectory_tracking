@@ -16,7 +16,7 @@ APPLY_UNTIL = 1
 
 class Evaluator:
 
-    def __init__(self, std):
+    def __init__(self, std=1):
         self.std = std
 
     def make_swingup(
@@ -31,13 +31,15 @@ class Evaluator:
         collect_loss = []
         with torch.no_grad():
             for it in range(nr_iters):
-                ## set angle to somewhere at the bottom # TODO
+                # # Set angle to somewhere at the bottom # TODO
                 # random_hanging_state = (np.random.rand(4) - .5)
                 # random_hanging_state[2] = (-1) * (
                 #     (np.random.rand() > .5) * 2 - 1
                 # ) * (1 - (np.random.rand() * .2)) * np.pi
                 # eval_env.state = random_hanging_state
-                eval_env.state = eval_env.state * .25
+                # eval_env.state = eval_env.state * .25
+
+                # # Set angle to somewhere on top
                 eval_env.state[2] = (np.random.rand(1) - .5) * .2
 
                 # set x position to zero

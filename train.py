@@ -15,11 +15,6 @@ NR_EVAL_ITERS = 10
 
 net = Net()
 
-state_data = Dataset(num_states=10000)
-trainloader = torch.utils.data.DataLoader(
-    state_data, batch_size=8, shuffle=True, num_workers=0
-)
-
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 eval_env = CartPoleEnv()
@@ -28,34 +23,31 @@ eval_env = CartPoleEnv()
     pole_angle_std
 ) = (list(), list(), list(), list(), list())
 
-evaluator = Evaluator(state_data.std)
-NR_EPOCHS = 40
+NR_EPOCHS = 50
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 
+    # Generate data dynamically
+    state_data = Dataset(num_states=10000)  # 1 epoch is 10000
+    trainloader = torch.utils.data.DataLoader(
+        state_data, batch_size=8, shuffle=True, num_workers=0
+    )
+
     # EVALUATION:
-    # episode length
-    # angles = evaluator.run_for_fixed_length(net, nr_iters=NR_EVAL_ITERS)
+    evaluator = Evaluator()
+    # Start in upright position and see how long it is balaned
     success, _ = evaluator.evaluate_in_environment(net, nr_iters=NR_EVAL_ITERS)
-    # if np.mean(success) > 200:
+    # Start in random position and run 100 times, then get average state
     swing_up_mean, swing_up_std, eval_loss = evaluator.make_swingup(net)
-    # save and output
-    # pole_angle_mean.append(round(np.mean(angles), 3))
-    # pole_angle_std.append(round(np.std(angles), 3))
+    # save and output the evaluation results
     episode_length_mean.append(round(np.mean(success), 3))
     episode_length_std.append(round(np.std(success), 3))
-    print()
     print()
     print(
         "Average episode length: ", episode_length_mean[-1], "std:",
         episode_length_std[-1], "swing up:", swing_up_mean, "std:",
         swing_up_std, "loss:", round(np.mean(eval_loss), 2)
     )
-    # "angles:",
-    #round(pole_angle_mean[-1], 3), "angle std:", round(np.std(angles),3),
-    # Early stopping:
-    if np.sum(swing_up_mean) < 1 and np.sum(swing_up_std) < 1:
-        break
 
     try:
         running_loss = 0.0
@@ -65,10 +57,6 @@ for epoch in range(NR_EPOCHS):
 
             # zero the parameter gradients
             optimizer.zero_grad()
-
-            # augmentation: flip (everything, cart and theta direction etc)
-            # if epoch % 2 == 0:
-            #     inputs = inputs * (-1)
 
             # forward + backward + optimize
             outputs = net(inputs)
