@@ -11,7 +11,7 @@ from control_loss import control_loss_function
 
 data_collection = []
 
-APPLY_UNTIL = 1
+APPLY_UNTIL = 3
 
 
 class Evaluator:
@@ -32,15 +32,14 @@ class Evaluator:
         with torch.no_grad():
             for it in range(nr_iters):
                 # # Set angle to somewhere at the bottom # TODO
-                # random_hanging_state = (np.random.rand(4) - .5)
-                # random_hanging_state[2] = (-1) * (
-                #     (np.random.rand() > .5) * 2 - 1
-                # ) * (1 - (np.random.rand() * .2)) * np.pi
-                # eval_env.state = random_hanging_state
-                # eval_env.state = eval_env.state * .25
+                random_hanging_state = (np.random.rand(4) - .5)
+                random_hanging_state[2] = (-1) * (
+                    (np.random.rand() > .5) * 2 - 1
+                ) * (1 - (np.random.rand() * .2)) * np.pi
+                eval_env.state = random_hanging_state
 
                 # # Set angle to somewhere on top
-                eval_env.state[2] = (np.random.rand(1) - .5) * .2
+                # eval_env.state[2] = (np.random.rand(1) - .5) * .2
 
                 # set x position to zero
                 # random_hanging_state[0] = 0 TODO
@@ -150,19 +149,7 @@ if __name__ == "__main__":
     net = torch.load(os.path.join("models", MODEL_NAME, "model_pendulum"))
     net.eval()
 
-    data_arr = np.load(os.path.join("models", MODEL_NAME, "state_data.npy"))
-    std = np.std(data_arr, axis=0)
-
-    evaluator = Evaluator(std)
+    evaluator = Evaluator(1)
     # angles = evaluator.run_for_fixed_length(net, render=True)
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
-    try:
-        _ = evaluator.make_swingup(net, max_iters=500, render=True)
-    except KeyboardInterrupt:
-        pass
-    #     data_collection = np.array(data_collection)
-    #     do_it = input(
-    #         f"Name to save collection of data with size {data_collection.shape}?"
-    #     )
-    #     if len(do_it) > 2:
-    #         np.save(os.path.join("data", do_it + ".npy"), data_collection)
+    _ = evaluator.make_swingup(net, max_iters=500, render=True)

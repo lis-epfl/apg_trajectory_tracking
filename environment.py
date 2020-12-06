@@ -34,7 +34,7 @@ class CartPoleEnv():
 
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds
-        self.state_limits = np.array([2.4, 5, np.pi, 5])
+        self.state_limits = np.array([2.4, 7.5, np.pi, 7.5])
 
         self.viewer = None
         self.state = self._reset()

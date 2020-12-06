@@ -93,7 +93,7 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     loss = 0
     # working best so far;
     # weighting = torch.from_numpy(np.array([10, .5, 9, .3])).float()
-    weighting = torch.from_numpy(np.array([1, 1, 0, 0])).float()
+    # weighting = torch.from_numpy(np.array([1, 1, 0, 0])).float()
     # compute previously best state
     # prev_weighted = torch.mv(torch.abs(state), weighting)
 
@@ -101,7 +101,7 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         state = state_to_theta(state, action[:, i])
     abs_state = torch.abs(state)
 
-    pos_loss = abs_state[:, 0]
+    pos_loss = state[:, 0]**2
     # velocity losss is low when x is high
     vel_loss = .1 * abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
     angle_loss = abs_state[:, 2] + .1 * abs_state[:, 3]

@@ -14,6 +14,10 @@ from model import Net
 NR_EVAL_ITERS = 10
 
 net = Net()
+# load network that is trained on standing data
+# net = torch.load(
+#     os.path.join("models", "minimize_x_brakingWUHU", "model_pendulum")
+# )
 
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
@@ -23,7 +27,7 @@ eval_env = CartPoleEnv()
     pole_angle_std
 ) = (list(), list(), list(), list(), list())
 
-NR_EPOCHS = 50
+NR_EPOCHS = 200
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 
@@ -48,6 +52,11 @@ for epoch in range(NR_EPOCHS):
         episode_length_std[-1], "swing up:", swing_up_mean, "std:",
         swing_up_std, "loss:", round(np.mean(eval_loss), 2)
     )
+    if swing_up_mean[0] < .3 and swing_up_mean[2] < .2 and np.sum(
+        swing_up_mean
+    ) < 1 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 200:
+        print("early stopping")
+        break
 
     try:
         running_loss = 0.0

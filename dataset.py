@@ -23,13 +23,13 @@ def construct_states(
     env = CartPoleEnv()
     data = []
     # randimized runs
-    # while len(data) < num_data * randomized_runs:
-    #     # run 100 steps then reset (randomized runs)
-    #     for _ in range(10):
-    #         action = np.random.rand() - 0.5
-    #         state, _, _, _ = env._step(action)
-    #         data.append(state)
-    #     env._reset()
+    while len(data) < num_data * randomized_runs:
+        # run 100 steps then reset (randomized runs)
+        for _ in range(10):
+            action = np.random.rand() - 0.5
+            state, _, _, _ = env._step(action)
+            data.append(state)
+        env._reset()
 
     # # after randomized runs: run balancing
     while len(data) < num_data:
@@ -66,8 +66,8 @@ def construct_states(
     # data = np.concatenate(eval_data, axis=0)
     # print("shape after adding evaluation data", data.shape)
     # save data optionally
-    if save_path is not None:
-        np.save(save_path, data)
+    # if save_path is not None:
+    #     np.save(save_path, data)
     return data[:num_data]
 
 
