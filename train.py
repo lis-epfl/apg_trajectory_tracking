@@ -8,8 +8,8 @@ import torch.optim as optim
 from dataset import Dataset
 from control_loss import control_loss_function
 from evaluate import Evaluator
-from environment import CartPoleEnv
-from model import Net
+from models.resnet_like_model import Net
+from environments.cartpole_env import construct_states
 
 NR_EVAL_ITERS = 10
 
@@ -21,7 +21,6 @@ net = Net()
 
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-eval_env = CartPoleEnv()
 (
     episode_length_mean, episode_length_std, loss_list, pole_angle_mean,
     pole_angle_std
@@ -32,7 +31,9 @@ NR_EPOCHS = 200
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
-    state_data = Dataset(num_states=10000)  # 1 epoch is 10000
+    state_data = Dataset(
+        construct_states, num_states=10000
+    )  # 1 epoch is 10000
     trainloader = torch.utils.data.DataLoader(
         state_data, batch_size=8, shuffle=True, num_workers=0
     )
@@ -88,7 +89,7 @@ for epoch in range(NR_EPOCHS):
         break
 
 # PLOTTING
-SAVE_PATH = "models/minimize_x"
+SAVE_PATH = "trained_models/minimize_x"
 episode_length_mean = np.array(episode_length_mean)
 episode_length_std = np.array(episode_length_std)
 plt.figure(figsize=(20, 10))

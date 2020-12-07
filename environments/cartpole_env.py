@@ -8,6 +8,7 @@ import math
 import numpy as np
 logger = logging.getLogger(__name__)
 import time
+from . import cartpole_rendering as rendering
 
 
 class CartPoleEnv():
@@ -138,7 +139,6 @@ class CartPoleEnv():
         cartheight = 30.0
 
         if self.viewer is None:
-            import rendering
             self.viewer = rendering.Viewer(screen_width, screen_height)
             l, r, t, b = (
                 -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
@@ -178,8 +178,75 @@ class CartPoleEnv():
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
 
+def construct_states(
+    num_data,
+    path_to_states=None,
+    save_path="models/minimize_x/state_data.npy"
+):
+    # define parts of the dataset:
+    randomized_runs = .8
+    upper_balancing = 1
+    one_direction = 1
+
+    # Load precomputed dataset
+    if path_to_states is not None:
+        state_arr = np.load(path_to_states)
+        return state_arr
+
+    # Sample states
+    env = CartPoleEnv()
+    data = []
+    # randimized runs
+    while len(data) < num_data * randomized_runs:
+        # run 100 steps then reset (randomized runs)
+        for _ in range(10):
+            action = np.random.rand() - 0.5
+            state, _, _, _ = env._step(action)
+            data.append(state)
+        env._reset()
+
+    # # after randomized runs: run balancing
+    while len(data) < num_data:
+        fine = False
+        # only theta between -0.5 and 0.5
+        # env.state = env.state * .5  # TODO
+        env.state[2] = (np.random.rand(1) - .5) * .2
+        while not fine:
+            action = np.random.rand() - 0.5
+            state, _, fine, _ = env._step(action)
+            data.append(state)
+        env._reset()
+
+    # # add one directional steps
+    # while len(data) < num_data * one_direction:
+    #     action = (-.5) * ((np.random.rand() > .5) * 2 - 1)
+    #     for _ in range(30):
+    #         state, _, fine, _ = env._step(action)
+    #         data.append(state)
+    #     env._reset()
+    #
+    data = np.array(data)
+
+    # # sample only states, no sequences
+    # state_limits = np.array([2.4, 5, np.pi, 5])
+    # uniform_samples = np.random.rand(num_data, 4) * 2 - 1
+    # data = uniform_samples * state_limits
+
+    print("generated random data:", data.shape)
+    # eval_data = [data]  # augmentation: , data * (-1)
+    # for name in os.listdir("data"):
+    #     if name[0] != ".":
+    #         eval_data.append(np.load(os.path.join("data", name)))
+    # data = np.concatenate(eval_data, axis=0)
+    # print("shape after adding evaluation data", data.shape)
+    # save data optionally
+    # if save_path is not None:
+    #     np.save(save_path, data)
+    return data[:num_data]
+
+
 if __name__ == "__main__":
-    data = np.load("models/minimize_x/state_data.npy")
+    data = np.load("../trained_models/minimize_x_best_model/state_data.npy")
     env = CartPoleEnv()
     pick_random_starts = np.random.permutation(len(data))[:100]
     for i in pick_random_starts:

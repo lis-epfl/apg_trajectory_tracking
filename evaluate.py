@@ -1,6 +1,6 @@
-from environment import CartPoleEnv
+from environments.cartpole_env import CartPoleEnv
 from dataset import raw_states_to_torch
-from model import Net
+from models.resnet_like_model import Net
 
 import torch
 import numpy as np
@@ -146,7 +146,9 @@ if __name__ == "__main__":
 
     MODEL_NAME = args.model  # "theta_max_normalize"  # "best_model_2"
 
-    net = torch.load(os.path.join("models", MODEL_NAME, "model_pendulum"))
+    net = torch.load(
+        os.path.join("trained_models", MODEL_NAME, "model_pendulum")
+    )
     net.eval()
 
     evaluator = Evaluator(1)
