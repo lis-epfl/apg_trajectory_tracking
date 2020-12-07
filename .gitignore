@@ -1,7 +1,8 @@
 .vscode/
 __pycache__/
 data/
-models/
+trained_models/
 pendulum.code-workspace
 .DS_Store
 backups/
+data_backup/
