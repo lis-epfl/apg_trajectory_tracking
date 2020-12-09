@@ -1,19 +1,16 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-OUT_SIZE = 10  # one action variable between -1 and 1
-DIM = 4  # input dimension
-
 
 class Net(nn.Module):
 
-    def __init__(self):
+    def __init__(self, in_size, out_size):
         super(Net, self).__init__()
         # conf: in channels, out channels, kernel size
-        self.fc1 = nn.Linear(DIM, 100)
+        self.fc1 = nn.Linear(in_size, 100)
         self.fc2 = nn.Linear(100, 100)
         self.fc25 = nn.Linear(100, 40)
-        self.fc3 = nn.Linear(40, OUT_SIZE)
+        self.fc3 = nn.Linear(40, out_size)
 
     def forward(self, x):
         # x = x * torch.from_numpy(np.array([0, 1, 1, 1]))

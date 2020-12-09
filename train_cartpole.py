@@ -1,8 +1,7 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
-import os
 import torch
-import torch.nn as nn
 import torch.optim as optim
 
 from dataset import Dataset
@@ -13,7 +12,10 @@ from environments.cartpole_env import construct_states
 
 NR_EVAL_ITERS = 10
 
-net = Net()
+OUT_SIZE = 10  # one action variable between -1 and 1
+DIM = 4  # input dimension
+
+net = Net(DIM, OUT_SIZE)
 # load network that is trained on standing data
 # net = torch.load(
 #     os.path.join("models", "minimize_x_brakingWUHU", "model_pendulum")
@@ -55,7 +57,7 @@ for epoch in range(NR_EPOCHS):
     )
     if swing_up_mean[0] < .3 and swing_up_mean[2] < .2 and np.sum(
         swing_up_mean
-    ) < 1 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 200:
+    ) < 1 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 180:
         print("early stopping")
         break
 

@@ -1,69 +1,19 @@
 import torch
-from environments.copter import copter_params
+from environments.drone_dynamics import simulate_quadrotor
 
 
-class AttitudeLoss():
+def attitude_loss(state):
+    """
+    Compute loss to static position
+    """
+    # weighting
+    angle_factor = 1.0
+    angvel_factor = 1e-2
 
-    def __init__(
-        self,
-        angle_factor=1.0,
-        angvel_factor=1e-2,
-        attitude_error_transform=None,
-        angvel_error_transform=None
-    ):
-        self._angle_factor = angle_factor
-        self._angvel_factor = angvel_factor
-        self._angle_err_trafo = attitude_error_transform
-        self._angvel_err_trafo = angvel_error_transform
-
-    def calculate_loss(self, state):
-        # TODO: extract pitch, role and yaw and angular velocity
-        attitude = state.attitude
-        angle_error = self.angle_error(attitude)
-        avel_error = self.velocity_error(state.angular_velocity)
-
-        if self._angle_err_trafo:
-            angle_error = self._angle_err_trafo(angle_error)
-
-        if self._angvel_err_trafo:
-            avel_error = self._angvel_err_trafo(avel_error)
-
-        # compute final loss
-        loss = self._angle_factor * angle_error
-        loss += self._angvel_factor * avel_error
-
-        return loss
-
-    def angle_error(self, attitude):
-        return attitude.pitch**2 + attitude.roll**2 + attitude.yaw**2
-
-    def velocity_error(self, angular_velocity):
-        # TODO: axis
-        return torch.sum(angular_velocity**2)
-
-    def update_parameters(
-        self,
-        angle_factor=None,
-        angvel_factor=None,
-        angle_error_transform=None,
-        angvel_error_transform=None
-    ):
-        if angle_factor is not None:
-            self._angle_factor = angle_factor
-
-        if angvel_factor is not None:
-            self._angvel_factor = angvel_factor
-
-        if angle_error_transform is not None:
-            self._angle_err_trafo = angle_error_transform
-
-        if angvel_error_transform is not None:
-            self._angvel_err_trafo = angvel_error_transform
-
-    def __str__(self):
-        return "AttitudeReward(%g, %g)" % (
-            self._angle_factor, self._angvel_factor
-        )
+    angle_error = torch.sum(state[:, 3:6]**2, axis=1)
+    ang_vel_error = torch.sum(state[:, 17:20]**2, axis=1)
+    return angle_factor * angle_error + angvel_factor * ang_vel_error
+    # (pitch**2 + roll**2 + yaw**2)
 
 
 def control_loss(current_state, action):
@@ -74,5 +24,6 @@ def control_loss(current_state, action):
         current_state: array with x entries describing attitude and velocity
         action: control signal of dimension 4 (thrust of rotors)
     """
-
-    pass
+    resulting_state = simulate_quadrotor(action, current_state, dt=0.02)
+    loss = attitude_loss(resulting_state)
+    return torch.sum(loss)

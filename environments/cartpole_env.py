@@ -67,10 +67,10 @@ class CartPoleEnv():
             temp - (self.polemass_length * thetaacc * costheta) - sig
         ) / self.total_mass
         # TODO: swapped those! - is that okay?
-        x_dot = x_dot + self.tau * xacc
         x = x + self.tau * x_dot
-        theta_dot = theta_dot + self.tau * thetaacc
+        x_dot = x_dot + self.tau * xacc
         theta = theta + self.tau * theta_dot
+        theta_dot = theta_dot + self.tau * thetaacc
         if theta > np.pi:
             theta = theta - 2 * np.pi
         if theta <= -np.pi:

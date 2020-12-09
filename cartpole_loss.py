@@ -49,13 +49,13 @@ def state_to_theta(state, action):
     ) / (length * (4.0 / 3.0 - masspole * costheta * costheta / total_mass))
 
     # swapped these two lines
-    theta_dot = theta_dot + tau * thetaacc
     theta = theta + tau * theta_dot
+    theta_dot = theta_dot + tau * thetaacc
 
     # add velocity of cart
     xacc = (temp - (polemass_length * thetaacc * costheta) - sig) / total_mass
-    x_dot = x_dot + tau * xacc
     x = x + tau * x_dot
+    x_dot = x_dot + tau * xacc
 
     new_state = torch.stack((x, x_dot, theta, theta_dot), dim=1)
     return new_state  # (x, x_dot, theta, theta_dot)
@@ -104,8 +104,8 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
     pos_loss = state[:, 0]**2
     # velocity losss is low when x is high
     vel_loss = .1 * abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
-    angle_loss = abs_state[:, 2] + .1 * abs_state[:, 3]
-    loss += pos_loss + vel_loss + 2 * angle_loss
+    angle_loss = abs_state[:, 2] + .2 * abs_state[:, 3]
+    loss += pos_loss + vel_loss + 2.5 * angle_loss
     # .1 * torch.mv(abs_state, weighting)  # * prev_weighted
     # print(state**2)
     # execute with the maximum force
