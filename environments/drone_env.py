@@ -58,6 +58,11 @@ class QuadRotorEnvBase(gym.Env):
         #     1.0, attitude_error_transform=np.sqrt
         # )
 
+    @staticmethod
+    def get_is_stable(np_state):
+        roll_pitch_yaw = np_state[3:6]
+        return np.sum(np.absolute(roll_pitch_yaw)) < 1
+
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
         assert action.shape == (4, )
@@ -69,7 +74,7 @@ class QuadRotorEnvBase(gym.Env):
         numpy_out_state = new_state_arr.numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
-
+        is_stable = self.get_is_stable(numpy_out_state)
         # attitude = self._state.attitude
 
         # How this works: Check whether the angle is above the boundaries
@@ -80,7 +85,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state
+        return numpy_out_state, is_stable
 
     def render(self, mode='human', close=False):
         if not close:
@@ -238,12 +243,15 @@ def construct_states(num_data, episode_length=15):
     data = []
     while len(data) < num_data:
         env.reset()
-        for _ in range(episode_length):
+        is_stable = True
+        time = 0
+        while is_stable and time < episode_length:
             # env.step(np.array([0, 0, 3, 0]))
-            new_state = env.step(2 * np.random.rand(4))
+            new_state, is_stable = env.step(2 * np.random.rand(4))
             data.append(new_state)
+            time += 1
     data = np.array(data)
-    # np.save("data.npy", data)  # TODO
+    # np.save("data_backup/quad_data.npy", data)
     return data
 
 
@@ -252,15 +260,15 @@ if __name__ == "__main__":
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
 
     for j in range(4):
-        print("reset: current state:")
-        pprint.pprint(env._state.formatted)
-        print()
+        # print("reset: current state:")
+        # pprint.pprint(env._state.formatted)
+        # print()
         env.reset()
-        pprint.pprint(env._state.formatted)
+        # pprint.pprint(env._state.formatted)
         for i in range(20):
             # env.step(np.array([0, 0, 3, 0]))
             newstate = env.step(2 * np.random.rand(4))
             time.sleep(.2)
-            print(newstate)
+            # print(newstate)
             env.render()
         time.sleep(2)

@@ -13,17 +13,20 @@ class Net(nn.Module):
         self.fc3 = nn.Linear(40, out_size)
 
     def forward(self, x):
-        # x = x * torch.from_numpy(np.array([0, 1, 1, 1]))
         x = F.relu(self.fc1(x))
-        # 1st relu block
+        # 1st resnet block
         shortcut = x
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc2(x)) + shortcut
-        # 2nd relu block
+        # 2nd resnet block
         shortcut = x
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc2(x)) + shortcut
-        # 3rd relu block
+        # 3rd resnet block
+        shortcut = x
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc2(x)) + shortcut
+        # 4th block
         shortcut = x
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc2(x)) + shortcut

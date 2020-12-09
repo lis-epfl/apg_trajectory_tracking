@@ -4,14 +4,12 @@ import os
 from environments.cartpole_env import construct_states
 
 
-def raw_states_to_torch(states, normalize=False, std=None):
+def raw_states_to_torch(states, normalize=False, std=None, return_std=False):
     """
     Helper function to convert numpy state array to normalized tensors
     Argument states:
             One state (list of length 4) or array with x states (x times 4)
     """
-    return_std = std is None
-
     # either input one state at a time (evaluation) or an array
     if len(states.shape) == 1:
         states = np.expand_dims(states, 0)
@@ -22,7 +20,7 @@ def raw_states_to_torch(states, normalize=False, std=None):
         if std is None:
             std = np.std(states, axis=0)
         states = states / std
-        assert np.all(np.isclose(np.std(states, axis=0), 1))
+        # assert np.all(np.isclose(np.std(states, axis=0), 1))
     else:
         std = 1
 
@@ -41,12 +39,14 @@ class Dataset(torch.utils.data.Dataset):
         state_sampling_method,
         path_to_states=None,
         num_states=1000,
-        normalize=False
+        normalize=False,
+        std=None
     ):
+        self.std = std
         # random_positions = np.random.rand(1000, 3) * 10
         state_arr_numpy = state_sampling_method(num_states)
         state_arr, self.std = raw_states_to_torch(
-            state_arr_numpy, normalize=normalize
+            state_arr_numpy, normalize=normalize, std=std, return_std=True
         )
         self.labels = state_arr
         self.states = state_arr

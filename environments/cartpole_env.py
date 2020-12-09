@@ -188,13 +188,13 @@ def construct_states(num_data, save_path="models/minimize_x/state_data.npy"):
     env = CartPoleEnv()
     data = []
     # randimized runs
-    while len(data) < num_data * randomized_runs:
-        # run 100 steps then reset (randomized runs)
-        for _ in range(10):
-            action = np.random.rand() - 0.5
-            state, _, _, _ = env._step(action)
-            data.append(state)
-        env._reset()
+    # while len(data) < num_data * randomized_runs:
+    #     # run 100 steps then reset (randomized runs)
+    #     for _ in range(10):
+    #         action = np.random.rand() - 0.5
+    #         state, _, _, _ = env._step(action)
+    #         data.append(state)
+    #     env._reset()
 
     # # after randomized runs: run balancing
     while len(data) < num_data:

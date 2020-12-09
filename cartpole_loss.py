@@ -58,7 +58,7 @@ def state_to_theta(state, action):
     x_dot = x_dot + tau * xacc
 
     new_state = torch.stack((x, x_dot, theta, theta_dot), dim=1)
-    return new_state  # (x, x_dot, theta, theta_dot)
+    return new_state
 
 
 def control_loss_function(action, state, lambda_factor=.4, printout=0):
@@ -73,11 +73,11 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         state = state_to_theta(state, action[:, i])
     abs_state = torch.abs(state)
 
-    pos_loss = abs_state[:, 0]
+    pos_loss = state[:, 0]**2
     # velocity losss is low when x is high
     vel_loss = .1 * abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
     angle_loss = abs_state[:, 2] + .1 * abs_state[:, 3]
-    loss = pos_loss + vel_loss + 2 * angle_loss
+    loss = .1 * (pos_loss + vel_loss + 2 * angle_loss)
     # .1 * torch.mv(abs_state, weighting)  # * prev_weighted
     # print(state**2)
     # execute with the maximum force
