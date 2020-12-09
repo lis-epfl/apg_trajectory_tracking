@@ -22,6 +22,7 @@ def raw_states_to_torch(states, normalize=False, std=None):
         if std is None:
             std = np.std(states, axis=0)
         states = states / std
+        assert np.all(np.isclose(np.std(states, axis=0), 1))
     else:
         std = 1
 
@@ -43,9 +44,7 @@ class Dataset(torch.utils.data.Dataset):
         normalize=False
     ):
         # random_positions = np.random.rand(1000, 3) * 10
-        state_arr_numpy = construct_states(
-            num_states, path_to_states=path_to_states
-        )
+        state_arr_numpy = state_sampling_method(num_states)
         state_arr, self.std = raw_states_to_torch(
             state_arr_numpy, normalize=normalize
         )

@@ -17,8 +17,12 @@ from gym_quadrotor.dynamics.coordinates import (
 )
 
 from gym_quadrotor.envs.rendering import Renderer, Ground, QuadCopter
-from copter import copter_params, DynamicsState
-from drone_dynamics import simulate_quadrotor
+try:
+    from .copter import copter_params, DynamicsState
+    from .drone_dynamics import simulate_quadrotor
+except ImportError:
+    from copter import copter_params, DynamicsState
+    from drone_dynamics import simulate_quadrotor
 
 
 class QuadRotorEnvBase(gym.Env):
@@ -59,12 +63,12 @@ class QuadRotorEnvBase(gym.Env):
         assert action.shape == (4, )
 
         # set the blade speeds. as F ~ w², and we want F ~ action.
-        torch_state = torch.from_numpy(
-            np.array([self._state.as_np, self._state.as_np])  # 
-        )
-        torch_action = torch.from_numpy(np.array([action, action]))
+        torch_state = torch.from_numpy(np.array([self._state.as_np]))
+        torch_action = torch.from_numpy(np.array([action]))
         new_state_arr = simulate_quadrotor(torch_action, torch_state)
-        self._state.from_np(new_state_arr.numpy()[0])
+        numpy_out_state = new_state_arr.numpy()[0]
+        # update internal state
+        self._state.from_np(numpy_out_state)
 
         # attitude = self._state.attitude
 
@@ -76,7 +80,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return self._get_state(), 0, False, {}
+        return numpy_out_state
 
     def render(self, mode='human', close=False):
         if not close:
@@ -227,15 +231,19 @@ def project_2d(state: DynamicsState):
 
 
 def construct_states(num_data, episode_length=20):
+    # data = np.load("data.npy")
+    # assert not np.any(np.isnan(data))
+    # return data
     env = QuadRotorEnvBase()
     data = []
     while len(data) < num_data:
         env.reset()
-        for i in range(episode_length):
+        for _ in range(episode_length):
             # env.step(np.array([0, 0, 3, 0]))
-            env.step(2 * np.random.rand(4))
-            data.append(env._state.as_np)
+            new_state = env.step(2 * np.random.rand(4))
+            data.append(new_state)
     data = np.array(data)
+    # np.save("data.npy", data)  # TODO
     return data
 
 
@@ -251,8 +259,8 @@ if __name__ == "__main__":
         pprint.pprint(env._state.formatted)
         for i in range(20):
             # env.step(np.array([0, 0, 3, 0]))
-            env.step(2 * np.random.rand(4))
+            newstate = env.step(2 * np.random.rand(4))
             time.sleep(.2)
-            # print(env._state.as_np)
+            print(newstate)
             env.render()
         time.sleep(2)

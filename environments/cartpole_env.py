@@ -178,20 +178,11 @@ class CartPoleEnv():
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
 
-def construct_states(
-    num_data,
-    path_to_states=None,
-    save_path="models/minimize_x/state_data.npy"
-):
+def construct_states(num_data, save_path="models/minimize_x/state_data.npy"):
     # define parts of the dataset:
     randomized_runs = .8
     upper_balancing = 1
     one_direction = 1
-
-    # Load precomputed dataset
-    if path_to_states is not None:
-        state_arr = np.load(path_to_states)
-        return state_arr
 
     # Sample states
     env = CartPoleEnv()

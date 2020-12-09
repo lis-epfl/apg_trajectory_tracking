@@ -16,7 +16,7 @@ def attitude_loss(state):
     # (pitch**2 + roll**2 + yaw**2)
 
 
-def control_loss(current_state, action):
+def drone_loss_function(current_state, action):
     """
     Computes loss for applying an action to the current state by comparing to
     the target state
@@ -25,5 +25,7 @@ def control_loss(current_state, action):
         action: control signal of dimension 4 (thrust of rotors)
     """
     resulting_state = simulate_quadrotor(action, current_state, dt=0.02)
+    # print("s", resulting_state)
     loss = attitude_loss(resulting_state)
+    # print("loss", loss)
     return torch.sum(loss)
