@@ -6,8 +6,8 @@ import torch.nn as nn
 import torch.optim as optim
 
 from dataset import Dataset
-from control_loss import control_loss_function
-from evaluate import Evaluator
+from cartpole_loss import control_loss_function
+from evaluate_cartpole import Evaluator
 from models.resnet_like_model import Net
 from environments.cartpole_env import construct_states
 

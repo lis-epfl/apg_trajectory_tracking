@@ -1,13 +1,13 @@
-from environments.cartpole_env import CartPoleEnv
-from dataset import raw_states_to_torch
-from models.resnet_like_model import Net
-
-import torch
-import numpy as np
 import os
 import time
 import argparse
-from control_loss import control_loss_function
+import numpy as np
+import torch
+
+from environments.cartpole_env import CartPoleEnv
+from dataset import raw_states_to_torch
+from models.resnet_like_model import Net
+from cartpole_loss import control_loss_function
 
 data_collection = []
 
@@ -127,6 +127,18 @@ class Evaluator:
         return success, avg_angle
 
 
+def run_saved_arr(path):
+    """
+    Load a saved sequence of states and visualize it
+    """
+    states = np.load(path)
+    eval_env = CartPoleEnv()
+    for state in states:
+        eval_env.state = state
+        eval_env._render()
+        time.sleep(.1)
+
+
 if __name__ == "__main__":
     # make as args:
     parser = argparse.ArgumentParser("Model directory as argument")
@@ -146,6 +158,10 @@ if __name__ == "__main__":
 
     MODEL_NAME = args.model  # "theta_max_normalize"  # "best_model_2"
 
+    # run a saver sequence
+    # run_saved_arr("saved_states.npy")
+    # exit()
+
     net = torch.load(
         os.path.join("trained_models", MODEL_NAME, "model_pendulum")
     )
@@ -154,4 +170,11 @@ if __name__ == "__main__":
     evaluator = Evaluator(1)
     # angles = evaluator.run_for_fixed_length(net, render=True)
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
-    _ = evaluator.make_swingup(net, max_iters=500, render=True)
+    try:
+        _ = evaluator.make_swingup(net, max_iters=500, render=True)
+    except KeyboardInterrupt:
+        pass
+    # Save sequence?
+    if len(input("save? enter anything for yes")) > 0:
+        data_collection = np.asarray(data_collection)
+        np.save("saved_states.npy", data_collection)
