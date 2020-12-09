@@ -28,4 +28,4 @@ def drone_loss_function(current_state, action):
     # print("s", resulting_state)
     loss = attitude_loss(resulting_state)
     # print("loss", loss)
-    return torch.sum(loss)
+    return torch.sum(loss) * 1e-2

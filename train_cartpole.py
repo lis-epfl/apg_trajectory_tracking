@@ -8,6 +8,7 @@ from dataset import Dataset
 from cartpole_loss import control_loss_function
 from evaluate_cartpole import Evaluator
 from models.resnet_like_model import Net
+from utils.plotting import plot_loss
 from environments.cartpole_env import construct_states
 
 NR_EVAL_ITERS = 10
@@ -33,9 +34,7 @@ NR_EPOCHS = 200
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
-    state_data = Dataset(
-        construct_states, num_states=10000
-    )  # 1 epoch is 10000
+    state_data = Dataset(construct_states, num_states=10000)
     trainloader = torch.utils.data.DataLoader(
         state_data, batch_size=8, shuffle=True, num_workers=0
     )
@@ -109,11 +108,7 @@ plt.xticks(fontsize=18)
 plt.yticks(fontsize=18)
 plt.savefig(os.path.join(SAVE_PATH, "performance.png"))
 
-plt.figure(figsize=(15, 8))
-plt.plot(loss_list)
-plt.xlabel("Epoch", fontsize=18)
-plt.ylabel("Loss", fontsize=18)
-plt.savefig(os.path.join(SAVE_PATH, "loss.png"))
+plot_loss(loss_list, SAVE_PATH)
 
 # pole_angle_mean = np.array(pole_angle_mean)
 # pole_angle_std = np.array(pole_angle_std)

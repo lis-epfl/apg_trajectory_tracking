@@ -11,7 +11,7 @@ from cartpole_loss import control_loss_function
 
 data_collection = []
 
-APPLY_UNTIL = 3
+APPLY_UNTIL = 5
 
 
 class Evaluator:

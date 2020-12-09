@@ -230,7 +230,7 @@ def project_2d(state: DynamicsState):
     state.attitude.roll = 0
 
 
-def construct_states(num_data, episode_length=20):
+def construct_states(num_data, episode_length=15):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
     # return data

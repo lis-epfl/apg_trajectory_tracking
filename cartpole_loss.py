@@ -65,47 +65,19 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
 
     # bring action into -1 1 range
     action = torch.sigmoid(action) - .5
-    # get state
-    x_orig = state[:, 0]
-    x_dot_orig = state[:, 1]
-    theta_orig = state[:, 2]
-    theta_dot_orig = state[:, 3]
 
     nr_actions = action.size()[1]
 
-    # state = (x_orig, x_dot_orig, theta_orig, theta_dot_orig)
-
-    # check the maximum possible force we can apply
-    # direction = torch.sign(theta_orig)
-    # action_opp_direction = direction * torch.ones(x_dot_orig.size()) * .5 * .5
-    # state_max = state
-
-    # # check which direction for position --> if we are in positive part, we
-    # # need to move left (negative action)
-    # direction = torch.sign(x_orig)
-    # action_opp_position = direction * (-1) * torch.ones(
-    #     x_dot_orig.size()
-    # ) * .5 * .5
-    # state_pos = state
-
-    # # angle_loss = 0
-    # # pos_loss = 0
-    loss = 0
-    # working best so far;
-    # weighting = torch.from_numpy(np.array([10, .5, 9, .3])).float()
-    # weighting = torch.from_numpy(np.array([1, 1, 0, 0])).float()
-    # compute previously best state
-    # prev_weighted = torch.mv(torch.abs(state), weighting)
-
+    # update state iteratively for each proposed action
     for i in range(nr_actions):
         state = state_to_theta(state, action[:, i])
     abs_state = torch.abs(state)
 
-    pos_loss = state[:, 0]**2
+    pos_loss = abs_state[:, 0]
     # velocity losss is low when x is high
     vel_loss = .1 * abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
-    angle_loss = abs_state[:, 2] + .2 * abs_state[:, 3]
-    loss += pos_loss + vel_loss + 2.5 * angle_loss
+    angle_loss = abs_state[:, 2] + .1 * abs_state[:, 3]
+    loss = pos_loss + vel_loss + 2 * angle_loss
     # .1 * torch.mv(abs_state, weighting)  # * prev_weighted
     # print(state**2)
     # execute with the maximum force
