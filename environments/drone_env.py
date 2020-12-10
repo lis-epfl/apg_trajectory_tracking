@@ -61,7 +61,7 @@ class QuadRotorEnvBase(gym.Env):
     @staticmethod
     def get_is_stable(np_state):
         roll_pitch_yaw = np_state[3:6]
-        return np.sum(np.absolute(roll_pitch_yaw)) < 1
+        return np.sum(np.absolute(roll_pitch_yaw)) < .9
 
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
@@ -102,12 +102,17 @@ class QuadRotorEnvBase(gym.Env):
     def reset(self):
 
         self._state = DynamicsState()
+        self.randomize_angle(5)
 
-        self.randomize_angle(20)
         self.randomize_angular_velocity(2.0)
         self._state.attitude.yaw = self.random_state.uniform(
             low=-0.3, high=0.3
         )
+        # print(
+        #     "angle after randomize:",
+        #     abs(self._state.attitude.roll) + abs(self._state.attitude.pitch) +
+        #     abs(self._state.attitude.yaw)
+        # )
         self._state.position[2] = 1
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5
@@ -251,7 +256,6 @@ def construct_states(num_data, episode_length=15):
             data.append(new_state)
             time += 1
     data = np.array(data)
-    # np.save("data_backup/quad_data.npy", data)
     return data
 
 

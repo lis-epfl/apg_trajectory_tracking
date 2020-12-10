@@ -8,7 +8,7 @@ from dataset import Dataset
 from cartpole_loss import control_loss_function
 from evaluate_cartpole import Evaluator
 from models.resnet_like_model import Net
-from utils.plotting import plot_loss
+from utils.plotting import plot_loss, plot_success
 from environments.cartpole_env import construct_states
 
 NR_EVAL_ITERS = 10
@@ -91,41 +91,10 @@ for epoch in range(NR_EPOCHS):
 
 # PLOTTING
 SAVE_PATH = "trained_models/minimize_x"
-episode_length_mean = np.array(episode_length_mean)
-episode_length_std = np.array(episode_length_std)
-plt.figure(figsize=(20, 10))
-x = np.arange(len(episode_length_mean))
-plt.plot(x, episode_length_mean, '-')
-plt.fill_between(
-    x,
-    episode_length_mean - episode_length_std,
-    episode_length_mean + episode_length_std,
-    alpha=0.2
-)
-plt.xlabel("Epoch", fontsize=18)
-plt.ylabel("Average episode length", fontsize=18)
-plt.xticks(fontsize=18)
-plt.yticks(fontsize=18)
-plt.savefig(os.path.join(SAVE_PATH, "performance.png"))
-
-plot_loss(loss_list, SAVE_PATH)
-
-# pole_angle_mean = np.array(pole_angle_mean)
-# pole_angle_std = np.array(pole_angle_std)
-# plt.figure(figsize=(20, 10))
-# plt.plot(x, pole_angle_mean, '-')
-# plt.fill_between(
-#     x,
-#     pole_angle_mean - pole_angle_std,
-#     pole_angle_mean + pole_angle_std,
-#     alpha=0.2
-# )
-# plt.xlabel("Epoch", fontsize=18)
-# plt.xticks(fontsize=18)
-# plt.yticks(fontsize=18)
-# plt.ylabel("Pole angles", fontsize=18)
-# plt.savefig("models/pole_angles.png")
 
 # SAVE MODEL
 torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
+# PLOT
+plot_loss(loss_list, SAVE_PATH)
+plot_success(episode_length_mean, episode_length_std, SAVE_PATH)
 print('Finished Training')

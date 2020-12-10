@@ -4,7 +4,9 @@ import os
 from environments.cartpole_env import construct_states
 
 
-def raw_states_to_torch(states, normalize=False, std=None, return_std=False):
+def raw_states_to_torch(
+    states, normalize=False, std=None, mean=None, return_std=False
+):
     """
     Helper function to convert numpy state array to normalized tensors
     Argument states:
@@ -19,16 +21,20 @@ def raw_states_to_torch(states, normalize=False, std=None, return_std=False):
         # can't use mean!
         if std is None:
             std = np.std(states, axis=0)
-        states = states / std
+        if mean is None:
+            mean = np.mean(states, axis=0)
+        states = (states - mean) / std
         # assert np.all(np.isclose(np.std(states, axis=0), 1))
     else:
         std = 1
+
+    # np.save("data_backup/quad_data.npy", states)
 
     states_to_torch = torch.from_numpy(states).float()
 
     # if we computed mean and std here, return it
     if return_std:
-        return states_to_torch, std
+        return states_to_torch, mean, std
     return states_to_torch
 
 
@@ -37,15 +43,17 @@ class Dataset(torch.utils.data.Dataset):
     def __init__(
         self,
         state_sampling_method,
-        path_to_states=None,
         num_states=1000,
         normalize=False,
+        mean=None,
         std=None
     ):
         self.std = std
-        # random_positions = np.random.rand(1000, 3) * 10
+        self.mean = mean
+        # sample states
         state_arr_numpy = state_sampling_method(num_states)
-        state_arr, self.std = raw_states_to_torch(
+        # convert to normalized tensors
+        state_arr, self.mean, self.std = raw_states_to_torch(
             state_arr_numpy, normalize=normalize, std=std, return_std=True
         )
         self.labels = state_arr
