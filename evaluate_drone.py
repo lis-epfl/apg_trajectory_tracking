@@ -38,7 +38,9 @@ class QuadEvaluator():
                     suggested_action = torch.sigmoid(suggested_action
                                                      )[0].numpy()
                     actions.append(suggested_action)
+                    # suggested_action = np.array([.9, .9, .9, .9])
                     if render:
+                        # print(np.around(current_np_state[3:6], 2))
                         print("action:", np.around(suggested_action, 2))
                     current_np_state, stable = eval_env.step(suggested_action)
                     if render:

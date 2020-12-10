@@ -252,7 +252,7 @@ def construct_states(num_data, episode_length=15):
         time = 0
         while is_stable and time < episode_length:
             # env.step(np.array([0, 0, 3, 0]))
-            new_state, is_stable = env.step(2 * np.random.rand(4))
+            new_state, is_stable = env.step(np.random.rand(4))
             data.append(new_state)
             time += 1
     data = np.array(data)

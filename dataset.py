@@ -53,11 +53,11 @@ class Dataset(torch.utils.data.Dataset):
         # sample states
         state_arr_numpy = state_sampling_method(num_states)
         # convert to normalized tensors
-        state_arr, self.mean, self.std = raw_states_to_torch(
+        normalized_state, self.mean, self.std = raw_states_to_torch(
             state_arr_numpy, normalize=normalize, std=std, return_std=True
         )
-        self.labels = state_arr
-        self.states = state_arr
+        self.labels = torch.from_numpy(state_arr_numpy).float()
+        self.states = normalized_state
 
     def __len__(self):
         return len(self.states)

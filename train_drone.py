@@ -20,12 +20,15 @@ net = Net(20, 4)
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 # TESTING
-# reference_data = Dataset(construct_states, normalize=True, num_states=1000)
+# reference_data = Dataset(construct_states, normalize=True, num_states=100)
 # trainloader = torch.utils.data.DataLoader(
-#     reference_data, batch_size=20, shuffle=True, num_workers=0
+#     reference_data, batch_size=8, shuffle=True, num_workers=0
 # )
 # for i, data in enumerate(trainloader, 0):
 #     inputs, current_state = data
+#     print()
+#     print(inputs)
+#     print(current_state)
 #     optimizer.zero_grad()
 #     action = net(inputs)
 #     action = torch.sigmoid(action)
@@ -62,7 +65,8 @@ for epoch in range(NR_EPOCHS):
     running_loss = 0
     try:
         for i, data in enumerate(trainloader, 0):
-            # get the inputs; data is a list of [inputs, labels]
+            # inputs are normalized states, current state is unnormalized in
+            # order to correctly apply the action
             inputs, current_state = data
 
             # zero the parameter gradients
