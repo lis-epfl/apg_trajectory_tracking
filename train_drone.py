@@ -6,18 +6,20 @@ import torch
 from dataset import Dataset
 from drone_loss import drone_loss_function
 from evaluate_drone import QuadEvaluator
-from models.resnet_like_model import Net
+from models.hutter_model import Net
 from environments.drone_env import construct_states
 from utils.plotting import plot_loss, plot_success
 
-EPOCH_SIZE = 1000
+EPOCH_SIZE = 10000
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 50
 BATCH_SIZE = 8
-NR_EVAL_ITERS = 10
+NR_EVAL_ITERS = 30
+NR_ACTIONS = 3
+ACTION_DIM = 4
 
-net = Net(20, 4)
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+net = Net(20, NR_ACTIONS * ACTION_DIM)
+optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 
 # TESTING
 # reference_data = Dataset(construct_states, normalize=True, num_states=100)
@@ -26,9 +28,6 @@ optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 # )
 # for i, data in enumerate(trainloader, 0):
 #     inputs, current_state = data
-#     print()
-#     print(inputs)
-#     print(current_state)
 #     optimizer.zero_grad()
 #     action = net(inputs)
 #     action = torch.sigmoid(action)
@@ -76,12 +75,16 @@ for epoch in range(NR_EPOCHS):
             actions = net(inputs)
             actions = torch.sigmoid(actions)
 
+            # reshape to get sequence of actions
+            action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
+
             # compute loss + backward + optimize
-            loss = drone_loss_function(current_state, actions)
+            loss = drone_loss_function(current_state, action_seq)
             loss.backward()
             optimizer.step()
 
             # print statistics
+            # print(net.fc3.weight.grad)
             running_loss += loss.item()
             if i % PRINT == PRINT - 1:
                 print('Loss: %.3f' % (running_loss / PRINT))

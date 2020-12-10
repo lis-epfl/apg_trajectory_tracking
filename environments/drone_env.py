@@ -65,7 +65,7 @@ class QuadRotorEnvBase(gym.Env):
 
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
-        assert action.shape == (4, )
+        assert action.shape == (4, ), f"action not size 4 but {action.shape}"
 
         # set the blade speeds. as F ~ w², and we want F ~ action.
         torch_state = torch.from_numpy(np.array([self._state.as_np]))
@@ -99,25 +99,25 @@ class QuadRotorEnvBase(gym.Env):
     def close(self):
         self.renderer.close()
 
-    def reset(self):
+    def reset(self, strength=.7):
 
         self._state = DynamicsState()
-        self.randomize_angle(5)
+        # # possibility 1: reset to zero
+        # zero_state = np.zeros(20)
+        # zero_state[2] = 1
+        # self._state.from_np(zero_state)
 
+        self.randomize_angle(5 * strength)
         self.randomize_angular_velocity(2.0)
         self._state.attitude.yaw = self.random_state.uniform(
-            low=-0.3, high=0.3
+            low=-0.3 * strength, high=0.3 * strength
         )
-        # print(
-        #     "angle after randomize:",
-        #     abs(self._state.attitude.roll) + abs(self._state.attitude.pitch) +
-        #     abs(self._state.attitude.yaw)
-        # )
+
         self._state.position[2] = 1
         # yaw control typically expects slower velocities
-        self._state.angular_velocity[2] *= 0.5
+        self._state.angular_velocity[2] *= 0.5 * strength
 
-        self.renderer.set_center(None)
+        # self.renderer.set_center(None)
 
         return self._get_state()
 
@@ -214,32 +214,6 @@ def clip_attitude(state: DynamicsState, max_angle: float):
     return clipped
 
 
-def ensure_fixed_position(state: DynamicsState, altitude: float = 1.0):
-    """
-    Changes the state so that the position part is fixed. This resets the linear velocity
-    to zero, moves the x and y coordiantes to zero and the z coordinate to the given altitude.
-    :param state: State that is manipulated.
-    :param altitude: Altitude at which to fix the position.
-    :return: nothing.
-    """
-    state._velocity = np.zeros(3)
-    state._position = np.array([0.0, 0.0, altitude])
-
-
-def project_2d(state: DynamicsState):
-    """
-    Projects all data in  `state` onto the x-z plane.
-    :param state:
-    :return:
-    """
-    state.angular_velocity[0] = 0
-    state.angular_velocity[2] = 0
-    state.velocity[1] = 0
-    state.position[1] = 0
-    state.attitude.yaw = 0
-    state.attitude.roll = 0
-
-
 def construct_states(num_data, episode_length=15):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
@@ -247,7 +221,7 @@ def construct_states(num_data, episode_length=15):
     env = QuadRotorEnvBase()
     data = []
     while len(data) < num_data:
-        env.reset()
+        env.reset(strength=1)
         is_stable = True
         time = 0
         while is_stable and time < episode_length:

@@ -252,4 +252,4 @@ def simulate_quadrotor(action, state, dt=0.02):
     )
     # print("state", state)
     # print("output state", state.size())
-    return state
+    return state.float()

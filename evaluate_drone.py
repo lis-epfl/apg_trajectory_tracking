@@ -9,6 +9,9 @@ from environments.drone_env import QuadRotorEnvBase
 from dataset import raw_states_to_torch
 from models.resnet_like_model import Net
 
+ROLL_OUT = 1
+ACTION_DIM = 4
+
 
 class QuadEvaluator():
 
@@ -35,14 +38,19 @@ class QuadEvaluator():
                         std=self.std
                     )
                     suggested_action = self.net(current_torch_state)
-                    suggested_action = torch.sigmoid(suggested_action
-                                                     )[0].numpy()
-                    actions.append(suggested_action)
-                    # suggested_action = np.array([.9, .9, .9, .9])
-                    if render:
-                        # print(np.around(current_np_state[3:6], 2))
-                        print("action:", np.around(suggested_action, 2))
-                    current_np_state, stable = eval_env.step(suggested_action)
+                    suggested_action = torch.sigmoid(suggested_action)[0]
+
+                    suggested_action = torch.reshape(
+                        suggested_action, (-1, ACTION_DIM)
+                    ).numpy()
+                    for nr_action in range(ROLL_OUT):
+                        action = suggested_action[nr_action]
+                        actions.append(action)
+                        # action = array([.9, .9, .9, .9])
+                        # if render:
+                        #     # print(np.around(current_np_state[3:6], 2))
+                        #     print("action:", np.around(suggested_action, 2))
+                        current_np_state, stable = eval_env.step(action)
                     if render:
                         eval_env.render()
                         time.sleep(.1)
@@ -85,5 +93,8 @@ if __name__ == "__main__":
         mean=np.array(param_dict["mean"]),
         std=np.array(param_dict["std"])
     )
-    success_mean, success_std = evaluator.stabilize(nr_iters=1, render=True)
+    # watch
+    evaluator.stabilize(nr_iters=1, render=True)
+    # compute stats
+    success_mean, success_std = evaluator.stabilize(nr_iters=100, render=False)
     print(success_mean, success_std)
