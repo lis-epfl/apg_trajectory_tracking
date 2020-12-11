@@ -11,9 +11,10 @@ from models.resnet_like_model import Net
 from utils.plotting import plot_loss, plot_success
 from environments.cartpole_env import construct_states
 
+SAVE_PATH = "trained_models/minimize_x"
 NR_EVAL_ITERS = 10
 
-OUT_SIZE = 12  # one action variable between -1 and 1
+OUT_SIZE = 10  # one action variable between -1 and 1
 DIM = 4  # input dimension
 
 net = Net(DIM, OUT_SIZE)
@@ -33,18 +34,14 @@ NR_EPOCHS = 200
 # TRAIN:
 for epoch in range(NR_EPOCHS):
 
-    # Generate data dynamically
-    state_data = Dataset(construct_states, num_states=10000)
-    trainloader = torch.utils.data.DataLoader(
-        state_data, batch_size=8, shuffle=True, num_workers=0
-    )
-
     # EVALUATION:
     evaluator = Evaluator()
     # Start in upright position and see how long it is balaned
     success, _ = evaluator.evaluate_in_environment(net, nr_iters=NR_EVAL_ITERS)
     # Start in random position and run 100 times, then get average state
-    swing_up_mean, swing_up_std, eval_loss = evaluator.make_swingup(net)
+    swing_up_mean, swing_up_std, eval_loss, new_data = evaluator.make_swingup(
+        net
+    )
     # save and output the evaluation results
     episode_length_mean.append(round(np.mean(success), 3))
     episode_length_std.append(round(np.std(success), 3))
@@ -59,6 +56,16 @@ for epoch in range(NR_EPOCHS):
     ) < 1 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 180:
         print("early stopping")
         break
+
+    # Renew dataset dynamically
+    if epoch % 2 == 0:
+        state_data = Dataset(construct_states, num_states=10000)
+        if epoch > 5:
+            # add the data generated during evaluation
+            state_data.add_data(np.array(new_data))
+        trainloader = torch.utils.data.DataLoader(
+            state_data, batch_size=8, shuffle=True, num_workers=0
+        )
 
     try:
         running_loss = 0.0
@@ -77,24 +84,18 @@ for epoch in range(NR_EPOCHS):
             optimizer.step()
             # print statistics
             running_loss += loss.item()
-            if i % 300 == 299:  # print every 2000 mini-batches
-                # loss = control_loss_function(outputs, labels, printout=True)
-                # print()
-                print(
-                    '[%d, %5d] loss: %.3f' %
-                    (epoch + 1, i + 1, running_loss / 2000)
-                )
-                loss_list.append(running_loss / 2000)
-                running_loss = 0.0
     except KeyboardInterrupt:
         break
 
-# PLOTTING
-SAVE_PATH = "trained_models/minimize_x"
+    # Print current loss and possibly save model:
+    curr_loss = running_loss / len(state_data)
+    print('[%d] loss: %.3f' % (epoch + 1, curr_loss))
+    if epoch > 0 and curr_loss < np.min(loss_list):
+        print("New best model")
+        torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
+    loss_list.append(curr_loss)
 
-# SAVE MODEL
-torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
-# PLOT
+# PLOTTING
 plot_loss(loss_list, SAVE_PATH)
 plot_success(episode_length_mean, episode_length_std, SAVE_PATH)
 print('Finished Training')

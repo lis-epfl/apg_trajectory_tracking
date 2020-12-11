@@ -9,8 +9,6 @@ from dataset import raw_states_to_torch
 from models.resnet_like_model import Net
 from cartpole_loss import control_loss_function
 
-data_collection = []
-
 APPLY_UNTIL = 3
 
 
@@ -25,6 +23,7 @@ class Evaluator:
         """
         Check if the pendulum can make a swing up
         """
+        data_collection = []
         # average over 50 runs # 10 is length of action sequence
         success = []  # np.zeros((success_over * 10 * nr_iters, 4))
         eval_env = CartPoleEnv()
@@ -81,7 +80,7 @@ class Evaluator:
         success = np.absolute(np.array(success))
         mean_rounded = [round(m, 2) for m in np.mean(success, axis=0)]
         std_rounded = [round(m, 2) for m in np.std(success, axis=0)]
-        return mean_rounded, std_rounded, collect_loss
+        return mean_rounded, std_rounded, collect_loss, data_collection
 
     def evaluate_in_environment(self, net, nr_iters=1, render=False):
         """
@@ -171,7 +170,9 @@ if __name__ == "__main__":
     # angles = evaluator.run_for_fixed_length(net, render=True)
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
     try:
-        _ = evaluator.make_swingup(net, max_iters=500, render=True)
+        _, _, _, data_collection = evaluator.make_swingup(
+            net, max_iters=500, render=True
+        )
     except KeyboardInterrupt:
         pass
     # Save sequence?

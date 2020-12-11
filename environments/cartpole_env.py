@@ -224,7 +224,7 @@ def construct_states(num_data, save_path="models/minimize_x/state_data.npy"):
     # uniform_samples = np.random.rand(num_data, 4) * 2 - 1
     # data = uniform_samples * state_limits
 
-    print("generated random data:", data.shape)
+    # print("generated random data:", data.shape)
     # eval_data = [data]  # augmentation: , data * (-1)
     # for name in os.listdir("data"):
     #     if name[0] != ".":

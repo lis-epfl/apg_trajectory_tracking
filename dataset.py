@@ -60,6 +60,20 @@ class Dataset(torch.utils.data.Dataset):
         self.labels = torch.from_numpy(state_arr_numpy).float()
         self.states = normalized_state
 
+    def add_data(self, new_numpy_data):
+        """
+        Add numpy data that was generated in evaluation to the random data
+        """
+        normalized_new_states = raw_states_to_torch(
+            new_numpy_data,
+            normalize=self.normalize,
+            std=self.std,
+            mean=self.mean
+        )
+        unnormalized_new_states = torch.from_numpy(new_numpy_data).float()
+        self.labels = torch.vstack((self.labels, unnormalized_new_states))
+        self.states = torch.vstack((self.states, normalized_new_states))
+
     def __len__(self):
         return len(self.states)
 
