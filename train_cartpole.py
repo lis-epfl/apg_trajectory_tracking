@@ -13,8 +13,10 @@ from environments.cartpole_env import construct_states
 
 SAVE_PATH = "trained_models/minimize_x"
 NR_EVAL_ITERS = 10
+NR_SWINGUP_ITERS = 20
+USE_NEW_DATA = 1000
 
-OUT_SIZE = 10  # one action variable between -1 and 1
+OUT_SIZE = 10
 DIM = 4  # input dimension
 
 net = Net(DIM, OUT_SIZE)
@@ -40,7 +42,7 @@ for epoch in range(NR_EPOCHS):
     success, _ = evaluator.evaluate_in_environment(net, nr_iters=NR_EVAL_ITERS)
     # Start in random position and run 100 times, then get average state
     swing_up_mean, swing_up_std, eval_loss, new_data = evaluator.make_swingup(
-        net
+        net, nr_iters=NR_SWINGUP_ITERS
     )
     # save and output the evaluation results
     episode_length_mean.append(round(np.mean(success), 3))
@@ -50,30 +52,32 @@ for epoch in range(NR_EPOCHS):
         episode_length_std[-1], "swing up:", swing_up_mean, "std:",
         swing_up_std, "loss:", round(np.mean(eval_loss), 2)
     )
-    if swing_up_mean[0] < .3 and swing_up_mean[2] < .2 and np.sum(
+    if swing_up_mean[0] < .5 and swing_up_mean[2] < .5 and np.sum(
         swing_up_mean
-    ) < 1 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 180:
+    ) < 3 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 180:
         print("early stopping")
         break
-    eval_value.append(
-        swing_up_mean[0] + swing_up_mean[2] +
-        (251 - episode_length_mean[-1]) * 0.01
-    )
-    if epoch > 0 and eval_value[-1] == np.min(eval_value):
+    performance_swingup = swing_up_mean[0] + swing_up_mean[
+        2] + (251 - episode_length_mean[-1]) * 0.01
+    if epoch > 0 and performance_swingup < np.min(eval_value):
         # curr_loss < np.min(loss_list):
         print("New best model")
-        torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
+        torch.save(net, os.path.join(SAVE_PATH, "model_pendulum" + str(epoch)))
     print()
+    eval_value.append(performance_swingup)
 
     # Renew dataset dynamically
     if epoch % 3 == 0:
         state_data = Dataset(construct_states, num_states=10000)
         if epoch > 5:
             # add the data generated during evaluation
-            state_data.add_data(np.array(new_data))
+            rand_inds_include = np.random.permutation(len(new_data)
+                                                      )[:USE_NEW_DATA]
+            state_data.add_data(np.array(new_data)[rand_inds_include])
         trainloader = torch.utils.data.DataLoader(
             state_data, batch_size=8, shuffle=True, num_workers=0
         )
+        print(f"------- new dataset {len(state_data)}---------")
 
     try:
         running_loss = 0.0
@@ -87,7 +91,9 @@ for epoch in range(NR_EPOCHS):
             # forward + backward + optimize
             outputs = net(inputs)
             lam = epoch / NR_EPOCHS
-            loss = control_loss_function(outputs, labels, lambda_factor=lam)
+            loss = control_loss_function(
+                outputs, labels, lambda_factor=lam, printout=0
+            )
             loss.backward()
             optimizer.step()
             # print statistics
@@ -99,6 +105,8 @@ for epoch in range(NR_EPOCHS):
     curr_loss = running_loss / len(state_data)
     print('[%d] loss: %.3f' % (epoch + 1, curr_loss))
     loss_list.append(curr_loss)
+
+torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
 
 # PLOTTING
 plot_loss(loss_list, SAVE_PATH)

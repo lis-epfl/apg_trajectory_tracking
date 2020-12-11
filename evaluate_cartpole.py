@@ -18,7 +18,7 @@ class Evaluator:
         self.std = std
 
     def make_swingup(
-        self, net, nr_iters=3, max_iters=100, success_over=30, render=False
+        self, net, nr_iters=10, max_iters=50, success_over=20, render=False
     ):
         """
         Check if the pendulum can make a swing up
@@ -145,8 +145,11 @@ if __name__ == "__main__":
         "-m",
         "--model",
         type=str,
-        default="theta_max_normalize",
+        default="minimize_x",
         help="Directory of model"
+    )
+    parser.add_argument(
+        "-e", "--epoch", type=str, default="", help="Saved epoch"
     )
     parser.add_argument(
         "-save_data",
@@ -162,17 +165,20 @@ if __name__ == "__main__":
     # exit()
 
     net = torch.load(
-        os.path.join("trained_models", MODEL_NAME, "model_pendulum")
+        os.path.join(
+            "trained_models", MODEL_NAME, "model_pendulum" + args.epoch
+        )
     )
     net.eval()
 
-    evaluator = Evaluator(1)
+    evaluator = Evaluator()
     # angles = evaluator.run_for_fixed_length(net, render=True)
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
     try:
-        _, _, _, data_collection = evaluator.make_swingup(
-            net, max_iters=500, render=True
+        swingup_mean, swingup_std, _, data_collection = evaluator.make_swingup(
+            net, nr_iters=1, render=True, max_iters=100
         )
+        print(swingup_mean, swingup_std)
     except KeyboardInterrupt:
         pass
     # Save sequence?

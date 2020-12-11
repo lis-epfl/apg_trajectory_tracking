@@ -73,28 +73,13 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         state = state_to_theta(state, action[:, i])
     abs_state = torch.abs(state)
 
-    pos_loss = abs_state[:, 0]
+    pos_loss = state[:, 0]**2
     # velocity losss is low when x is high
     vel_loss = abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
-    angle_loss = abs_state[:, 2] + .1 * abs_state[:, 3]
-    loss = (pos_loss + vel_loss + 2 * angle_loss)
-    # .1 * torch.mv(abs_state, weighting)  # * prev_weighted
-    # print(state**2)
-    # execute with the maximum force
-    # state_max = state_to_theta(state_max, action_opp_direction)
-
-    # loss += (state[2] - state_max[2])**2
-    # print(loss)
-    # execute to get the cart in the middle
-    # state_pos = state_to_theta(state_pos, action_opp_position)
-    # loss += 5 * (state[:, 0] - state_pos[:, 0])**2
-
-    # loss += .1 * state[0]**2  # (state[0] - state_pos[0])**2
-    # print(loss, "with x:")
-    # loss += .1 * state[1]**2 + .1 * state[3]**2
-
-    # add force loss
-    # loss += .2 * (x_dot_orig + torch.sum(action, axis=1))**2
+    angle_loss = 3 * abs_state[:, 2]
+    # high angle velocity is fine if angle itself is high
+    angle_vel_loss = .1 * abs_state[:, 3] * (torch.pi - abs_state[:, 2])**2
+    loss = .1 * (pos_loss + vel_loss + angle_loss + angle_vel_loss)
 
     if printout:
         # print(
@@ -104,12 +89,11 @@ def control_loss_function(action, state, lambda_factor=.4, printout=0):
         #     x[0].item(),  # "theta max possible", theta_max_possible[0].item()
         # )
         # print("losses:")
-        print("theta", theta[0].item())
-        print("position_loss", position_loss[0].item())
+        print("position_loss", pos_loss[0].item())
         print("vel_loss", vel_loss[0].item())
         # print("factor", factor[0].item())
-        print("together", (factor * (position_loss + vel_loss) * .1)[0].item())
-        print("angle loss", 13 * angle_loss[0].item())
+        print("angle loss", angle_loss[0].item())
+        print("angle vel", angle_vel_loss[0].item())
         print()
     # print(fail)
     return torch.sum(loss)  # + angle_acc)

@@ -79,8 +79,8 @@ class CartPoleEnv():
         assert np.abs(theta) <= np.pi, "theta greater pi"
 
         # change x such that it is not higher than 3
-        x = ((x * 100 + 240) % 480 - 240) / 100
-        assert np.abs(x) <= self.x_threshold
+        # x = ((x * 100 + 240) % 480 - 240) / 100
+        # assert np.abs(x) <= self.x_threshold
         self.state = (x, x_dot, theta, theta_dot)
 
         # Check whether still in feasible area etc

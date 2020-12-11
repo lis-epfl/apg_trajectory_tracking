@@ -60,9 +60,9 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
-        attitude_condition = np.all(np.absolute(np_state[3:6] < .5))
+        attitude_condition = np.all(np.absolute(np_state[3:6] < .4))
         position_condition = 0 < np_state[2] < 5
-        return attitude_condition and position_condition
+        return attitude_condition, position_condition
 
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
@@ -75,7 +75,7 @@ class QuadRotorEnvBase(gym.Env):
         numpy_out_state = new_state_arr.numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
-        is_stable = self.get_is_stable(numpy_out_state)
+        stable_att, stable_pos = self.get_is_stable(numpy_out_state)
         # attitude = self._state.attitude
 
         # How this works: Check whether the angle is above the boundaries
@@ -86,7 +86,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, is_stable
+        return numpy_out_state, stable_att and stable_pos
 
     def render(self, mode='human', close=False):
         if not close:
@@ -115,7 +115,7 @@ class QuadRotorEnvBase(gym.Env):
             low=-0.3 * strength, high=0.3 * strength
         )
 
-        self._state.position[2] = 1
+        self._state.position[2] = 2 + np.random.rand(1) - .5
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5 * strength
@@ -228,6 +228,7 @@ def construct_states(num_data, episode_length=15):
     # return data
     env = QuadRotorEnvBase()
     data = []
+    is_stable_list = list()
     while len(data) < num_data:
         env.reset(strength=1)
         is_stable = True
@@ -235,9 +236,13 @@ def construct_states(num_data, episode_length=15):
         while is_stable and time_stable < episode_length:
             # env.step(np.array([0, 0, 3, 0]))
             new_state, is_stable = env.step(np.random.rand(4))
+            # print(new_state[2])
             data.append(new_state)
             time_stable += 1
+        is_stable_list.append(time_stable)
     data = np.array(data)
+    # np.save("data_backup/collected_data.npy", data)
+    # print("saved first data", np.mean(is_stable_list))
     return data
 
 

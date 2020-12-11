@@ -15,7 +15,7 @@ def attitude_loss(state):
     return (angle_factor * angle_error) + (angvel_factor * ang_vel_error)
 
 
-def drone_loss_function(current_state, action_seq, printout=0):
+def drone_loss_function(current_state, action_seq, printout=0, pos_weight=1):
     """
     Computes loss for applying an action to the current state by comparing to
     the target state
@@ -27,8 +27,8 @@ def drone_loss_function(current_state, action_seq, printout=0):
         action = action_seq[:, act_ind, :]
         current_state = simulate_quadrotor(action, current_state, dt=0.02)
     # add attitude loss to loss for wrong position
-    position_loss = (current_state[:, 2] - 1)**2
-    loss = attitude_loss(current_state) + 500 * position_loss
+    position_loss = (current_state[:, 2] - 2)**2
+    loss = attitude_loss(current_state) + (1 + pos_weight * 20) * position_loss
     # print("loss", loss)
     if printout:
         print()

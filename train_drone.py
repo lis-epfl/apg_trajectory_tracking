@@ -15,7 +15,7 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 50
 BATCH_SIZE = 8
 NR_EVAL_ITERS = 30
-NR_ACTIONS = 3
+NR_ACTIONS = 5
 ACTION_DIM = 4
 
 net = Net(20, NR_ACTIONS * ACTION_DIM)
@@ -56,7 +56,9 @@ for epoch in range(NR_EPOCHS):
     )
 
     eval_env = QuadEvaluator(net, MEAN, STD)
-    suc_mean, suc_std = eval_env.stabilize(nr_iters=NR_EVAL_ITERS)
+    suc_mean, suc_std, pos_responsible = eval_env.stabilize(
+        nr_iters=NR_EVAL_ITERS
+    )
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
     print(f"Epoch {epoch}: Time: {round(suc_mean, 1)} ({round(suc_std, 1)})")
@@ -79,7 +81,13 @@ for epoch in range(NR_EPOCHS):
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
 
             # compute loss + backward + optimize
-            loss = drone_loss_function(current_state, action_seq, printout=0)
+            loss = drone_loss_function(
+                current_state,
+                action_seq,
+                # if the position is responsible more often --> higher weight
+                pos_weight=pos_responsible,
+                printout=0
+            )
             loss.backward()
             optimizer.step()
 

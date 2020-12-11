@@ -8,6 +8,7 @@ import torch
 from environments.drone_env import QuadRotorEnvBase
 from dataset import raw_states_to_torch
 from models.resnet_like_model import Net
+from drone_loss import drone_loss_function
 
 ROLL_OUT = 1
 ACTION_DIM = 4
@@ -20,11 +21,12 @@ class QuadEvaluator():
         self.std = std
         self.net = model
 
-    def stabilize(self, nr_iters=1, render=False, max_time=100):
+    def stabilize(self, nr_iters=1, render=False, max_time=200):
         actions = []
+        failure_list = list()  # collect the reason for failure
+        collect_runs = list()
         with torch.no_grad():
             eval_env = QuadRotorEnvBase()
-            collect_runs = list()
             for _ in range(nr_iters):
                 time_stable = 0
                 eval_env.reset()
@@ -42,22 +44,48 @@ class QuadEvaluator():
 
                     suggested_action = torch.reshape(
                         suggested_action, (-1, ACTION_DIM)
-                    ).numpy()
+                    )
+                    # Print loss
+                    # print(
+                    #     "loss:",
+                    #     drone_loss_function(
+                    #         torch.unsqueeze(
+                    #             torch.from_numpy(current_np_state).float(), 0
+                    #         ), torch.unsqueeze(suggested_action, 0)
+                    #     )
+                    # )
+                    numpy_action_seq = suggested_action.numpy()
                     for nr_action in range(ROLL_OUT):
-                        action = suggested_action[nr_action]
+                        action = numpy_action_seq[nr_action]
                         actions.append(action)
                         # if render:
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))
                         current_np_state, stable = eval_env.step(action)
+                        if not stable:
+                            att_stable, pos_stable = eval_env.get_is_stable(
+                                current_np_state
+                            )
+                            # if att_stable = 1, pos_stable must be 0
+                            failure_list.append(att_stable)
+                            break
+                        # if render:
+                        #     print(current_np_state[:3])
+                        # count nr of actions that the drone can hover
+                        time_stable += 1
                     if render:
                         eval_env.render()
                         time.sleep(.1)
-                    time_stable += 1
                 collect_runs.append(time_stable)
         act = np.array(actions)
+        print(
+            "nr in failure list",
+            len(failure_list), "Position was responsible in ",
+            round(np.mean(failure_list), 2), "cases"
+        )
         print("avg and std action", np.mean(act, axis=0), np.std(act, axis=0))
-        return np.mean(collect_runs), np.std(collect_runs),
+        return np.mean(collect_runs), np.std(collect_runs
+                                             ), np.mean(failure_list)
 
 
 if __name__ == "__main__":
@@ -95,5 +123,7 @@ if __name__ == "__main__":
     # watch
     evaluator.stabilize(nr_iters=1, render=True)
     # compute stats
-    success_mean, success_std = evaluator.stabilize(nr_iters=100, render=False)
+    success_mean, success_std, _ = evaluator.stabilize(
+        nr_iters=100, render=False
+    )
     print(success_mean, success_std)
