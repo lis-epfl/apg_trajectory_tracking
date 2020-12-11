@@ -27,8 +27,8 @@ optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 (
     episode_length_mean, episode_length_std, loss_list, pole_angle_mean,
-    pole_angle_std
-) = (list(), list(), list(), list(), list())
+    pole_angle_std, eval_value
+) = (list(), list(), list(), list(), list(), list())
 
 NR_EPOCHS = 200
 # TRAIN:
@@ -45,7 +45,6 @@ for epoch in range(NR_EPOCHS):
     # save and output the evaluation results
     episode_length_mean.append(round(np.mean(success), 3))
     episode_length_std.append(round(np.std(success), 3))
-    print()
     print(
         "Average episode length: ", episode_length_mean[-1], "std:",
         episode_length_std[-1], "swing up:", swing_up_mean, "std:",
@@ -56,9 +55,18 @@ for epoch in range(NR_EPOCHS):
     ) < 1 and np.sum(swing_up_std) < 1 and episode_length_mean[-1] > 180:
         print("early stopping")
         break
+    eval_value.append(
+        swing_up_mean[0] + swing_up_mean[2] +
+        (251 - episode_length_mean[-1]) * 0.01
+    )
+    if epoch > 0 and eval_value[-1] == np.min(eval_value):
+        # curr_loss < np.min(loss_list):
+        print("New best model")
+        torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
+    print()
 
     # Renew dataset dynamically
-    if epoch % 2 == 0:
+    if epoch % 3 == 0:
         state_data = Dataset(construct_states, num_states=10000)
         if epoch > 5:
             # add the data generated during evaluation
@@ -90,9 +98,6 @@ for epoch in range(NR_EPOCHS):
     # Print current loss and possibly save model:
     curr_loss = running_loss / len(state_data)
     print('[%d] loss: %.3f' % (epoch + 1, curr_loss))
-    if epoch > 0 and curr_loss < np.min(loss_list):
-        print("New best model")
-        torch.save(net, os.path.join(SAVE_PATH, "model_pendulum"))
     loss_list.append(curr_loss)
 
 # PLOTTING
