@@ -19,7 +19,7 @@ NR_ACTIONS = 3
 ACTION_DIM = 4
 
 net = Net(20, NR_ACTIONS * ACTION_DIM)
-optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 # TESTING
 # reference_data = Dataset(construct_states, normalize=True, num_states=100)
@@ -79,7 +79,7 @@ for epoch in range(NR_EPOCHS):
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
 
             # compute loss + backward + optimize
-            loss = drone_loss_function(current_state, action_seq)
+            loss = drone_loss_function(current_state, action_seq, printout=0)
             loss.backward()
             optimizer.step()
 

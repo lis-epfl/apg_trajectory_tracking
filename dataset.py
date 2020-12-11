@@ -48,6 +48,7 @@ class Dataset(torch.utils.data.Dataset):
         mean=None,
         std=None
     ):
+        self.normalize = normalize
         self.std = std
         self.mean = mean
         # sample states

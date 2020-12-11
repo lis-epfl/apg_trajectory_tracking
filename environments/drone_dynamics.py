@@ -226,6 +226,7 @@ def simulate_quadrotor(action, state, dt=0.02):
     dw = gamma * (desired_rotor_speeds - rotor_speed)
     rotor_speed = rotor_speed + dw
     rotor_speed = torch.maximum(rotor_speed, torch.zeros(rotor_speed.size()))
+    # print(action, "rotor_speed", rotor_speed * 10000)
 
     acceleration = linear_dynamics(rotor_speed, attitude, velocity)
 

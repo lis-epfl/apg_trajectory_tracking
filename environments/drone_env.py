@@ -60,8 +60,9 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
-        roll_pitch_yaw = np_state[3:6]
-        return np.sum(np.absolute(roll_pitch_yaw)) < .9
+        attitude_condition = np.all(np.absolute(np_state[3:6] < .5))
+        position_condition = 0 < np_state[2] < 5
+        return attitude_condition and position_condition
 
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
@@ -99,11 +100,12 @@ class QuadRotorEnvBase(gym.Env):
     def close(self):
         self.renderer.close()
 
-    def reset(self, strength=.7):
+    def reset(self, strength=.8):
 
         self._state = DynamicsState()
         # # possibility 1: reset to zero
         # zero_state = np.zeros(20)
+        # zero_state[9:13] = 500
         # zero_state[2] = 1
         # self._state.from_np(zero_state)
 
@@ -114,6 +116,7 @@ class QuadRotorEnvBase(gym.Env):
         )
 
         self._state.position[2] = 1
+        self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5 * strength
 
@@ -149,6 +152,11 @@ class QuadRotorEnvBase(gym.Env):
     def randomize_velocity(self, max_speed: float):
         self._state.velocity[:] = self.random_state.uniform(
             low=-max_speed, high=max_speed, size=(3, )
+        )
+
+    def randomize_rotor_speeds(self, min_speed: float, max_speed: float):
+        self._state.rotor_speeds[:] = self.random_state.uniform(
+            low=min_speed, high=max_speed, size=(4, )
         )
 
     def randomize_angular_velocity(self, max_speed: float):
@@ -223,12 +231,12 @@ def construct_states(num_data, episode_length=15):
     while len(data) < num_data:
         env.reset(strength=1)
         is_stable = True
-        time = 0
-        while is_stable and time < episode_length:
+        time_stable = 0
+        while is_stable and time_stable < episode_length:
             # env.step(np.array([0, 0, 3, 0]))
             new_state, is_stable = env.step(np.random.rand(4))
             data.append(new_state)
-            time += 1
+            time_stable += 1
     data = np.array(data)
     return data
 

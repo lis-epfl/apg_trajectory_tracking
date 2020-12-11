@@ -8,6 +8,7 @@ import math
 import numpy as np
 logger = logging.getLogger(__name__)
 import time
+import os
 from . import cartpole_rendering as rendering
 
 

@@ -46,7 +46,6 @@ class QuadEvaluator():
                     for nr_action in range(ROLL_OUT):
                         action = suggested_action[nr_action]
                         actions.append(action)
-                        # action = array([.9, .9, .9, .9])
                         # if render:
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))

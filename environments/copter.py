@@ -12,7 +12,7 @@ copter_params = {
     # we assume a diagonal matrix
     "frame_inertia": np.array([8.678, 8.678, 32.1]) * 1e-3,
     "gravity": np.array([0.0, 0.0, -9.81]),
-    "max_rotor_speed": 500.0,
+    "max_rotor_speed": 1000.0,
     "rotor_speed_half_time": 1.0 / 16,
 }
 
@@ -73,6 +73,9 @@ class DynamicsState(object):
 
     @property
     def as_np(self):
+        """
+        Convert state to np array
+        """
         return np.array(
             (
                 list(self._position) + list(self._attitude._euler) +
@@ -84,9 +87,12 @@ class DynamicsState(object):
         )
 
     def from_np(self, state_array):
+        """
+        Convert np array to dynamic state
+        """
         self._position = state_array[:3]
         self._attitude = Euler(*tuple(state_array[3:6]))
         self._velocity = state_array[6:9]
-        self._rotor_speed = state_array[9:13]
+        self._rotorspeeds = state_array[9:13]
         self._desired_rotor_speeds = state_array[13:17]
         self._angular_velocity = state_array[17:20]

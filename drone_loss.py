@@ -15,7 +15,7 @@ def attitude_loss(state):
     return (angle_factor * angle_error) + (angvel_factor * ang_vel_error)
 
 
-def drone_loss_function(current_state, action_seq):
+def drone_loss_function(current_state, action_seq, printout=0):
     """
     Computes loss for applying an action to the current state by comparing to
     the target state
@@ -26,7 +26,12 @@ def drone_loss_function(current_state, action_seq):
     for act_ind in range(action_seq.size()[1]):
         action = action_seq[:, act_ind, :]
         current_state = simulate_quadrotor(action, current_state, dt=0.02)
-    # print("s", resulting_state)
-    loss = attitude_loss(current_state)
+    # add attitude loss to loss for wrong position
+    position_loss = (current_state[:, 2] - 1)**2
+    loss = attitude_loss(current_state) + 500 * position_loss
     # print("loss", loss)
+    if printout:
+        print()
+        print("attitude loss", attitude_loss(current_state)[0])
+        print("position loss", position_loss[0])
     return torch.sum(loss)
