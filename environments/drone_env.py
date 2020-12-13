@@ -115,7 +115,7 @@ class QuadRotorEnvBase(gym.Env):
             low=-0.3 * strength, high=0.3 * strength
         )
 
-        self._state.position[2] = 2 + np.random.rand(1) - .5
+        self._state.position[2] = 2 + np.random.rand(1) * 2 - 1
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5 * strength
@@ -225,6 +225,7 @@ def clip_attitude(state: DynamicsState, max_angle: float):
 def construct_states(num_data, episode_length=15):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
+    const_action_runs = .8
     # return data
     env = QuadRotorEnvBase()
     data = []
@@ -234,8 +235,11 @@ def construct_states(num_data, episode_length=15):
         is_stable = True
         time_stable = 0
         while is_stable and time_stable < episode_length:
-            # env.step(np.array([0, 0, 3, 0]))
-            new_state, is_stable = env.step(np.random.rand(4))
+            action = np.random.rand(4)
+            if len(data) > num_data * const_action_runs:
+                # add steps with with
+                action = np.ones(4) * .5
+            new_state, is_stable = env.step(action)
             # print(new_state[2])
             data.append(new_state)
             time_stable += 1
@@ -249,17 +253,8 @@ def construct_states(num_data, episode_length=15):
 if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
-
-    for j in range(4):
-        # print("reset: current state:")
-        # pprint.pprint(env._state.formatted)
-        # print()
-        env.reset()
-        # pprint.pprint(env._state.formatted)
-        for i in range(20):
-            # env.step(np.array([0, 0, 3, 0]))
-            newstate = env.step(2 * np.random.rand(4))
-            time.sleep(.2)
-            # print(newstate)
-            env.render()
-        time.sleep(2)
+    states = np.load("data_backup/collected_data.npy")
+    for j in range(100):
+        env._state.from_np(states[-100 + j])
+        env.render()
+        time.sleep(.2)
