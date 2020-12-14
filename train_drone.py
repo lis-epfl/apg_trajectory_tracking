@@ -12,11 +12,12 @@ from utils.plotting import plot_loss, plot_success
 
 EPOCH_SIZE = 10000
 PRINT = (EPOCH_SIZE // 30)
-NR_EPOCHS = 50
+NR_EPOCHS = 200
 BATCH_SIZE = 8
 NR_EVAL_ITERS = 30
 NR_ACTIONS = 5
 ACTION_DIM = 4
+SAVE = os.path.join("trained_models/drone/test_model")
 
 net = Net(20, NR_ACTIONS * ACTION_DIM)
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
@@ -41,6 +42,7 @@ reference_data = Dataset(
 
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
+highest_success = 0
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
@@ -59,6 +61,11 @@ for epoch in range(NR_EPOCHS):
     suc_mean, suc_std, pos_responsible = eval_env.stabilize(
         nr_iters=NR_EVAL_ITERS
     )
+    if suc_mean > highest_success:
+        highest_success = suc_mean
+        print("Best model")
+        torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
+
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
     print(f"Epoch {epoch}: Time: {round(suc_mean, 1)} ({round(suc_std, 1)})")
@@ -101,7 +108,6 @@ for epoch in range(NR_EPOCHS):
     except KeyboardInterrupt:
         break
 
-SAVE = os.path.join("trained_models/drone/test_model")
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
 # save std for normalization

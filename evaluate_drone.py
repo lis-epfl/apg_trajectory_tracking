@@ -74,6 +74,7 @@ class QuadEvaluator():
                         # count nr of actions that the drone can hover
                         time_stable += 1
                     if render:
+                        print([round(s, 2) for s in current_np_state])
                         eval_env.render()
                         time.sleep(.1)
                 collect_runs.append(time_stable)
