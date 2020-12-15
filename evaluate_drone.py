@@ -74,15 +74,14 @@ class QuadEvaluator():
                         # count nr of actions that the drone can hover
                         time_stable += 1
                     if render:
-                        print([round(s, 2) for s in current_np_state])
+                        # print([round(s, 2) for s in current_np_state])
                         eval_env.render()
                         time.sleep(.1)
                 collect_runs.append(time_stable)
         act = np.array(actions)
         print(
-            "nr in failure list",
-            len(failure_list), "Position was responsible in ",
-            round(np.mean(failure_list), 2), "cases"
+            "Position was responsible in ", round(np.mean(failure_list), 2),
+            "cases"
         )
         print("avg and std action", np.mean(act, axis=0), np.std(act, axis=0))
         return np.mean(collect_runs), np.std(collect_runs
@@ -100,6 +99,9 @@ if __name__ == "__main__":
         help="Directory of model"
     )
     parser.add_argument(
+        "-e", "--epoch", type=str, default="", help="Saved epoch"
+    )
+    parser.add_argument(
         "-save_data",
         action="store_true",
         help="save the episode as training data"
@@ -113,7 +115,7 @@ if __name__ == "__main__":
     with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
         param_dict = json.load(outfile)
 
-    net = torch.load(os.path.join(model_path, "model_quad"))
+    net = torch.load(os.path.join(model_path, "model_quad" + args.epoch))
     net.eval()
 
     evaluator = QuadEvaluator(

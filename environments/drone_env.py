@@ -60,7 +60,7 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
-        attitude_condition = np.all(np.absolute(np_state[3:6] < .4))
+        attitude_condition = np.all(np.absolute(np_state[3:6]) < .4)
         position_condition = 0 < np_state[2] < 5
         return attitude_condition, position_condition
 
@@ -253,7 +253,7 @@ def construct_states(num_data, episode_length=15):
 if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
-    states = np.load("data_backup/collected_data.npy")
+    states = np.load("data_backup/quad_data.npy")
     for j in range(100):
         env._state.from_np(states[-100 + j])
         env.render()
