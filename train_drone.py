@@ -20,7 +20,7 @@ ACTION_DIM = 4
 SAVE = os.path.join("trained_models/drone/test_model")
 
 net = Net(20, NR_ACTIONS * ACTION_DIM)
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 
 # TESTING
 # reference_data = Dataset(construct_states, normalize=True, num_states=100)

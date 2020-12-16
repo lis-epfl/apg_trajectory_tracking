@@ -100,6 +100,9 @@ if __name__ == "__main__":
         help="Directory of model"
     )
     parser.add_argument(
+        "-e", "--epoch", type=str, default="", help="Saved epoch"
+    )
+    parser.add_argument(
         "-save_data",
         action="store_true",
         help="save the episode as training data"
@@ -113,7 +116,7 @@ if __name__ == "__main__":
     with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
         param_dict = json.load(outfile)
 
-    net = torch.load(os.path.join(model_path, "model_quad"))
+    net = torch.load(os.path.join(model_path, "model_quad" + args.epoch))
     net.eval()
 
     evaluator = QuadEvaluator(
