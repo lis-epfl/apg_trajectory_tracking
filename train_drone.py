@@ -19,10 +19,11 @@ NR_EVAL_ITERS = 30
 NR_ACTIONS = 1
 ACTION_DIM = 4
 STATE_SIZE = 20
+LEARNING_RATE = 0.01
 SAVE = os.path.join("trained_models/drone/test_model")
 
 net = Net(STATE_SIZE, NR_ACTIONS * ACTION_DIM)
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE)  #, momentum=0.9)
 
 reference_data = Dataset(
     construct_states, normalize=True, num_states=EPOCH_SIZE
@@ -35,10 +36,18 @@ loss_list, success_mean_list, success_std_list = list(), list(), list()
 target_state = torch.zeros(STATE_SIZE)
 target_state[2] = 2
 mask = torch.ones(STATE_SIZE)
-mask[9:17] = 0  # rotor speeds don't matter, but want to optimize position,
-# velocity, angular vel etc
+mask[6:17] = 0  # rotor speeds don't matter, but want to optimize position,
+# attitude, angular vel etc
 # normalize the state
-target_state = (target_state - torch_mean) / torch_std
+target_state = ((target_state - torch_mean) / torch_std) * mask
+
+
+def adjust_learning_rate(optimizer, epoch, every_x=5):
+    """Sets the learning rate to the initial LR decayed by 10 every 10 epochs"""
+    lr = LEARNING_RATE * (0.1**(epoch // every_x))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
 
 highest_success = 0
 for epoch in range(NR_EPOCHS):
@@ -86,8 +95,9 @@ for epoch in range(NR_EPOCHS):
             drone_state = simulate_quadrotor(actions, current_state)
             # normalize
             drone_state = (drone_state - torch_mean) / torch_std
+            pout = 1 if False else 0
             loss_traj = trajectory_loss(
-                inputs, target_state, drone_state, mask=mask
+                inputs, target_state, drone_state, mask=mask, printout=pout
             )
             loss = torch.sum(loss_traj)
             # # reshape to get sequence of actions

@@ -59,6 +59,8 @@ def trajectory_loss(state, target_state, drone_state, mask=None, printout=0):
     """
     if mask is None:
         mask = torch.ones(state.size()[1])
+    else:
+        state = state * mask
 
     # normalize by distance between states
     total_distance = torch.sum((state - target_state)**2, 1)
@@ -66,23 +68,24 @@ def trajectory_loss(state, target_state, drone_state, mask=None, printout=0):
     projected_state = project_to_line(state, target_state, drone_state)
 
     # divergence from the desired route
-    divergence_loss = torch.sum((projected_state - drone_state)**2 * mask, 1)
+    divergence_loss_all = (projected_state - drone_state)**2 * mask
+    divergence_loss = torch.sum(divergence_loss_all, 1)
 
     # minimize remaining distance to target (normalized on total distance)
     progress_loss_all = (projected_state - target_state)**2 * mask
     progress_loss = torch.sum(progress_loss_all, 1) / total_distance
     if printout:
+        print(
+            total_distance.size(), progress_loss_all.size(),
+            progress_loss.size()
+        )
         print("state", state[0])
         print("target", target_state)
         print("drone", drone_state[0])
+        print("divergence all", divergence_loss_all[0])
         print("progress all", progress_loss_all[0])
         print("divergence", divergence_loss[0].item())
         print("progress_loss", progress_loss[0].item())
-        print()
-        print(state[1])
-        print(target_state)
-        print(drone_state[1])
-        print(divergence_loss[1].item())
-        print(progress_loss[1].item())
+        print("final", 10 * (.05 * divergence_loss + progress_loss))
         print(fail)
-    return .05 * divergence_loss + progress_loss
+    return progress_loss + .1 * divergence_loss
