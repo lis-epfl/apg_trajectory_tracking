@@ -25,10 +25,13 @@ def drone_loss_function(current_state, action_seq, printout=0, pos_weight=1):
     """
     for act_ind in range(action_seq.size()[1]):
         action = action_seq[:, act_ind, :]
-        current_state = simulate_quadrotor(action, current_state, dt=0.02)
+        current_state = simulate_quadrotor(action, current_state)
     # add attitude loss to loss for wrong position
     position_loss = (current_state[:, 2] - 2)**2
-    loss = attitude_loss(current_state) + (1 + pos_weight * 10) * position_loss
+    x_y_pos_loss = torch.sum(current_state[:, :2]**2, axis=1)
+    loss = attitude_loss(
+        current_state
+    ) + (1 + pos_weight * 10) * position_loss + x_y_pos_loss
     # print("loss", loss)
     if printout:
         print()

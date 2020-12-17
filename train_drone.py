@@ -12,8 +12,8 @@ from models.hutter_model import Net
 from environments.drone_env import construct_states
 from utils.plotting import plot_loss, plot_success
 
-EPOCH_SIZE = 10000
-USE_NEW_DATA = 0  # 1000
+EPOCH_SIZE = 5000
+USE_NEW_DATA = 500  # 1000
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -24,7 +24,7 @@ ACTION_DIM = 4
 SAVE = os.path.join("trained_models/drone/test_model")
 
 net = Net(STATE_SIZE, NR_ACTIONS * ACTION_DIM)
-optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
+optimizer = optim.SGD(net.parameters(), lr=0.005, momentum=0.9)
 
 reference_data = Dataset(
     construct_states, normalize=True, num_states=EPOCH_SIZE
@@ -42,17 +42,18 @@ highest_success = 0
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
-    state_data = Dataset(
-        construct_states,
-        normalize=True,
-        mean=MEAN,
-        std=STD,
-        num_states=EPOCH_SIZE,
-        # reset_strength=.6 + epoch / 50
-    )
-    trainloader = torch.utils.data.DataLoader(
-        state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
-    )
+    if epoch % 2 == 0:
+        state_data = Dataset(
+            construct_states,
+            normalize=True,
+            mean=MEAN,
+            std=STD,
+            num_states=EPOCH_SIZE,
+            # reset_strength=.6 + epoch / 50
+        )
+        trainloader = torch.utils.data.DataLoader(
+            state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
+        )
 
     eval_env = QuadEvaluator(net, MEAN, STD)
     suc_mean, suc_std, pos_responsible, new_data = eval_env.stabilize(

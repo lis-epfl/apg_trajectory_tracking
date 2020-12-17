@@ -69,6 +69,10 @@ class QuadEvaluator():
                         current_np_state, stable = eval_env.step(action)
                         collect_data.append(current_np_state)
                         if not stable:
+                            # print("FAILED")
+                            # print(current_torch_state)
+                            # print("action", action)
+                            # print(current_np_state)
                             att_stable, pos_stable = eval_env.get_is_stable(
                                 current_np_state
                             )
@@ -134,8 +138,8 @@ if __name__ == "__main__":
     )
     # watch
     evaluator.stabilize(nr_iters=1, render=True)
-    # compute stats
-    success_mean, success_std, _, _ = evaluator.stabilize(
-        nr_iters=100, render=False
-    )
-    print(success_mean, success_std)
+    # # compute stats
+    # success_mean, success_std, _, _ = evaluator.stabilize(
+    #     nr_iters=100, render=False
+    # )
+    # print(success_mean, success_std)
