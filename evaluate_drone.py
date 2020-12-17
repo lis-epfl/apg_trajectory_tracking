@@ -22,6 +22,7 @@ class QuadEvaluator():
         self.net = model
 
     def stabilize(self, nr_iters=1, render=False, max_time=200):
+        collect_data = []
         actions = []
         failure_list = list()  # collect the reason for failure
         collect_runs = list()
@@ -66,6 +67,7 @@ class QuadEvaluator():
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))
                         current_np_state, stable = eval_env.step(action)
+                        collect_data.append(current_np_state)
                         if not stable:
                             att_stable, pos_stable = eval_env.get_is_stable(
                                 current_np_state
@@ -83,13 +85,16 @@ class QuadEvaluator():
                         time.sleep(.1)
                 collect_runs.append(time_stable)
         act = np.array(actions)
+        collect_data = np.array(collect_data)
         print(
             "Position was responsible in ", round(np.mean(failure_list), 2),
             "cases"
         )
         print("avg and std action", np.mean(act, axis=0), np.std(act, axis=0))
-        return np.mean(collect_runs), np.std(collect_runs
-                                             ), np.mean(failure_list)
+        return (
+            np.mean(collect_runs), np.std(collect_runs), np.mean(failure_list),
+            collect_data
+        )
 
 
 if __name__ == "__main__":
@@ -130,7 +135,7 @@ if __name__ == "__main__":
     # watch
     evaluator.stabilize(nr_iters=1, render=True)
     # compute stats
-    success_mean, success_std, _ = evaluator.stabilize(
+    success_mean, success_std, _, _ = evaluator.stabilize(
         nr_iters=100, render=False
     )
     print(success_mean, success_std)
