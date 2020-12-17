@@ -24,7 +24,6 @@ class DynamicsState(object):
         self._attitude = Euler(0.0, 0.0, 0.0)
         self._velocity = np.zeros(3)
         self._rotorspeeds = np.zeros(4)
-        self._desired_rotor_speeds = np.zeros(4)
         self._angular_velocity = np.zeros(3)
 
     @property
@@ -44,14 +43,6 @@ class DynamicsState(object):
         return self._rotorspeeds
 
     @property
-    def desired_rotor_speeds(self):
-        return self._desired_rotor_speeds
-
-    @desired_rotor_speeds.setter
-    def desired_rotor_speeds(self, value):
-        self._desired_rotor_speeds[:] = value
-
-    @property
     def angular_velocity(self):
         return self._angular_velocity
 
@@ -67,7 +58,6 @@ class DynamicsState(object):
             "attitude:": self._attitude,
             "velocity:": self._velocity,
             "rotorspeeds:": self._rotorspeeds,
-            "_desired_rotor_speeds:": self._desired_rotor_speeds,
             "angular_velocity:": self._angular_velocity
         }
 
@@ -80,7 +70,6 @@ class DynamicsState(object):
             (
                 list(self._position) + list(self._attitude._euler) +
                 list(self._velocity) + list(self._rotorspeeds) +
-                list(self._desired_rotor_speeds) +
                 list(self._angular_velocity)
             ),
             dtype=np.float32
@@ -94,5 +83,4 @@ class DynamicsState(object):
         self._attitude = Euler(*tuple(state_array[3:6]))
         self._velocity = state_array[6:9]
         self._rotorspeeds = state_array[9:13]
-        self._desired_rotor_speeds = state_array[13:17]
-        self._angular_velocity = state_array[17:20]
+        self._angular_velocity = state_array[13:16]

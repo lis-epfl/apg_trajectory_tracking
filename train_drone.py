@@ -2,6 +2,7 @@ import os
 import json
 import torch.optim as optim
 import torch
+import torch.nn.functional as F
 
 from dataset import Dataset
 from drone_loss import drone_loss_function
@@ -15,11 +16,12 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 NR_EVAL_ITERS = 30
+STATE_SIZE = 16
 NR_ACTIONS = 5
 ACTION_DIM = 4
 SAVE = os.path.join("trained_models/drone/test_model")
 
-net = Net(20, NR_ACTIONS * ACTION_DIM)
+net = Net(STATE_SIZE, NR_ACTIONS * ACTION_DIM)
 optimizer = optim.SGD(net.parameters(), lr=0.01, momentum=0.9)
 
 # TESTING
@@ -61,7 +63,7 @@ for epoch in range(NR_EPOCHS):
     suc_mean, suc_std, pos_responsible = eval_env.stabilize(
         nr_iters=NR_EVAL_ITERS
     )
-    if suc_mean > highest_success:
+    if epoch > 2 and suc_mean > highest_success:
         highest_success = suc_mean
         print("Best model")
         torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))

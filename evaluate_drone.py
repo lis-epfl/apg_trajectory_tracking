@@ -30,6 +30,10 @@ class QuadEvaluator():
             for _ in range(nr_iters):
                 time_stable = 0
                 eval_env.reset()
+                # zero_state = np.zeros(20)
+                # zero_state[9:13] = 500
+                # zero_state[2] = 2
+                # eval_env._state.from_np(zero_state)
                 current_np_state = eval_env._state.as_np
                 stable = True
                 while stable and time_stable < max_time:
@@ -80,9 +84,8 @@ class QuadEvaluator():
                 collect_runs.append(time_stable)
         act = np.array(actions)
         print(
-            "nr in failure list",
-            len(failure_list), "Position was responsible in ",
-            round(np.mean(failure_list), 2), "cases"
+            "Position was responsible in ", round(np.mean(failure_list), 2),
+            "cases"
         )
         print("avg and std action", np.mean(act, axis=0), np.std(act, axis=0))
         return np.mean(collect_runs), np.std(collect_runs

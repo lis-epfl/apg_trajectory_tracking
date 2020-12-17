@@ -11,7 +11,7 @@ def attitude_loss(state):
     angvel_factor = 1e-2
 
     angle_error = torch.sum(state[:, 3:6]**2, axis=1)
-    ang_vel_error = 2 * torch.sum(state[:, 17:20]**2, axis=1)
+    ang_vel_error = 2 * torch.sum(state[:, 13:16]**2, axis=1)
     return (angle_factor * angle_error) + (angvel_factor * ang_vel_error)
 
 
