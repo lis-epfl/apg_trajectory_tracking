@@ -26,6 +26,9 @@ class DynamicsState(object):
         self._rotorspeeds = np.zeros(4)
         self._angular_velocity = np.zeros(3)
 
+    def set_position(self, pos):
+        self._position = pos
+
     @property
     def position(self):
         return self._position

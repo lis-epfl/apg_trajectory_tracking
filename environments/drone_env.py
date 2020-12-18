@@ -61,7 +61,7 @@ class QuadRotorEnvBase(gym.Env):
     @staticmethod
     def get_is_stable(np_state):
         attitude_condition = np.all(np.absolute(np_state[3:6]) < .4)
-        position_condition = 0 < np_state[2] < 5
+        position_condition = -2 < np_state[2] < 8
         return attitude_condition, position_condition
 
     def step(self, action):
@@ -86,7 +86,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, stable_att and stable_pos
+        return numpy_out_state, stable_att  #  and stable_pos
 
     def render(self, mode='human', close=False):
         if not close:

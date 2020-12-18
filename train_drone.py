@@ -44,9 +44,8 @@ loss_list, success_mean_list, success_std_list = list(), list(), list()
 target_state = torch.zeros(STATE_SIZE)
 target_state[2] = 2
 mask = torch.ones(STATE_SIZE)
-mask[6:17] = 0  # rotor speeds don't matter, but want to optimize position,
-# attitude, angular vel etc
-# normalize the state
+mask[9:13] = 0  # rotor speeds don't matter
+loss_weights = mask  # torch.tensor([]) TODO
 target_state = ((target_state - torch_mean) / torch_std) * mask
 
 

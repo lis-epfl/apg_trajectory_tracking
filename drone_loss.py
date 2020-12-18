@@ -55,7 +55,9 @@ def project_to_line(a_on_line, b_on_line, p):
     return projected
 
 
-def trajectory_loss(state, target_state, drone_state, mask=None, printout=0):
+def trajectory_loss(
+    state, target_state, drone_state, loss_weights, mask=None, printout=0
+):
     """
     Loss for attemtping to traverse from state to target_state but ending up
     at drone_state
@@ -64,6 +66,9 @@ def trajectory_loss(state, target_state, drone_state, mask=None, printout=0):
         mask = torch.ones(state.size()[1])
     else:
         state = state * mask
+
+    # multiply losses by 0 or weights
+    mask = mask * loss_weights
 
     # normalize by distance between states
     total_distance = torch.sum((state - target_state)**2, 1)
