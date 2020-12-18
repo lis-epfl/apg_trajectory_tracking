@@ -114,7 +114,7 @@ class QuadRotorEnvBase(gym.Env):
         self._state.attitude.yaw = self.random_state.uniform(
             low=-0.3 * strength, high=0.3 * strength
         )
-
+        self._state.position[:2] = np.random.rand(2) - 1
         self._state.position[2] = 2 + np.random.rand(1) * 2 - 1
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
@@ -222,7 +222,7 @@ def clip_attitude(state: DynamicsState, max_angle: float):
     return clipped
 
 
-def construct_states(num_data, episode_length=15):
+def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
     const_action_runs = .8
@@ -231,7 +231,7 @@ def construct_states(num_data, episode_length=15):
     data = []
     is_stable_list = list()
     while len(data) < num_data:
-        env.reset(strength=1)
+        env.reset(strength=reset_strength)
         is_stable = True
         time_stable = 0
         while is_stable and time_stable < episode_length:
@@ -253,8 +253,10 @@ def construct_states(num_data, episode_length=15):
 if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
-    states = np.load("data_backup/quad_data.npy")
+    states = construct_states(100)
+    #  np.load("data_backup/collected_data.npy")
     for j in range(100):
-        env._state.from_np(states[-100 + j])
+        print([round(s, 2) for s in states[j, :6]])
+        env._state.from_np(states[j])
         env.render()
         time.sleep(.2)

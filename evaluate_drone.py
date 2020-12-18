@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from environments.drone_env import QuadRotorEnvBase
+from utils.plotting import plot_state_variables
 from dataset import raw_states_to_torch
 from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
@@ -21,7 +22,8 @@ class QuadEvaluator():
         self.std = std
         self.net = model
 
-    def stabilize(self, nr_iters=1, render=False, max_time=200):
+    def stabilize(self, nr_iters=1, render=False, max_time=300):
+        collect_data = []
         actions = []
         failure_list = list()  # collect the reason for failure
         collect_runs = list()
@@ -30,6 +32,10 @@ class QuadEvaluator():
             for _ in range(nr_iters):
                 time_stable = 0
                 eval_env.reset()
+                # zero_state = np.zeros(20)
+                # zero_state[9:13] = 500
+                # zero_state[2] = 2
+                # eval_env._state.from_np(zero_state)
                 current_np_state = eval_env._state.as_np
                 stable = True
                 while stable and time_stable < max_time:
@@ -62,7 +68,12 @@ class QuadEvaluator():
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))
                         current_np_state, stable = eval_env.step(action)
+                        collect_data.append(current_np_state)
                         if not stable:
+                            # print("FAILED")
+                            # print(current_torch_state)
+                            # print("action", action)
+                            # print(current_np_state)
                             att_stable, pos_stable = eval_env.get_is_stable(
                                 current_np_state
                             )
@@ -78,14 +89,19 @@ class QuadEvaluator():
                         eval_env.render()
                         time.sleep(.1)
                 collect_runs.append(time_stable)
+        if len(failure_list) == 0:
+            failure_list = [0]
         act = np.array(actions)
+        collect_data = np.array(collect_data)
         print(
             "Position was responsible in ", round(np.mean(failure_list), 2),
             "cases"
         )
         print("avg and std action", np.mean(act, axis=0), np.std(act, axis=0))
-        return np.mean(collect_runs), np.std(collect_runs
-                                             ), np.mean(failure_list)
+        return (
+            np.mean(collect_runs), np.std(collect_runs), np.mean(failure_list),
+            collect_data
+        )
 
 
 if __name__ == "__main__":
@@ -124,9 +140,12 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # watch
-    evaluator.stabilize(nr_iters=1, render=True)
+    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
     # compute stats
-    success_mean, success_std, _ = evaluator.stabilize(
+    success_mean, success_std, _, _ = evaluator.stabilize(
         nr_iters=100, render=False
     )
     print(success_mean, success_std)
+    plot_state_variables(
+        collect_data, save_path=os.path.join(model_path, "evaluation.png")
+    )

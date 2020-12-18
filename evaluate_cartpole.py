@@ -176,7 +176,7 @@ if __name__ == "__main__":
     # success, angles = evaluator.evaluate_in_environment(net, render=True)
     try:
         swingup_mean, swingup_std, _, data_collection = evaluator.make_swingup(
-            net, nr_iters=1, render=True, max_iters=100
+            net, nr_iters=1, render=True, max_iters=500
         )
         print(swingup_mean, swingup_std)
     except KeyboardInterrupt:

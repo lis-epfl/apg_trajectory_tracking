@@ -215,18 +215,24 @@ def simulate_quadrotor(action, state, dt=0.02):
     attitude = state[:, 3:6]
     velocity = state[:, 6:9]
     rotor_speed = state[:, 9:13]
-    desired_rotor_speeds = state[:, 13:17]
-    angular_velocity = state[:, 17:20]
+    angular_velocity = state[:, 13:16]
 
-    # set desired rotor speeds based on action
+    # set desired rotor speeds based on action # TODO: was sqrt action
     desired_rotor_speeds = torch.sqrt(action) * copter_params.max_rotor_speed
 
     # let rotor speed approach desired rotor speed and avoid negative rotation
+    # TODO: change back
     gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
     dw = gamma * (desired_rotor_speeds - rotor_speed)
     rotor_speed = rotor_speed + dw
     rotor_speed = torch.maximum(rotor_speed, torch.zeros(rotor_speed.size()))
     # print(action, "rotor_speed", rotor_speed * 10000)
+
+    # print("bef:", rotor_speed)
+    # print(action)
+    # desired_rotor_speeds = rotor_speed
+    # rotor_speed = torch.nn.functional.relu(rotor_speed + (action - 0.5) * 500)
+    # # print(rotor_speed)
 
     acceleration = linear_dynamics(rotor_speed, attitude, velocity)
 
@@ -246,10 +252,7 @@ def simulate_quadrotor(action, state, dt=0.02):
     #     desired_rotor_speeds.shape, angular_velocity.shape
     # )
     state = torch.hstack(
-        (
-            position, attitude, velocity, rotor_speed, desired_rotor_speeds,
-            angular_velocity
-        )
+        (position, attitude, velocity, rotor_speed, angular_velocity)
     )
     # print("state", state)
     # print("output state", state.size())

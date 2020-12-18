@@ -46,16 +46,21 @@ class Dataset(torch.utils.data.Dataset):
         num_states=1000,
         normalize=False,
         mean=None,
-        std=None
+        std=None,
+        **kwargs
     ):
         self.normalize = normalize
         self.std = std
         self.mean = mean
         # sample states
-        state_arr_numpy = state_sampling_method(num_states)
+        state_arr_numpy = state_sampling_method(num_states, **kwargs)
         # convert to normalized tensors
         normalized_state, self.mean, self.std = raw_states_to_torch(
-            state_arr_numpy, normalize=normalize, std=std, return_std=True
+            state_arr_numpy,
+            normalize=normalize,
+            mean=mean,
+            std=std,
+            return_std=True
         )
         self.labels = torch.from_numpy(state_arr_numpy).float()
         self.states = normalized_state
