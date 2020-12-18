@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from environments.drone_env import QuadRotorEnvBase
+from utils.plotting import plot_state_variables
 from dataset import raw_states_to_torch
 from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
@@ -21,7 +22,7 @@ class QuadEvaluator():
         self.std = std
         self.net = model
 
-    def stabilize(self, nr_iters=1, render=False, max_time=200):
+    def stabilize(self, nr_iters=1, render=False, max_time=300):
         collect_data = []
         actions = []
         failure_list = list()  # collect the reason for failure
@@ -88,6 +89,8 @@ class QuadEvaluator():
                         eval_env.render()
                         time.sleep(.1)
                 collect_runs.append(time_stable)
+        if len(failure_list) == 0:
+            failure_list = [0]
         act = np.array(actions)
         collect_data = np.array(collect_data)
         print(
@@ -137,9 +140,12 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # watch
-    evaluator.stabilize(nr_iters=1, render=True)
-    # # compute stats
-    # success_mean, success_std, _, _ = evaluator.stabilize(
-    #     nr_iters=100, render=False
-    # )
-    # print(success_mean, success_std)
+    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
+    # compute stats
+    success_mean, success_std, _, _ = evaluator.stabilize(
+        nr_iters=100, render=False
+    )
+    print(success_mean, success_std)
+    plot_state_variables(
+        collect_data, save_path=os.path.join(model_path, "evaluation.png")
+    )
