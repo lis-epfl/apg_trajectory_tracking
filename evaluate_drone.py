@@ -94,7 +94,7 @@ class QuadEvaluator():
             collect_data
         )
 
-    def follow_trajectory(self, knots, render=False, target_change_theta=.1):
+    def follow_trajectory(self, knots, render=False, target_change_theta=.2):
         distance_between_knots = np.linalg.norm(knots[1] - knots[0])
         torch.set_grad_enabled(False)
         # with torch.no_grad()
@@ -115,7 +115,6 @@ class QuadEvaluator():
             diff_to_target[:3] = diff_to_target[:3] - knots[target_ind]
             # TODO: only necessary for this model where 000 is actually 002
             diff_to_target[2] += 2
-            print("diff_to_target", [round(s, 2) for s in diff_to_target[:3]])
 
             numpy_action_seq = self.predict_actions(diff_to_target)
             for nr_action in range(ROLL_OUT):
@@ -130,8 +129,18 @@ class QuadEvaluator():
                     eval_env.render()
                     time.sleep(.1)
                 time_stable += 1
-                # if time_stable % 50 == 0:
-                #     print([round(s, 2) for s in current_np_state[:3]])
+                if time_stable % 30 == 0:
+                    print()
+                    current_pos = current_np_state[:3]
+                    print("pos", [round(s, 2) for s in current_pos])
+                    print(
+                        "left",
+                        np.linalg.norm(knots[target_ind] - current_pos)
+                    )
+                    print(
+                        "diff_to_target",
+                        [round(s, 2) for s in diff_to_target[:3]]
+                    )
                 if not stable:
                     print("FAILED")
                     break
@@ -149,9 +158,6 @@ class QuadEvaluator():
             # # TODO: normalize and check whether scalar product is <45
             # print("scalar product", scalar_product)
             # if scalar_product <= 0.5:
-            print()
-            print("pos", [round(s, 2) for s in current_pos])
-            print("left", np.linalg.norm(knots[target_ind] - current_pos))
             if np.linalg.norm(
                 knots[target_ind] - current_pos
             ) < distance_between_knots * target_change_theta:
@@ -220,8 +226,7 @@ if __name__ == "__main__":
     # # )
 
     # test trajectory
-    knots = QuadEvaluator.random_trajectory(2, 10)
-    knots[:, :2] *= .5
+    knots = QuadEvaluator.random_trajectory(10, 4)
     print("start, end")
     print(knots[0], knots[-1])
     evaluator.follow_trajectory(knots, render=True)
