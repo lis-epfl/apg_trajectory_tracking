@@ -31,7 +31,7 @@ def drone_loss_function(current_state, action_seq, printout=0, pos_weight=1):
     x_y_pos_loss = torch.sum(current_state[:, :2]**2, axis=1)
     loss = attitude_loss(
         current_state
-    ) + (1 + pos_weight * 10) * position_loss + x_y_pos_loss
+    ) + (1 + pos_weight * 10) * position_loss + 2 * x_y_pos_loss
     # print("loss", loss)
     if printout:
         print()

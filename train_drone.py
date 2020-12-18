@@ -13,7 +13,7 @@ from environments.drone_env import construct_states
 from utils.plotting import plot_loss, plot_success
 
 EPOCH_SIZE = 5000
-USE_NEW_DATA = 500  # 1000
+USE_NEW_DATA = 1000
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -67,6 +67,10 @@ for epoch in range(NR_EPOCHS):
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
     print(f"Epoch {epoch}: Time: {round(suc_mean, 1)} ({round(suc_std, 1)})")
+    print(
+        "Average position in the end:",
+        np.mean(np.absolute(new_data), axis=0)[:3]
+    )
 
     # self-play: add acquired data
     if USE_NEW_DATA > 0 and epoch > 2:

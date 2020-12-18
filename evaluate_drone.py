@@ -68,7 +68,8 @@ class QuadEvaluator():
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))
                         current_np_state, stable = eval_env.step(action)
-                        collect_data.append(current_np_state)
+                        if time_stable > 20:
+                            collect_data.append(current_np_state)
                         if not stable:
                             # print("FAILED")
                             # print(current_torch_state)
