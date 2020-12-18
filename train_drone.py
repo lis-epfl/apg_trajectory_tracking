@@ -20,9 +20,8 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 NR_EVAL_ITERS = 30
 STATE_SIZE = 16
-NR_ACTIONS = 1
+NR_ACTIONS = 5
 ACTION_DIM = 4
-STATE_SIZE = 20
 LEARNING_RATE = 0.005
 SAVE = os.path.join("trained_models/drone/test_model")
 
@@ -109,9 +108,13 @@ for epoch in range(NR_EPOCHS):
             actions = torch.sigmoid(actions)
 
             # unnormalized state of the drone after the action
-            drone_state = simulate_quadrotor(actions, current_state)
+            # drone_state = simulate_quadrotor(actions, current_state)
+            action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
+            for act_ind in range(action_seq.size()[1]):
+                action = action_seq[:, act_ind, :]
+                current_state = simulate_quadrotor(action, current_state)
             # normalize
-            drone_state = (drone_state - torch_mean) / torch_std
+            drone_state = (current_state - torch_mean) / torch_std
             pout = 1 if False else 0
             loss_traj = trajectory_loss(
                 inputs, target_state, drone_state, mask=mask, printout=pout
