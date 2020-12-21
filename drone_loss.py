@@ -24,13 +24,11 @@ def drone_loss_function(current_state, printout=0, pos_weight=1):
         current_state: array with x entries describing attitude and velocity
         action: control signal of dimension 4 (thrust of rotors)
     """
-    # attitude loss
-    attitude = attitude_loss(current_state)
     # position loss
     current_state[:, 2] = current_state[:, 2] - 2
     position_loss = torch.sum(current_state[:, :3]**2, dim=1)
     # add attitude loss to loss for wrong position
-    loss = attitude + 2 * position_loss
+    loss = attitude_loss(current_state) + 2 * position_loss
     # print("loss", loss)
     if printout:
         print()
