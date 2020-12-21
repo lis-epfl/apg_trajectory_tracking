@@ -33,10 +33,9 @@ class QuadEvaluator():
         numpy_action_seq = suggested_action.numpy()
         return numpy_action_seq
 
-    def stabilize(self, nr_iters=1, render=False, max_time=300):
+    def stabilize(self, nr_iters=1, render=False, max_time=300, start_loss=50):
         collect_data = []
-        actions = []
-        failure_list = list()  # collect the reason for failure
+        pos_loss_list = list()  # collect the reason for failure
         collect_runs = list()
         with torch.no_grad():
             eval_env = QuadRotorEnvBase()
@@ -51,10 +50,11 @@ class QuadEvaluator():
                 while stable and time_stable < max_time:
                     current_np_state = eval_env._state.as_np.copy()
                     current_np_state[2] -= 2  # correct for height
+                    if time_stable > start_loss:
+                        pos_loss_list.append(np.absolute(current_np_state[:3]))
                     numpy_action_seq = self.predict_actions(current_np_state)
                     for nr_action in range(ROLL_OUT):
                         action = numpy_action_seq[nr_action]
-                        actions.append(action)
                         # if render:
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))
@@ -65,12 +65,6 @@ class QuadEvaluator():
                             current_np_state
                         )
                         if not (att_stable and pos_stable):
-                            # print("FAILED")
-                            # print(current_torch_state)
-                            # print("action", action)
-                            # print(current_np_state)
-                            # if att_stable = 1, pos_stable must be 0
-                            failure_list.append(att_stable)
                             break
                         # if render:
                         #     print(current_np_state[:3])
@@ -82,91 +76,90 @@ class QuadEvaluator():
                         eval_env.render()
                         time.sleep(.1)
                 collect_runs.append(time_stable)
-        if len(failure_list) == 0:
-            failure_list = [0]
-        act = np.array(actions)
         collect_data = np.array(collect_data)
-        print(
-            "Position was responsible in ", round(np.mean(failure_list), 2),
-            "cases"
-        )
-        print("avg and std action", np.mean(act, axis=0), np.std(act, axis=0))
-        return (
-            np.mean(collect_runs), np.std(collect_runs), np.mean(failure_list),
-            collect_data
-        )
+        if len(pos_loss_list) > 0:
+            print(
+                "average deviation from target pos:", [
+                    round(s, 2)
+                    for s in np.mean(np.array(pos_loss_list), axis=0)
+                ]
+            )
+        return (np.mean(collect_runs), np.std(collect_runs), 0, collect_data)
 
-    def follow_trajectory(self, knots, render=False, target_change_theta=.2):
+    def follow_trajectory(
+        self, knots, render=False, target_change_theta=.2, max_iters=300
+    ):
+        """
+        Evaluate the ability of the drone to follow a trajectory defined by
+        knots
+        """
+        main_target = knots[-1]
         distance_between_knots = np.linalg.norm(knots[1] - knots[0])
         torch.set_grad_enabled(False)
-        # with torch.no_grad()
+
+        # Set up environment
         eval_env = QuadRotorEnvBase()
         eval_env.reset()
         eval_env._state.set_position(knots[0])
         current_np_state = eval_env._state.as_np
-        print("current state", current_np_state[:3])
-        print("next state", knots[1])
-        # as input to network, set next target to 0,0,0 and compute divergence
-        # from current state
-        target_ind = 1
 
+        target_ind = 1
         time_stable = 0
         stable = True
-        while stable:
+        min_distance_to_target = np.inf
+        while stable and time_stable < max_iters:
+            # as input to network, consider target as 0,0,0 - input difference
             diff_to_target = current_np_state.copy()
             diff_to_target[:3] = diff_to_target[:3] - knots[target_ind]
-            # TODO: only necessary for this model where 000 is actually 002
-            # diff_to_target[2] += 2
 
+            # Predict actions and execute
             numpy_action_seq = self.predict_actions(diff_to_target)
             for nr_action in range(ROLL_OUT):
                 # retrieve next action
                 action = numpy_action_seq[nr_action]
                 # take step in environment
                 current_np_state, stable = eval_env.step(action)
-                # att_stable, pos_stable = eval_env.get_is_stable(
-                #     current_np_state
-                # )
+
+                # output
                 if render:
                     eval_env.render()
                     time.sleep(.1)
+                    if time_stable % 30 == 0:
+                        print()
+                        current_pos = current_np_state[:3]
+                        print("pos", [round(s, 2) for s in current_pos])
+                        print(
+                            "left",
+                            np.linalg.norm(knots[target_ind] - current_pos)
+                        )
+                        print(
+                            "diff_to_target",
+                            [round(s, 2) for s in diff_to_target[:3]]
+                        )
                 time_stable += 1
-                if time_stable % 30 == 0:
-                    print()
-                    current_pos = current_np_state[:3]
-                    print("pos", [round(s, 2) for s in current_pos])
-                    print(
-                        "left",
-                        np.linalg.norm(knots[target_ind] - current_pos)
-                    )
-                    print(
-                        "diff_to_target",
-                        [round(s, 2) for s in diff_to_target[:3]]
-                    )
                 if not stable:
                     print("FAILED")
                     break
-            # update diff to target: Find out whether we overtook the target
+
+            # Log the difference to the target
             current_pos = current_np_state[:3]
-            # if the drone has passed the current target, the scalar product is
-            # smaller zero
-            if target_ind == len(knots) - 1:
-                # print("reached end")
+            diff_to_main = np.sqrt((main_target - current_pos)**2)
+            if diff_to_main < min_distance_to_target:
+                min_distance_to_target = diff_to_main
+
+            if target_ind == len(knots) - 1:  # no need to proceed to next t
                 continue
-            # scalar_product = np.dot(
-            #     knots[target_ind + 1] - current_pos,
-            #     knots[target_ind] - current_pos
-            # )
-            # # TODO: normalize and check whether scalar product is <45
-            # print("scalar product", scalar_product)
-            # if scalar_product <= 0.5:
-            if np.linalg.norm(
+
+            # Check if the drone has passed the current target or is close
+            use_next_target = np.linalg.norm(
                 knots[target_ind] - current_pos
-            ) < distance_between_knots * target_change_theta:
+            ) < distance_between_knots * target_change_theta
+            if use_next_target:
                 # aim at next target
                 target_ind += 1
                 print("--------- go to next target:", target_ind, "------")
                 time.sleep(1)
+        return min_distance_to_target
 
     @staticmethod
     def random_trajectory(distance, number_knots):
@@ -237,8 +230,8 @@ if __name__ == "__main__":
     # # )
 
     # test trajectory
-    knots = QuadEvaluator.hover_trajectory()
-    # random_trajectory(10, 4)
-    print("start, end")
-    print(knots[0], knots[-1])
-    evaluator.follow_trajectory(knots, render=True)
+    # knots = QuadEvaluator.hover_trajectory()
+    # # random_trajectory(10, 4)
+    # print("start, end")
+    # print(knots[0], knots[-1])
+    # evaluator.follow_trajectory(knots, render=True)

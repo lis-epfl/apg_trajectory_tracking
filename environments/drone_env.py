@@ -87,7 +87,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, stable_att
+        return numpy_out_state, stable_att and stable_pos
 
     def render(self, mode='human', close=False):
         if not close:
