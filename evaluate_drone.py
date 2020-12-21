@@ -42,14 +42,15 @@ class QuadEvaluator():
             eval_env = QuadRotorEnvBase()
             for _ in range(nr_iters):
                 time_stable = 0
-                eval_env.reset()
+                eval_env.render_reset()
                 # zero_state = np.zeros(20)
                 # zero_state[9:13] = 500
                 # zero_state[2] = 2
                 # eval_env._state.from_np(zero_state)
-                current_np_state = eval_env._state.as_np
                 stable = True
                 while stable and time_stable < max_time:
+                    current_np_state = eval_env._state.as_np.copy()
+                    current_np_state[2] -= 2  # correct for height
                     numpy_action_seq = self.predict_actions(current_np_state)
                     for nr_action in range(ROLL_OUT):
                         action = numpy_action_seq[nr_action]
@@ -60,14 +61,14 @@ class QuadEvaluator():
                         current_np_state, stable = eval_env.step(action)
                         if time_stable > 20:
                             collect_data.append(current_np_state)
-                        if not stable:
+                        att_stable, pos_stable = eval_env.get_is_stable(
+                            current_np_state
+                        )
+                        if not (att_stable and pos_stable):
                             # print("FAILED")
                             # print(current_torch_state)
                             # print("action", action)
                             # print(current_np_state)
-                            att_stable, pos_stable = eval_env.get_is_stable(
-                                current_np_state
-                            )
                             # if att_stable = 1, pos_stable must be 0
                             failure_list.append(att_stable)
                             break
@@ -115,7 +116,7 @@ class QuadEvaluator():
             diff_to_target = current_np_state.copy()
             diff_to_target[:3] = diff_to_target[:3] - knots[target_ind]
             # TODO: only necessary for this model where 000 is actually 002
-            diff_to_target[2] += 2
+            # diff_to_target[2] += 2
 
             numpy_action_seq = self.predict_actions(diff_to_target)
             for nr_action in range(ROLL_OUT):
@@ -150,7 +151,7 @@ class QuadEvaluator():
             # if the drone has passed the current target, the scalar product is
             # smaller zero
             if target_ind == len(knots) - 1:
-                print("reached end")
+                # print("reached end")
                 continue
             # scalar_product = np.dot(
             #     knots[target_ind + 1] - current_pos,
@@ -178,6 +179,15 @@ class QuadEvaluator():
         # make height to be at least 1
         knots[:, 2] += max(1 - np.min(knots[:, 2]), 0)
         return knots
+
+    @staticmethod
+    def hover_trajectory():
+        eval_env = QuadRotorEnvBase()
+        eval_env.reset()
+        start = eval_env._state.as_np[:3]
+        start[2] += 2
+        end = [0, 0, 2]
+        return np.array([start, end])
 
 
 if __name__ == "__main__":
@@ -216,7 +226,7 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # # watch
-    # _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
+    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
     # # compute stats
     # success_mean, success_std, _, _ = evaluator.stabilize(
     #     nr_iters=100, render=False
@@ -227,7 +237,8 @@ if __name__ == "__main__":
     # # )
 
     # test trajectory
-    knots = QuadEvaluator.random_trajectory(10, 4)
+    knots = QuadEvaluator.hover_trajectory()
+    # random_trajectory(10, 4)
     print("start, end")
     print(knots[0], knots[-1])
     evaluator.follow_trajectory(knots, render=True)

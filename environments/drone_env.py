@@ -61,8 +61,8 @@ class QuadRotorEnvBase(gym.Env):
     @staticmethod
     def get_is_stable(np_state):
         # yaw angle dies not matter
-        attitude_condition = np.all(np.absolute(np_state[3:5]) < .4)
-        position_condition = -2 < np_state[2] < 8
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
+        position_condition = 0 < np_state[2] < 8
         return attitude_condition, position_condition
 
     def step(self, action):
@@ -87,7 +87,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, stable_att  #  and stable_pos
+        return numpy_out_state, stable_att
 
     def render(self, mode='human', close=False):
         if not close:
@@ -100,6 +100,10 @@ class QuadRotorEnvBase(gym.Env):
 
     def close(self):
         self.renderer.close()
+
+    def render_reset(self, strength=.8):
+        self.reset(strength=strength)
+        self._state.position[2] += 2
 
     def reset(self, strength=.8):
 
@@ -116,7 +120,6 @@ class QuadRotorEnvBase(gym.Env):
             low=-0.3 * strength, high=0.3 * strength
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
-        self._state.position[2] += 2
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5 * strength
