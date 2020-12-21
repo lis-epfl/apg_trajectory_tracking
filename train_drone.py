@@ -7,13 +7,14 @@ import torch.nn.functional as F
 
 from dataset import Dataset
 from drone_loss import drone_loss_function
+from environments.drone_dynamics import simulate_quadrotor
 from evaluate_drone import QuadEvaluator
 from models.hutter_model import Net
 from environments.drone_env import construct_states
 from utils.plotting import plot_loss, plot_success
 
 EPOCH_SIZE = 5000
-USE_NEW_DATA = 1000
+USE_NEW_DATA = 500
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -23,13 +24,15 @@ NR_ACTIONS = 5
 ACTION_DIM = 4
 SAVE = os.path.join("trained_models/drone/test_model")
 
-net = Net(STATE_SIZE, NR_ACTIONS * ACTION_DIM)
+net = Net(STATE_SIZE, ACTION_DIM)
 optimizer = optim.SGD(net.parameters(), lr=0.005, momentum=0.9)
 
 reference_data = Dataset(
     construct_states, normalize=True, num_states=EPOCH_SIZE
 )
 (STD, MEAN) = (reference_data.std, reference_data.mean)
+torch_mean = torch.from_numpy(MEAN)
+torch_std = torch.from_numpy(STD)
 
 # save std for normalization
 param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
@@ -67,10 +70,10 @@ for epoch in range(NR_EPOCHS):
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
     print(f"Epoch {epoch}: Time: {round(suc_mean, 1)} ({round(suc_std, 1)})")
-    print(
-        "Average position in the end:",
-        np.mean(np.absolute(new_data), axis=0)[:3]
-    )
+    # print(
+    #     "Average position in the end:",
+    #     np.mean(np.absolute(new_data), axis=0)[:3]
+    # )
 
     # self-play: add acquired data
     if USE_NEW_DATA > 0 and epoch > 2:
@@ -88,21 +91,21 @@ for epoch in range(NR_EPOCHS):
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            # forward
-            actions = net(inputs)
-            actions = torch.sigmoid(actions)
-
-            # reshape to get sequence of actions
-            action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-
             # compute loss + backward + optimize
+            loss = 0
+            for i in range(NR_ACTIONS):
+                net_input_state = (current_state - torch_mean) / torch_std
+                # forward
+                actions = net(net_input_state)
+                actions = torch.sigmoid(actions)
+                current_state = simulate_quadrotor(actions, current_state)
             loss = drone_loss_function(
                 current_state,
-                action_seq,
                 # if the position is responsible more often --> higher weight
                 pos_weight=pos_responsible,
                 printout=0
             )
+            # loss += .1 * i * loss_intermediate
             loss.backward()
             optimizer.step()
 
