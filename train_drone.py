@@ -25,7 +25,7 @@ ACTION_DIM = 4
 LEARNING_RATE = 0.005
 SAVE = os.path.join("trained_models/drone/test_model")
 
-net = Net(STATE_SIZE, NR_ACTIONS * ACTION_DIM)
+net = Net(STATE_SIZE, ACTION_DIM)  # NR_ACTIONS *
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
 
 reference_data = Dataset(
@@ -124,16 +124,15 @@ for epoch in range(NR_EPOCHS):
             # # # reshape to get sequence of actions
 
             # compute loss + backward + optimize
-            actions = net(inputs)
-            actions = torch.sigmoid(actions)
-            action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
+            # actions = net(inputs)
+            # actions = torch.sigmoid(actions)
+            # action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             for k in range(NR_ACTIONS):
+                # action = action_seq[:, k]
                 # VERSION 2: predict one action at a time
-                # net_input_state = (current_state - torch_mean) / torch_std
-                # # forward
-                # action = net(net_input_state)
-                # action = torch.sigmoid(action)
-                action = action_seq[:, k]
+                net_input_state = (current_state - torch_mean) / torch_std
+                action = net(net_input_state)
+                action = torch.sigmoid(action)
                 current_state = simulate_quadrotor(action, current_state)
             # Only compute loss after last action
             loss = drone_loss_function(

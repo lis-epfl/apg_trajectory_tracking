@@ -33,7 +33,9 @@ class QuadEvaluator():
         numpy_action_seq = suggested_action.numpy()
         return numpy_action_seq
 
-    def stabilize(self, nr_iters=1, render=False, max_time=300, start_loss=50):
+    def stabilize(
+        self, nr_iters=1, render=False, max_time=300, start_loss=100
+    ):
         collect_data = []
         pos_loss_list = list()  # collect the reason for failure
         collect_runs = list()

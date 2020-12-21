@@ -101,6 +101,12 @@ class QuadRotorEnvBase(gym.Env):
     def close(self):
         self.renderer.close()
 
+    def zero_reset(self, position_x=0, position_y=0, position_z=2):
+        zero_state = np.zeros(20)
+        zero_state[9:13] = 400
+        zero_state[:3] = [position_x, position_y, position_z]
+        self._state.from_np(zero_state)
+
     def render_reset(self, strength=.8):
         self.reset(strength=strength)
         self._state.position[2] += 2
@@ -109,10 +115,7 @@ class QuadRotorEnvBase(gym.Env):
 
         self._state = DynamicsState()
         # # possibility 1: reset to zero
-        # zero_state = np.zeros(20)
-        # zero_state[9:13] = 500
-        # zero_state[2] = 1
-        # self._state.from_np(zero_state)
+        #
 
         self.randomize_angle(5 * strength)
         self.randomize_angular_velocity(2.0)
