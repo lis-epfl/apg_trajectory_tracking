@@ -60,7 +60,8 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
-        attitude_condition = np.all(np.absolute(np_state[3:6]) < .4)
+        # yaw angle dies not matter
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < .4)
         position_condition = -2 < np_state[2] < 8
         return attitude_condition, position_condition
 
