@@ -1,5 +1,6 @@
 import torch
 from environments.drone_dynamics import simulate_quadrotor
+torch.autograd.set_detect_anomaly(True)
 
 
 def attitude_loss(state):
@@ -15,7 +16,7 @@ def attitude_loss(state):
     return (angle_factor * angle_error) + (angvel_factor * ang_vel_error)
 
 
-def drone_loss_function(current_state, action_seq, printout=0, pos_weight=1):
+def drone_loss_function(current_state, printout=0, pos_weight=1):
     """
     Computes loss for applying an action to the current state by comparing to
     the target state
@@ -23,15 +24,13 @@ def drone_loss_function(current_state, action_seq, printout=0, pos_weight=1):
         current_state: array with x entries describing attitude and velocity
         action: control signal of dimension 4 (thrust of rotors)
     """
-    for act_ind in range(action_seq.size()[1]):
-        action = action_seq[:, act_ind, :]
-        current_state = simulate_quadrotor(action, current_state)
+    # attitude loss
+    attitude = attitude_loss(current_state)
+    # position loss
+    current_state[:, 2] = current_state[:, 2] - 2
+    position_loss = torch.sum(current_state[:, :3]**2, dim=1)
     # add attitude loss to loss for wrong position
-    position_loss = (current_state[:, 2] - 2)**2
-    x_y_pos_loss = torch.sum(current_state[:, :2]**2, axis=1)
-    loss = attitude_loss(
-        current_state
-    ) + (1 + pos_weight * 10) * position_loss + x_y_pos_loss
+    loss = attitude + 2 * position_loss
     # print("loss", loss)
     if printout:
         print()

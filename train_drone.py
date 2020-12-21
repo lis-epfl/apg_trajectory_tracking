@@ -14,7 +14,7 @@ from environments.drone_env import construct_states
 from utils.plotting import plot_loss, plot_success
 
 EPOCH_SIZE = 5000
-USE_NEW_DATA = 500  # 1000
+USE_NEW_DATA = 500
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -25,7 +25,7 @@ ACTION_DIM = 4
 LEARNING_RATE = 0.005
 SAVE = os.path.join("trained_models/drone/test_model")
 
-net = Net(STATE_SIZE, NR_ACTIONS * ACTION_DIM)
+net = Net(STATE_SIZE, ACTION_DIM)
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
 
 reference_data = Dataset(
@@ -85,6 +85,10 @@ for epoch in range(NR_EPOCHS):
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
     print(f"Epoch {epoch}: Time: {round(suc_mean, 1)} ({round(suc_std, 1)})")
+    # print(
+    #     "Average position in the end:",
+    #     np.mean(np.absolute(new_data), axis=0)[:3]
+    # )
 
     # self-play: add acquired data
     if USE_NEW_DATA > 0 and epoch > 2:
@@ -102,35 +106,47 @@ for epoch in range(NR_EPOCHS):
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            # forward
-            actions = net(inputs)
-            actions = torch.sigmoid(actions)
+            # # TRAJECTORY LOSS:
+            # actions = net(inputs)
+            # actions = torch.sigmoid(actions)
 
-            # unnormalized state of the drone after the action
-            # drone_state = simulate_quadrotor(actions, current_state)
-            action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-            for act_ind in range(action_seq.size()[1]):
-                action = action_seq[:, act_ind, :]
-                current_state = simulate_quadrotor(action, current_state)
-            # normalize
-            drone_state = (current_state - torch_mean) / torch_std
-            pout = 1 if False else 0
-            loss_traj = trajectory_loss(
-                inputs, target_state, drone_state, mask=mask, printout=pout
+            # # unnormalized state of the drone after the action
+            # # drone_state = simulate_quadrotor(actions, current_state)
+            # action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
+            # for act_ind in range(action_seq.size()[1]):
+            #     action = action_seq[:, act_ind, :]
+            #     current_state = simulate_quadrotor(action, current_state)
+            # # normalize
+            # drone_state = (current_state - torch_mean) / torch_std
+            # pout = 1 if False else 0
+            # loss_traj = trajectory_loss(
+            #     inputs, target_state, drone_state, mask=mask, printout=pout
+            # )
+            # loss = torch.sum(loss_traj)
+            # # # reshape to get sequence of actions
+
+            # compute loss + backward + optimize
+            for i in range(NR_ACTIONS):
+                net_input_state = (current_state - torch_mean) / torch_std
+                # forward
+                actions = net(net_input_state)
+                actions = torch.sigmoid(actions)
+                current_state = simulate_quadrotor(actions, current_state)
+            loss = drone_loss_function(
+                current_state,
+                # if the position is responsible more often --> higher weight
+                pos_weight=pos_responsible,
+                printout=0
             )
-            loss = torch.sum(loss_traj)
-            # # reshape to get sequence of actions
-
+            # loss += .1 * i * loss_intermediate
             loss.backward()
             optimizer.step()
 
             # print statistics
             # print(net.fc3.weight.grad)
             running_loss += loss.item()
-            if i % PRINT == PRINT - 1:
-                print('Loss: %.3f' % (running_loss / PRINT))
-                loss_list.append(running_loss / PRINT)
-                running_loss = 0.0
+
+        loss_list.append(running_loss / PRINT)
     except KeyboardInterrupt:
         break
 
