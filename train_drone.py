@@ -112,10 +112,8 @@ for epoch in range(NR_EPOCHS):
             # print statistics
             # print(net.fc3.weight.grad)
             running_loss += loss.item()
-            if i % PRINT == PRINT - 1:
-                print('Loss: %.3f' % (running_loss / PRINT))
-                loss_list.append(running_loss / PRINT)
-                running_loss = 0.0
+
+        loss_list.append(running_loss / PRINT)
     except KeyboardInterrupt:
         break
 
