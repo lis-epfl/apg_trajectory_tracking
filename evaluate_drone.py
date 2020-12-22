@@ -64,10 +64,7 @@ class QuadEvaluator():
                         current_np_state, stable = eval_env.step(action)
                         if time_stable > 20:
                             collect_data.append(current_np_state)
-                        att_stable, pos_stable = eval_env.get_is_stable(
-                            current_np_state
-                        )
-                        if not (att_stable and pos_stable):
+                        if not stable:
                             break
                         # if render:
                         #     print(current_np_state[:3])
@@ -131,18 +128,18 @@ class QuadEvaluator():
                 if render:
                     eval_env.render()
                     time.sleep(.1)
-                    # if time_stable % 30 == 0:
-                    #     print()
-                    #     current_pos = current_np_state[:3]
-                    #     print("pos", [round(s, 2) for s in current_pos])
-                    #     print(
-                    #         "left",
-                    #         np.linalg.norm(knots[target_ind] - current_pos)
-                    #     )
-                    #     print(
-                    #         "diff_to_target",
-                    #         [round(s, 2) for s in diff_to_target[:3]]
-                    #     )
+                    if time_stable % 30 == 0:
+                        print()
+                        current_pos = current_np_state[:3]
+                        print("pos", [round(s, 2) for s in current_pos])
+                        print(
+                            "left",
+                            np.linalg.norm(knots[target_ind] - current_pos)
+                        )
+                        print(
+                            "diff_to_target",
+                            [round(s, 2) for s in diff_to_target[:3]]
+                        )
                 time_stable += 1
                 if not stable:
                     # print("FAILED")
@@ -168,7 +165,7 @@ class QuadEvaluator():
                 time.sleep(1)
         return min_distance_to_target, time_stable, data_list
 
-    def evaluate(self, nr_hover_iters=5, nr_traj_iters=5):
+    def evaluate(self, nr_hover_iters=5, nr_traj_iters=10):
         with torch.no_grad():
             data_list = []
 
@@ -193,7 +190,7 @@ class QuadEvaluator():
             # follow trajectory
             progress_list, timesteps_list = list(), list()
             for _ in range(nr_traj_iters):
-                traj_knots = QuadEvaluator.random_trajectory(2)
+                traj_knots = QuadEvaluator.random_trajectory(1.5)
                 overall_distance = np.linalg.norm(
                     traj_knots[-1] - traj_knots[0]
                 )
@@ -214,10 +211,12 @@ class QuadEvaluator():
         return np.mean(progress_list), np.std(progress_list), data_list
 
     @staticmethod
-    def random_trajectory(step_size, diff=10):
-        start = (np.random.rand(3) - .5) * diff  #).astype(int)
-        end = (np.random.rand(3) - .5) * diff  #).astype(int)
+    def random_trajectory(step_size, diff=5):
+        # if diff = 5, then x,y,z are between 0 and 5
+        start = np.random.rand(3) * diff
+        end = np.random.rand(3) * diff
         dist = np.sqrt(np.sum((end - start)**2))
+        # number of knots required to have step_size distance inbetween
         number_knots = int(np.ceil(dist / step_size)) + 1
 
         start_to_end_unit = (end - start) / (number_knots - 1)
@@ -273,7 +272,7 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # # watch
-    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
+    # _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
     # # compute stats
     # success_mean, success_std, _, _ = evaluator.stabilize(
     #     nr_iters=100, render=False
@@ -284,9 +283,12 @@ if __name__ == "__main__":
     # # )
 
     # test trajectory
-    # knots = QuadEvaluator.hover_trajectory()
-    # # random_trajectory(10, 4)
-    # print("start, end")
-    # print(knots[0], knots[-1])
-    # print(evaluator.follow_trajectory(knots, render=True))
+    knots = QuadEvaluator.random_trajectory(1.5)
+    # hover_trajectory()
+    # random_trajectory(10, 4)
+    print("Knots:")
+    print(np.around(knots, 2))
+    with torch.no_grad():
+        evaluator.follow_trajectory(knots, [], render=True)
+
     evaluator.evaluate()

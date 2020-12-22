@@ -60,10 +60,9 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
-        # yaw angle dies not matter
+        # only roll and pitch are constrained
         attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
-        position_condition = 0 < np_state[2] < 8
-        return attitude_condition, position_condition
+        return attitude_condition
 
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
@@ -76,7 +75,6 @@ class QuadRotorEnvBase(gym.Env):
         numpy_out_state = new_state_arr.numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
-        stable_att, stable_pos = self.get_is_stable(numpy_out_state)
         # attitude = self._state.attitude
 
         # How this works: Check whether the angle is above the boundaries
@@ -87,7 +85,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, stable_att and stable_pos
+        return numpy_out_state, self.get_is_stable(numpy_out_state)
 
     def render(self, mode='human', close=False):
         if not close:
@@ -197,38 +195,6 @@ def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
 # --------------------- Auxilary functions ----------------------
 
 
-def clip_attitude(state: DynamicsState, max_angle: float):
-    """
-    Limits the roll and pitch angle to the given `max_angle`. 
-    If roll or pitch exceed that angle,
-    they are clipped and the angular velocity is set to 0.
-    :param state: The quadcopter state to be modified.
-    :param max_angle: Maximum allowed roll and pitch angle.
-    :return: nothing.
-    """
-    attitude = state.attitude
-    angular_velocity = state.angular_velocity
-    clipped = False
-
-    if attitude.roll > max_angle:
-        attitude.roll = max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    if attitude.roll < -max_angle:
-        attitude.roll = -max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    if attitude.pitch > max_angle:
-        attitude.pitch = max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    if attitude.pitch < -max_angle:
-        attitude.pitch = -max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    return clipped
-
-
 def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
@@ -268,6 +234,8 @@ if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
     states = construct_states(100)
+    print(np.mean(states[:, :6], axis=0))
+    print(np.std(states[:, :6], axis=0))
     #  np.load("data_backup/collected_data.npy")
     for j in range(100):
         print([round(s, 2) for s in states[j, :6]])
