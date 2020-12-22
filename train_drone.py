@@ -18,11 +18,11 @@ USE_NEW_DATA = 500
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
-NR_EVAL_ITERS = 30
+NR_EVAL_ITERS = 5
 STATE_SIZE = 16
 NR_ACTIONS = 5
 ACTION_DIM = 4
-LEARNING_RATE = 0.005
+LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
 
 net = Net(STATE_SIZE, ACTION_DIM)  # NR_ACTIONS *
@@ -74,13 +74,13 @@ for epoch in range(NR_EPOCHS):
         )
 
     print()
+    print(f"Epoch {epoch-1}")
     eval_env = QuadEvaluator(net, MEAN, STD)
-    suc_mean, suc_std, pos_responsible, new_data = eval_env.stabilize(
-        nr_iters=NR_EVAL_ITERS
+    suc_mean, suc_std, new_data = eval_env.evaluate(
+        nr_hover_iters=NR_EVAL_ITERS, nr_traj_iters=NR_EVAL_ITERS
     )
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
-    print(f"Epoch {epoch-1}: Time: {round(suc_mean, 1)} ({round(suc_std, 1)})")
     if epoch > 0:
         if suc_mean > highest_success:
             highest_success = suc_mean
@@ -89,7 +89,7 @@ for epoch in range(NR_EPOCHS):
         print("Loss:", round(running_loss / i, 2))
 
     # self-play: add acquired data
-    if USE_NEW_DATA > 0 and epoch > 2:
+    if USE_NEW_DATA > 0 and epoch > 2 and len(new_data) > 0:
         rand_inds_include = np.random.permutation(len(new_data))[:USE_NEW_DATA]
         state_data.add_data(np.array(new_data)[rand_inds_include])
         # print("new added data:", new_data.shape, state_data.states.size())
@@ -138,7 +138,7 @@ for epoch in range(NR_EPOCHS):
             loss = drone_loss_function(
                 current_state,
                 # if the position is responsible more often --> higher weight
-                pos_weight=pos_responsible,
+                pos_weight=0,
                 printout=0
             )
             # loss += .1 * i * loss_intermediate

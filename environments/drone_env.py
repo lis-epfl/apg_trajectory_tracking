@@ -257,6 +257,13 @@ def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
     return data
 
 
+def get_avg_distance():
+    states = construct_states(10000)
+    sum_squares = np.sqrt(np.sum(states[:, :3]**2, axis=1))
+    print(sum_squares.shape, np.mean(sum_squares))
+    return np.mean(sum_squares)
+
+
 if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
