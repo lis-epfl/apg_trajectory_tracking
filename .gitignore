@@ -6,3 +6,4 @@ pendulum.code-workspace
 .DS_Store
 backups/
 data_backup/
+*.npy

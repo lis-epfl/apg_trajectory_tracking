@@ -27,6 +27,7 @@ class QuadEvaluator():
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
         )
+        # print([round(s, 2) for s in current_torch_state[0].numpy()])
         suggested_action = self.net(current_torch_state)
         suggested_action = torch.sigmoid(suggested_action)[0]
 

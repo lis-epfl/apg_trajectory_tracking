@@ -234,6 +234,7 @@ if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
     states = construct_states(100)
+    # states = np.load("check_added_data.npy")
     print(np.mean(states[:, :6], axis=0))
     print(np.std(states[:, :6], axis=0))
     #  np.load("data_backup/collected_data.npy")
@@ -241,4 +242,4 @@ if __name__ == "__main__":
         print([round(s, 2) for s in states[j, :6]])
         env._state.from_np(states[j])
         env.render()
-        time.sleep(.2)
+        time.sleep(.1)

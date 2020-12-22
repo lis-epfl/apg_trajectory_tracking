@@ -11,7 +11,7 @@ def attitude_loss(state):
     angle_factor = 1.0
     angvel_factor = 1e-2
 
-    angle_error = torch.sum(torch.exp(state[:, 3:6]**2 - 1), axis=1)
+    angle_error = torch.sum(torch.relu(state[:, 3:6]**2 - 0.2), axis=1)
     ang_vel_error = 2 * torch.sum(state[:, 13:16]**2, axis=1)
     return (angle_factor * angle_error) + (angvel_factor * ang_vel_error)
 
@@ -25,7 +25,7 @@ def drone_loss_function(current_state, printout=0, pos_weight=1):
         action: control signal of dimension 4 (thrust of rotors)
     """
     # position loss
-    position_loss = torch.max(current_state[:, :3]**2, dim=1).values
+    position_loss = torch.sum(current_state[:, :3]**2, dim=1)
     # add attitude loss to loss for wrong position
     loss = attitude_loss(current_state) + 2 * position_loss
     # print("loss", loss)
@@ -52,7 +52,12 @@ def project_to_line(a_on_line, b_on_line, p):
 
 
 def trajectory_loss(
-    state, target_state, drone_state, loss_weights, mask=None, printout=0
+    state,
+    target_state,
+    drone_state,
+    loss_weights=None,
+    mask=None,
+    printout=0
 ):
     """
     Loss for attemtping to traverse from state to target_state but ending up
@@ -64,7 +69,7 @@ def trajectory_loss(
         state = state * mask
 
     # multiply losses by 0 or weights
-    mask = mask * loss_weights
+    # mask = mask * loss_weights
 
     # normalize by distance between states
     total_distance = torch.sum((state - target_state)**2, 1)
@@ -90,6 +95,6 @@ def trajectory_loss(
         print("progress all", progress_loss_all[0])
         print("divergence", divergence_loss[0].item())
         print("progress_loss", progress_loss[0].item())
-        print("final", 10 * (.05 * divergence_loss + progress_loss))
+        print("final", progress_loss + .1 * divergence_loss)
         print(fail)
-    return progress_loss + .1 * divergence_loss
+    return torch.sum(progress_loss + .1 * divergence_loss)
