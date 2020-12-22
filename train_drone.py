@@ -58,8 +58,8 @@ loss_list, success_mean_list, success_std_list = list(), list(), list()
 
 target_state = torch.zeros(STATE_SIZE)
 mask = torch.ones(STATE_SIZE)
-mask[9:13] = 0  # rotor speeds don't matter
-loss_weights = mask  # torch.tensor([]) TODO
+mask[6:13] = 0  # rotor speeds and xyz velocity don't matter
+loss_weights = mask.clone()
 target_state = ((target_state - torch_mean) / torch_std) * mask
 
 
@@ -88,7 +88,7 @@ for epoch in range(NR_EPOCHS):
         )
 
     print()
-    print(f"Epoch {epoch-1}")
+    print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, MEAN, STD)
     suc_mean, suc_std, new_data = eval_env.evaluate(
         nr_hover_iters=NR_EVAL_ITERS, nr_traj_iters=NR_EVAL_ITERS
@@ -138,7 +138,12 @@ for epoch in range(NR_EPOCHS):
             # 2) ------------- Trajectory loss -------------
             drone_state = (current_state - torch_mean) / torch_std
             loss = trajectory_loss(
-                inputs, target_state, drone_state, mask=mask, printout=0
+                inputs,
+                target_state,
+                drone_state,
+                loss_weights=loss_weights,
+                mask=mask,
+                printout=0
             )
 
             # Backprop

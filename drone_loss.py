@@ -69,7 +69,7 @@ def trajectory_loss(
         state = state * mask
 
     # multiply losses by 0 or weights
-    # mask = mask * loss_weights
+    mask = mask * loss_weights
 
     # normalize by distance between states
     total_distance = torch.sum((state - target_state)**2, 1)
