@@ -24,8 +24,8 @@ NR_ACTIONS = 5
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/max_pos_relu_att")
-BASE_MODEL_NAME = 'model_quad64'
+BASE_MODEL = None  # os.path.join("trained_models/drone/new_hutter_model")
+BASE_MODEL_NAME = 'model_quad12'
 
 # Load model or initialize model
 if BASE_MODEL is not None:
@@ -105,7 +105,9 @@ for epoch in range(NR_EPOCHS):
     # self-play: add acquired data
     if USE_NEW_DATA > 0 and epoch > 2 and len(new_data) > 0:
         rand_inds_include = np.random.permutation(len(new_data))[:USE_NEW_DATA]
-        state_data.add_data(np.array(new_data)[rand_inds_include])
+        selected_new_data = np.array(new_data)[rand_inds_include]
+        # np.save("selected_new_data.npy", selected_new_data)
+        state_data.add_data(selected_new_data)
         # if (epoch + 1) % 10 == 0:
         #     np.save("check_added_data.npy", np.array(new_data))
         # print("new added data:", new_data.shape, state_data.states.size())
@@ -119,6 +121,9 @@ for epoch in range(NR_EPOCHS):
 
             # zero the parameter gradients
             optimizer.zero_grad()
+
+            # normalize loss by the start distance
+            start_dist = torch.sum(current_state[:, :3]**2, axis=1)
 
             # ------------ VERSION 1 (x states at once)-----------------
             # actions = net(inputs)
@@ -134,17 +139,19 @@ for epoch in range(NR_EPOCHS):
 
             # Only compute loss after last action
             # 1) --------- drone loss function --------------
-            # loss = drone_loss_function(current_state, pos_weight=0, printout=0)
-            # 2) ------------- Trajectory loss -------------
-            drone_state = (current_state - torch_mean) / torch_std
-            loss = trajectory_loss(
-                inputs,
-                target_state,
-                drone_state,
-                loss_weights=loss_weights,
-                mask=mask,
-                printout=0
+            loss = drone_loss_function(
+                current_state, printout=0, start_dist=start_dist
             )
+            # 2) ------------- Trajectory loss -------------
+            # drone_state = (current_state - torch_mean) / torch_std
+            # loss = trajectory_loss(
+            #     inputs,
+            #     target_state,
+            #     drone_state,
+            #     loss_weights=loss_weights,
+            #     mask=mask,
+            #     printout=0
+            # )
 
             # Backprop
             loss.backward()

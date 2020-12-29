@@ -195,7 +195,7 @@ def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
 # --------------------- Auxilary functions ----------------------
 
 
-def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
+def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
     const_action_runs = .8
@@ -208,7 +208,7 @@ def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
         is_stable = True
         time_stable = 0
         while is_stable and time_stable < episode_length:
-            action = np.random.rand(4)
+            action = np.random.rand(4) * .4 - .2 + .3
             if len(data) > num_data * const_action_runs:
                 # add steps with with
                 action = np.ones(4) * .5

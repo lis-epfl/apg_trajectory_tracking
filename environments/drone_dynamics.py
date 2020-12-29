@@ -217,14 +217,13 @@ def simulate_quadrotor(action, state, dt=0.02):
     rotor_speed = state[:, 9:13]
     angular_velocity = state[:, 13:16]
 
-    # set desired rotor speeds based on action # TODO: was sqrt action
-    desired_rotor_speeds = torch.sqrt(action) * copter_params.max_rotor_speed
+    # # set desired rotor speeds based on action # TODO: was sqrt action
+    desired_rotor_speeds = action * copter_params.max_rotor_speed
 
     # let rotor speed approach desired rotor speed and avoid negative rotation
-    # TODO: change back
-    gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
-    dw = gamma * (desired_rotor_speeds - rotor_speed)
-    rotor_speed = rotor_speed + dw
+    # gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
+    # dw = gamma * (desired_rotor_speeds - rotor_speed)
+    rotor_speed = rotor_speed + .5 * (desired_rotor_speeds - rotor_speed)
     rotor_speed = torch.maximum(rotor_speed, torch.zeros(rotor_speed.size()))
     # print(action, "rotor_speed", rotor_speed * 10000)
 

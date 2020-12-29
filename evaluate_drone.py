@@ -24,6 +24,10 @@ class QuadEvaluator():
         self.net = model
 
     def predict_actions(self, current_np_state):
+        """
+        Predict an action for the current state. This function is used by all
+        evaluation functions
+        """
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
         )
@@ -33,11 +37,15 @@ class QuadEvaluator():
 
         suggested_action = torch.reshape(suggested_action, (-1, ACTION_DIM))
         numpy_action_seq = suggested_action.numpy()
+        # print([round(a, 2) for a in numpy_action_seq[0]])
         return numpy_action_seq
 
     def stabilize(
         self, nr_iters=1, render=False, max_time=300, start_loss=100
     ):
+        """
+        Hover as long as possible
+        """
         collect_data = []
         pos_loss_list = list()  # collect the reason for failure
         collect_runs = list()
@@ -162,7 +170,8 @@ class QuadEvaluator():
             if use_next_target:
                 # aim at next target
                 target_ind += 1
-                # print("--------- go to next target:", target_ind, "------")
+                if render:
+                    print("--------- go to next target:", target_ind, "------")
                 time.sleep(1)
         return min_distance_to_target, time_stable, data_list
 
