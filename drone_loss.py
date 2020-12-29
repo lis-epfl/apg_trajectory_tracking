@@ -3,7 +3,9 @@ from environments.drone_dynamics import simulate_quadrotor
 torch.autograd.set_detect_anomaly(True)
 
 
-def drone_loss_function(current_state, printout=0, pos_factor=1, start_dist=1):
+def drone_loss_function(
+    current_state, printout=0, loss_weights=torch.ones(16), start_dist=1
+):
     """
     Computes loss for applying an action to the current state by comparing to
     the target state
@@ -12,16 +14,22 @@ def drone_loss_function(current_state, printout=0, pos_factor=1, start_dist=1):
         action: control signal of dimension 4 (thrust of rotors)
     """
     # weighting
-    angle_factor = 10.0
-    angvel_factor = 1
-    pos_factor = .05
+    angle_factor = 10
+    angvel_factor = .01
+    pos_factor = .5
 
     # attittude and att velocity loss
-    angle_error = torch.sum(current_state[:, 3:6]**4, axis=1)
-    ang_vel_error = torch.sum(current_state[:, 13:16]**2, axis=1)
+    angle_error = torch.sum(
+        current_state[:, 3:6]**4 * loss_weights[:, 3:6], axis=1
+    )
+    ang_vel_error = torch.sum(
+        current_state[:, 13:16]**2 * loss_weights[:, 13:16], axis=1
+    )
 
     # position loss
-    position_loss = torch.sum(current_state[:, :3]**2, dim=1) / start_dist
+    position_loss = torch.sum(
+        current_state[:, :3]**2 * loss_weights[:, :3], dim=1
+    ) / start_dist
 
     # angle_factor = torch.relu(angle_factor - position_loss)
 
@@ -33,7 +41,6 @@ def drone_loss_function(current_state, printout=0, pos_factor=1, start_dist=1):
 
     if printout:
         print()
-        print("factor", angle_factor)
         print("attitude loss", (angle_factor * angle_error)[0])
         print("att vel loss", (angvel_factor * ang_vel_error)[0])
         print("position loss", (pos_factor * position_loss)[0])

@@ -28,6 +28,7 @@ class QuadEvaluator():
         Predict an action for the current state. This function is used by all
         evaluation functions
         """
+        print([round(s, 2) for s in current_np_state])
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
         )
@@ -197,26 +198,26 @@ class QuadEvaluator():
                 )
             )
 
-            # follow trajectory
-            progress_list, timesteps_list = list(), list()
-            for _ in range(nr_traj_iters):
-                traj_knots = QuadEvaluator.random_trajectory(1.5)
-                overall_distance = np.linalg.norm(
-                    traj_knots[-1] - traj_knots[0]
-                )
-                missing, timesteps, data_list = self.follow_trajectory(
-                    traj_knots, data_list
-                )
-                progress_list.append(1 - missing / overall_distance)
-                timesteps_list.append(timesteps)
-            print(
-                "Trajectory normalized avg progress to target: {:.2f} ({:.2f})\
-                    - Trajectory timesteps before fail: {:.2f} ({:.2f})".
-                format(
-                    np.mean(progress_list), np.std(progress_list),
-                    np.mean(timesteps_list), np.std(timesteps_list)
-                )
-            )
+            # # follow trajectory
+            # progress_list, timesteps_list = list(), list()
+            # for _ in range(nr_traj_iters):
+            #     traj_knots = QuadEvaluator.random_trajectory(1.5)
+            #     overall_distance = np.linalg.norm(
+            #         traj_knots[-1] - traj_knots[0]
+            #     )
+            #     missing, timesteps, data_list = self.follow_trajectory(
+            #         traj_knots, data_list
+            #     )
+            #     progress_list.append(1 - missing / overall_distance)
+            #     timesteps_list.append(timesteps)
+            # print(
+            #     "Trajectory normalized avg progress to target: {:.2f} ({:.2f})\
+            #         - Trajectory timesteps before fail: {:.2f} ({:.2f})".
+            #     format(
+            #         np.mean(progress_list), np.std(progress_list),
+            #         np.mean(timesteps_list), np.std(timesteps_list)
+            #     )
+            # )
             data_list = np.array(data_list)
         return np.mean(progress_list), np.std(progress_list), data_list
 
