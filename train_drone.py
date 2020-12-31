@@ -24,7 +24,7 @@ NR_ACTIONS = 5
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/new_hutter_model")
+BASE_MODEL = None  # os.path.join("trained_models/drone/new_hutter_model")
 BASE_MODEL_NAME = 'model_quad12'
 
 # Load model or initialize model
@@ -36,7 +36,7 @@ if BASE_MODEL is not None:
     STD = np.array(param_dict["std"]).astype(float)
     MEAN = np.array(param_dict["mean"]).astype(float)
 else:
-    net = Net(STATE_SIZE, ACTION_DIM)
+    net = Net(STATE_SIZE, ACTION_DIM * NR_ACTIONS)
     reference_data = Dataset(
         construct_states, normalize=True, num_states=EPOCH_SIZE
     )
@@ -125,28 +125,23 @@ for epoch in range(NR_EPOCHS):
             loss_weights = 1 + torch.abs(current_state)  # TODO
 
             # ------------ VERSION 1 (x states at once)-----------------
-            # actions = net(inputs)
-            # actions = torch.sigmoid(actions)
-            # action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
+            actions = net(inputs)
+            actions = torch.sigmoid(actions)
+            action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             loss = 0
             for k in range(NR_ACTIONS):
                 # normalize loss by the start distance
-                start_dist = torch.sum(current_state[:, :3]**2, axis=1)
-                # action = action_seq[:, k]
+                action = action_seq[:, k]
                 # ----------- VERSION 2: predict one action at a time --------
-                net_input_state = (current_state - torch_mean) / torch_std
-                action = net(net_input_state)
-                action = torch.sigmoid(action)
+                # start_dist = torch.sum(current_state[:, :3]**2, axis=1)
+                # net_input_state = (current_state - torch_mean) / torch_std
+                # action = net(net_input_state)
+                # action = torch.sigmoid(action)
                 current_state = simulate_quadrotor(action, current_state)
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------
-                loss += k * drone_loss_function(
-                    current_state,
-                    loss_weights=loss_weights,
-                    printout=0,
-                    start_dist=start_dist
-                )
+            loss = drone_loss_function(current_state, printout=0)
             # 2) ------------- Trajectory loss -------------
             # drone_state = (current_state - torch_mean) / torch_std
             # loss = trajectory_loss(

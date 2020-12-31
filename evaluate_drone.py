@@ -283,23 +283,25 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # # watch
-    # _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
+    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=False)
+    for d in collect_data:
+        print([round(s, 2) for s in d])
     # # compute stats
     # success_mean, success_std, _, _ = evaluator.stabilize(
     #     nr_iters=100, render=False
     # )
     # print(success_mean, success_std)
-    # # plot_state_variables(
-    # #     collect_data, save_path=os.path.join(model_path, "evaluation.png")
-    # # )
+    plot_state_variables(
+        collect_data, save_path=os.path.join(model_path, "evaluation.png")
+    )
 
     # test trajectory
-    knots = QuadEvaluator.random_trajectory(1.5)
-    # hover_trajectory()
-    # random_trajectory(10, 4)
-    print("Knots:")
-    print(np.around(knots, 2))
-    with torch.no_grad():
-        evaluator.follow_trajectory(knots, [], render=True)
+    # knots = QuadEvaluator.random_trajectory(1.5)
+    # # hover_trajectory()
+    # # random_trajectory(10, 4)
+    # print("Knots:")
+    # print(np.around(knots, 2))
+    # with torch.no_grad():
+    #     evaluator.follow_trajectory(knots, [], render=True)
 
-    evaluator.evaluate()
+    # evaluator.evaluate()

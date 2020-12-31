@@ -14,22 +14,18 @@ def drone_loss_function(
         action: control signal of dimension 4 (thrust of rotors)
     """
     # weighting
-    angle_factor = 10
-    angvel_factor = .01
-    pos_factor = .5
+    angle_factor = 1
+    angvel_factor = 2e-2
+    pos_factor = 1
 
     # attittude and att velocity loss
-    angle_error = torch.sum(
-        current_state[:, 3:6]**4 * loss_weights[:, 3:6], axis=1
-    )
-    ang_vel_error = torch.sum(
-        current_state[:, 13:16]**2 * loss_weights[:, 13:16], axis=1
-    )
+    angle_error = torch.sum(current_state[:, 3:6]**2, axis=1)
+    ang_vel_error = torch.sum(current_state[:, 13:16]**2, axis=1)
 
     # position loss
     position_loss = torch.sum(
-        current_state[:, :3]**2 * loss_weights[:, :3], dim=1
-    ) / start_dist
+        current_state[:, :3]**2 * torch.tensor([1, 2, 2]), dim=1
+    )
 
     # angle_factor = torch.relu(angle_factor - position_loss)
 
