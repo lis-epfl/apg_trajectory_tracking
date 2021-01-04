@@ -22,6 +22,7 @@ class QuadEvaluator():
         # self.mean[2] -= 2  # for old models
         self.std = std
         self.net = model
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def predict_actions(self, current_np_state):
         """
@@ -31,13 +32,13 @@ class QuadEvaluator():
         # print([round(s, 2) for s in current_np_state])
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
-        )
+        ).to(self.device)
         # print([round(s, 2) for s in current_torch_state[0].numpy()])
         suggested_action = self.net(current_torch_state)
         suggested_action = torch.sigmoid(suggested_action)[0]
 
         suggested_action = torch.reshape(suggested_action, (-1, ACTION_DIM))
-        numpy_action_seq = suggested_action.numpy()
+        numpy_action_seq = suggested_action.cpu().numpy()
         # print([round(a, 2) for a in numpy_action_seq[0]])
         return numpy_action_seq
 
@@ -275,6 +276,9 @@ if __name__ == "__main__":
         param_dict = json.load(outfile)
 
     net = torch.load(os.path.join(model_path, "model_quad" + args.epoch))
+    # Use cuda if available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    net = net.to(device)
     net.eval()
 
     evaluator = QuadEvaluator(

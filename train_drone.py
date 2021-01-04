@@ -42,6 +42,10 @@ else:
     )
     (STD, MEAN) = (reference_data.std, reference_data.mean)
 
+# Use cuda if available
+device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+net = net.to(device)
+
 # define optimizer and torch normalization parameters
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
 
