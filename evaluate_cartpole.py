@@ -18,7 +18,7 @@ class Evaluator:
         self.std = std
 
     def make_swingup(
-        self, net, nr_iters=10, max_iters=50, success_over=20, render=False
+        self, net, nr_iters=10, max_iters=100, success_over=20, render=False
     ):
         """
         Check if the pendulum can make a swing up

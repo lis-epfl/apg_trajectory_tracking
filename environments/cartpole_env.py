@@ -84,9 +84,7 @@ class CartPoleEnv():
         self.state = (x, x_dot, theta, theta_dot)
 
         # Check whether still in feasible area etc
-        done =  x < -self.x_threshold \
-                or x > self.x_threshold \
-                or theta < -self.theta_threshold_radians \
+        done =  theta < -self.theta_threshold_radians \
                 or theta > self.theta_threshold_radians
         done = bool(done)
 

@@ -14,7 +14,7 @@ from environments.drone_env import construct_states
 from utils.plotting import plot_loss, plot_success
 
 EPOCH_SIZE = 5000
-USE_NEW_DATA = 500
+USE_NEW_DATA = 250
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
