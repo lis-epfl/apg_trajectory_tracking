@@ -11,16 +11,13 @@ import torch
 import gym
 from gym import spaces
 from gym.utils import seeding
-from gym_quadrotor.dynamics import Euler
-from gym_quadrotor.dynamics.coordinates import (
-    angle_difference, angvel_to_euler
-)
 
-from gym_quadrotor.envs.rendering import Renderer, Ground, QuadCopter
 try:
-    from .copter import copter_params, DynamicsState
+    from .rendering import Renderer, Ground, QuadCopter
+    from .copter import copter_params, DynamicsState, Euler
     from .drone_dynamics import simulate_quadrotor
 except ImportError:
+    from rendering import Renderer, Ground, QuadCopter
     from copter import copter_params, DynamicsState
     from drone_dynamics import simulate_quadrotor
 
@@ -60,9 +57,9 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
-        attitude_condition = np.all(np.absolute(np_state[3:6]) < .4)
-        position_condition = 0 < np_state[2] < 5
-        return attitude_condition, position_condition
+        # only roll and pitch are constrained
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
+        return attitude_condition
 
     def step(self, action):
         action = np.clip(self._process_action(action), 0.0, 1.0)
@@ -75,7 +72,6 @@ class QuadRotorEnvBase(gym.Env):
         numpy_out_state = new_state_arr.numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
-        stable_att, stable_pos = self.get_is_stable(numpy_out_state)
         # attitude = self._state.attitude
 
         # How this works: Check whether the angle is above the boundaries
@@ -86,7 +82,7 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, stable_att and stable_pos
+        return numpy_out_state, self.get_is_stable(numpy_out_state)
 
     def render(self, mode='human', close=False):
         if not close:
@@ -100,14 +96,21 @@ class QuadRotorEnvBase(gym.Env):
     def close(self):
         self.renderer.close()
 
+    def zero_reset(self, position_x=0, position_y=0, position_z=2):
+        zero_state = np.zeros(20)
+        zero_state[9:13] = 400
+        zero_state[:3] = [position_x, position_y, position_z]
+        self._state.from_np(zero_state)
+
+    def render_reset(self, strength=.8):
+        self.reset(strength=strength)
+        self._state.position[2] += 2
+
     def reset(self, strength=.8):
 
         self._state = DynamicsState()
         # # possibility 1: reset to zero
-        # zero_state = np.zeros(20)
-        # zero_state[9:13] = 500
-        # zero_state[2] = 1
-        # self._state.from_np(zero_state)
+        #
 
         self.randomize_angle(5 * strength)
         self.randomize_angular_velocity(2.0)
@@ -115,26 +118,16 @@ class QuadRotorEnvBase(gym.Env):
             low=-0.3 * strength, high=0.3 * strength
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
-        self._state.position[2] += 2
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5 * strength
 
         # self.renderer.set_center(None)
 
-        return self._get_state()
+        return self._state
 
     def get_copter_state(self):
         return self._state
-
-    def _get_state(self):
-        s = self._state
-        rate = angvel_to_euler(s.attitude, s.angular_velocity)
-        state = [
-            s.attitude.roll, s.attitude.pitch,
-            angle_difference(s.attitude.yaw, 0.0), rate[0], rate[1], rate[2]
-        ]
-        return np.array(state)
 
     def _process_action(self, action):
         return action
@@ -190,39 +183,7 @@ def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
 # --------------------- Auxilary functions ----------------------
 
 
-def clip_attitude(state: DynamicsState, max_angle: float):
-    """
-    Limits the roll and pitch angle to the given `max_angle`. 
-    If roll or pitch exceed that angle,
-    they are clipped and the angular velocity is set to 0.
-    :param state: The quadcopter state to be modified.
-    :param max_angle: Maximum allowed roll and pitch angle.
-    :return: nothing.
-    """
-    attitude = state.attitude
-    angular_velocity = state.angular_velocity
-    clipped = False
-
-    if attitude.roll > max_angle:
-        attitude.roll = max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    if attitude.roll < -max_angle:
-        attitude.roll = -max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    if attitude.pitch > max_angle:
-        attitude.pitch = max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    if attitude.pitch < -max_angle:
-        attitude.pitch = -max_angle
-        angular_velocity[:] = 0
-        clipped = True
-    return clipped
-
-
-def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
+def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
     const_action_runs = .8
@@ -235,7 +196,7 @@ def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
         is_stable = True
         time_stable = 0
         while is_stable and time_stable < episode_length:
-            action = np.random.rand(4)
+            action = np.random.rand(4) * .4 - .2 + .3
             if len(data) > num_data * const_action_runs:
                 # add steps with with
                 action = np.ones(4) * .5
@@ -250,13 +211,23 @@ def construct_states(num_data, episode_length=15, reset_strength=1, **kwargs):
     return data
 
 
+def get_avg_distance():
+    states = construct_states(10000)
+    sum_squares = np.sqrt(np.sum(states[:, :3]**2, axis=1))
+    print(sum_squares.shape, np.mean(sum_squares))
+    return np.mean(sum_squares)
+
+
 if __name__ == "__main__":
     env = QuadRotorEnvBase()
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
     states = construct_states(100)
+    # states = np.load("check_added_data.npy")
+    print(np.mean(states[:, :6], axis=0))
+    print(np.std(states[:, :6], axis=0))
     #  np.load("data_backup/collected_data.npy")
     for j in range(100):
         print([round(s, 2) for s in states[j, :6]])
         env._state.from_np(states[j])
         env.render()
-        time.sleep(.2)
+        time.sleep(.1)

@@ -17,7 +17,7 @@ class Net(nn.Module):
     def forward(self, x):
         x = torch.tanh(self.fc_in(x))
         x = torch.tanh(self.fc1(x))
-        # x = torch.tanh(self.fc2(x))
-        # x = torch.tanh(self.fc3(x))
+        x = torch.tanh(self.fc2(x))
+        x = torch.tanh(self.fc3(x))
         x = self.fc_out(x)
         return x
