@@ -23,6 +23,10 @@ except ImportError:
 
 
 class QuadRotorEnvBase(gym.Env):
+    """
+    Simple simulation environment for a drone
+    Drone parameters are defined in file copter.py (copter_params dict)
+    """
     metadata = {
         'render.modes': ['human', 'rgb_array'],
         'video.frames_per_second': 50
@@ -31,7 +35,7 @@ class QuadRotorEnvBase(gym.Env):
     action_space = spaces.Box(0, 1, (4, ), dtype=np.float32)
     observation_space = spaces.Box(0, 1, (6, ), dtype=np.float32)
 
-    def __init__(self, params: dict = None):
+    def __init__(self):
 
         # set up the renderer
         self.renderer = Renderer()
@@ -39,9 +43,7 @@ class QuadRotorEnvBase(gym.Env):
         self.renderer.add_object(QuadCopter(self))
 
         # set to supplied copter params, or to default value
-        if params is None:
-            params = copter_params
-        self.setup = SimpleNamespace(**params)
+        self.setup = SimpleNamespace(**copter_params)
 
         # just initialize the state to default, the rest will be done by reset
         self._state = DynamicsState()
@@ -57,11 +59,21 @@ class QuadRotorEnvBase(gym.Env):
 
     @staticmethod
     def get_is_stable(np_state):
+        """
+        Return for a given state whether the drone is stable or failure
+        Returns bool --> if true then still stable
+        """
         # only roll and pitch are constrained
         attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
         return attitude_condition
 
     def step(self, action):
+        """
+        Apply action to the current drone state
+        Returns:
+            New state as np array
+            bool indicating whether drone failed
+        """
         action = np.clip(self._process_action(action), 0.0, 1.0)
         assert action.shape == (4, ), f"action not size 4 but {action.shape}"
 
@@ -97,17 +109,27 @@ class QuadRotorEnvBase(gym.Env):
         self.renderer.close()
 
     def zero_reset(self, position_x=0, position_y=0, position_z=2):
+        """
+        Reset to easiest state: zero velocities and attitude and given position
+        Arguments:
+            Position (in three floats)
+        """
         zero_state = np.zeros(20)
         zero_state[9:13] = 400
         zero_state[:3] = [position_x, position_y, position_z]
         self._state.from_np(zero_state)
 
     def render_reset(self, strength=.8):
+        """
+        Reset to a random state, but require z position to be at least 1
+        """
         self.reset(strength=strength)
         self._state.position[2] += 2
 
     def reset(self, strength=.8):
-
+        """
+        Reset drone to a random state
+        """
         self._state = DynamicsState()
         # # possibility 1: reset to zero
         #
@@ -184,6 +206,14 @@ def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
 
 
 def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
+    """
+    Sample states for training the model
+    Arguments:
+        num_data: How much states to sample
+        episode_length: Maximum number of states before resetting the env
+        reset_strength (float between 0.5 - 1.5): How much randomization, i.e.
+                How far from target should the states be
+    """
     # data = np.load("data.npy")
     # assert not np.any(np.isnan(data))
     const_action_runs = .8
@@ -195,10 +225,12 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
         env.reset(strength=reset_strength)
         is_stable = True
         time_stable = 0
+        # Sample one episode
         while is_stable and time_stable < episode_length:
+            # perform random action
             action = np.random.rand(4) * .4 - .2 + .3
             if len(data) > num_data * const_action_runs:
-                # add steps with with
+                # add some states with very monotone actions
                 action = np.ones(4) * .5
             new_state, is_stable = env.step(action)
             # print(new_state[2])
@@ -212,6 +244,9 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
 
 
 def get_avg_distance():
+    """
+    Get average distance of the states from the target (zero)
+    """
     states = construct_states(10000)
     sum_squares = np.sqrt(np.sum(states[:, :3]**2, axis=1))
     print(sum_squares.shape, np.mean(sum_squares))

@@ -68,14 +68,10 @@ def linear_dynamics(rotor_speed, attitude, velocity):
     thrust = b / m * torch.mul(
         torch.matmul(body_to_world, constant_vec).t(), squared_speed
     ).t()
-    # print(body_to_world.size(), constant_vec.size(), "res:", thrust.size())
-    # print(body_to_world.size(), torch.diag(Kt).size(), world_to_body.size())
     Ktw = torch.matmul(
         body_to_world, torch.matmul(torch.diag(Kt).float(), world_to_body)
     )
-    # print("ktw", Ktw.size(), "veloc", velocity.size())
     drag = torch.squeeze(torch.matmul(Ktw, torch.unsqueeze(velocity, 2)) / m)
-    # print("drag size", drag.size(), "thrust", thrust.size())
     thrust_minus_drag = thrust - drag + torch.from_numpy(copter_params.gravity)
     # version for batch size 1 (working version)
     # summed = torch.add(
@@ -113,10 +109,6 @@ def to_euler_matrix(attitude):
 
 def euler_rate(attitude, angular_velocity):
     euler_matrix = to_euler_matrix(attitude)
-    # print(
-    #     "euler matrix", euler_matrix.size(), "av",
-    #     torch.unsqueeze(angular_velocity, 2).size()
-    # )
     together = torch.matmul(
         euler_matrix, torch.unsqueeze(angular_velocity.float(), 2)
     )
@@ -172,32 +164,14 @@ def angular_momentum_body_frame(rotor_speeds, angular_velocity):
     transformed_av = torch.stack(
         (av[:, 2], -av[:, 1], torch.zeros(av.size()[0]))
     )
-    # print(
-    #     "transformed av", transformed_av.size(),
-    #     net_rotor_speed(rotor_speeds).size()
-    # )
     # J is scalar, net rotor speed outputs vector of len batch size
     gyro = torch.transpose(
         net_rotor_speed(rotor_speeds) * J * transformed_av, 0, 1
     )
-    # print("gyro", gyro.size())
     drag = Kr * av
-    # print("drag", drag.size())
     Mp = propeller_torques(rotor_speeds)
-    # print("Mp", Mp)
-    # print("NUMPY:")
-    # print(av.numpy()[0], copter_params.frame_inertia * av.numpy()[0])
-    # print(
-    #     "cross",
-    #     np.cross(av.numpy()[0],
-    #              copter_params.frame_inertia * av.numpy()[0])
-    # )
-    # print("TORCH")
-    # print(av, I * av)
+
     B = Mp - drag + gyro - torch.cross(av, inertia * av, dim=1)
-    # print(torch.cross(av, I * av, dim=1).size())
-    # print(Mp.size(), drag.size(), gyro.size())
-    # print("output angular momentum", B.size())
     return B
 
 
@@ -207,8 +181,11 @@ def simulate_quadrotor(action, state, dt=0.02):
     in `dt`. First the rotor speeds are updated according to the desired
     rotor speed, and then linear and angular accelerations are calculated
     and integrated.
-    :param CopterParams params: Parameters of the quadrotor.
-    :param DynamicsState state: Current dynamics state.
+    Arguments:
+        action: float tensor of size (BATCH_SIZE, 4) - rotor thrust
+        state: float tensor of size (BATCH_SIZE, 16) - drone state (see below)
+    Returns:
+        Next drone state (same size as state)
     """
     # extract state
     position = state[:, :3]
@@ -225,34 +202,18 @@ def simulate_quadrotor(action, state, dt=0.02):
     # dw = gamma * (desired_rotor_speeds - rotor_speed)
     rotor_speed = rotor_speed + .5 * (desired_rotor_speeds - rotor_speed)
     rotor_speed = torch.maximum(rotor_speed, torch.zeros(rotor_speed.size()))
-    # print(action, "rotor_speed", rotor_speed * 10000)
-
-    # print("bef:", rotor_speed)
-    # print(action)
-    # desired_rotor_speeds = rotor_speed
-    # rotor_speed = torch.nn.functional.relu(rotor_speed + (action - 0.5) * 500)
-    # # print(rotor_speed)
 
     acceleration = linear_dynamics(rotor_speed, attitude, velocity)
 
     ang_momentum = angular_momentum_body_frame(rotor_speed, angular_velocity)
     angular_acc = ang_momentum / torch.from_numpy(copter_params.frame_inertia)
-    # print(position.size(), dt, acceleration.size(), velocity.size())
-    # print(position, dt, acceleration, velocity)
-    # update state
+    # update state variables
     position = position + 0.5 * dt * dt * acceleration + 0.5 * dt * velocity
-    # print(position)
-    # print("new position", position.size())
     velocity = velocity + dt * acceleration
     angular_velocity = angular_velocity + dt * angular_acc
     attitude = attitude + dt * euler_rate(attitude, angular_velocity)
-    # print(
-    #     position.shape, attitude.shape, velocity.shape, rotor_speed.shape,
-    #     desired_rotor_speeds.shape, angular_velocity.shape
-    # )
+    # set final state
     state = torch.hstack(
         (position, attitude, velocity, rotor_speed, angular_velocity)
     )
-    # print("state", state)
-    # print("output state", state.size())
     return state.float()

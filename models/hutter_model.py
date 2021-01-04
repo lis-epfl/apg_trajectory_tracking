@@ -4,10 +4,17 @@ import torch.nn.functional as F
 
 
 class Net(nn.Module):
+    """
+    Simple MLP with three hidden layers, based on RL work of Marco Hutter's
+    group
+    """
 
     def __init__(self, in_size, out_size):
+        """
+        in_size: number of input neurons (features)
+        out_size: number of output neurons
+        """
         super(Net, self).__init__()
-        # conf: in channels, out channels, kernel size
         self.fc_in = nn.Linear(in_size, 64)
         self.fc1 = nn.Linear(64, 64)
         self.fc2 = nn.Linear(64, 64)

@@ -22,7 +22,9 @@ class QuadEvaluator():
         # self.mean[2] -= 2  # for old models
         self.std = std
         self.net = model
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
 
     def predict_actions(self, current_np_state):
         """
@@ -46,7 +48,18 @@ class QuadEvaluator():
         self, nr_iters=1, render=False, max_time=300, start_loss=200
     ):
         """
-        Hover as long as possible
+        Measure nr_iters times how long the drone can hover without falling.
+        Arguments:
+            nr_iters (int): Number of runs (multiple to compute statistics)
+            render (bool): if true, showing a simple drone simulation
+            max_time (int): Maximum number of steps to hover
+            start_loss (int): At this point we start to record the average
+                divergence from the target for evaluation --> In the optimal
+                case the drone has stabilized around the target at this time
+        Returns:
+            Average number of steps before failure
+            Standard deviation of steps before failure
+            collect_data: Array with all encountered states   
         """
         collect_data = []
         pos_loss_list = list()  # collect the reason for failure
@@ -55,11 +68,8 @@ class QuadEvaluator():
             eval_env = QuadRotorEnvBase()
             for _ in range(nr_iters):
                 time_stable = 0
+                # Reset and run until failing or reaching max_time
                 eval_env.render_reset()
-                # zero_state = np.zeros(20)
-                # zero_state[9:13] = 500
-                # zero_state[2] = 2
-                # eval_env._state.from_np(zero_state)
                 stable = True
                 while stable and time_stable < max_time:
                     current_np_state = eval_env._state.as_np.copy()
@@ -108,7 +118,22 @@ class QuadEvaluator():
         """
         Evaluate the ability of the drone to follow a trajectory defined by
         knots
+        Arguments:
+            knots: Numpy array of shape (x, 3) with target positions
+            data_list (list): Current list of states that is to be evaluated
+            render (bool): if true, showing drone simulation
+            target_change_theta (float): When the drone has managed to fly
+                    target_change_theta*100 percent of the way towards state s,
+                    the target switches from s to the next knot
+            max_iters(int): Max number of steps to reach target
+        Returns:
+            min_distance_to_target: Min distance to the end target (last knot)
+            time_stable: Number of steps before failure (if it occurs)
+            data_list: encountered states
         """
+        assert 0 <= target_change_theta <= 1, "target change factor must be\
+            between 0 and 1"
+
         main_target = knots[-1]
         distance_between_knots = np.linalg.norm(knots[1] - knots[0])
 
@@ -178,6 +203,9 @@ class QuadEvaluator():
         return min_distance_to_target, time_stable, data_list
 
     def evaluate(self, nr_hover_iters=5, nr_traj_iters=10):
+        """
+        Quantitatively evaluate the ability to hover or follow a trajectory
+        """
         with torch.no_grad():
             data_list = []
 
@@ -224,6 +252,13 @@ class QuadEvaluator():
 
     @staticmethod
     def random_trajectory(step_size, diff=5):
+        """
+        Sample a random trajectory (equally spaced knots from A to B)
+        Arguments:
+            step_size (float): Desired max distance between two states
+            diff (int): Determines distance between start and target (and thus
+                also the necessary number of knots for a given step_size)
+        """
         # if diff = 5, then x,y,z are between 0 and 5
         start = np.random.rand(3) * diff
         end = np.random.rand(3) * diff
@@ -241,6 +276,11 @@ class QuadEvaluator():
 
     @staticmethod
     def hover_trajectory():
+        """
+        Simple trajectory with only two knots (start and target) - learn to fly
+        to position and hover there
+        Target position is always 0,0,2
+        """
         eval_env = QuadRotorEnvBase()
         eval_env.render_reset()
         start = eval_env._state.as_np[:3]

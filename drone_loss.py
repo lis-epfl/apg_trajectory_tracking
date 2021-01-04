@@ -5,11 +5,13 @@ torch.autograd.set_detect_anomaly(True)
 
 def drone_loss_function(current_state, start_state=None, printout=0):
     """
-    Computes loss for applying an action to the current state by comparing to
-    the target state
+    Computes loss of the current state (target is assumed to be zero-state)
     Arguments:
         current_state: array with x entries describing attitude and velocity
-        action: control signal of dimension 4 (thrust of rotors)
+        start_state: same format as current_state, but start position (for
+            normalization)
+    Returns:
+        loss (torch float scalar)
     """
     # weighting
     angle_factor = 1
@@ -44,6 +46,16 @@ def drone_loss_function(current_state, start_state=None, printout=0):
 
 
 def project_to_line(a_on_line, b_on_line, p):
+    """
+    Project a point p to a line from a to b
+    Arguments:
+        All inputs are 2D tensors of shape (BATCH_SIZE, n)
+        a_on_line: First point on the line
+        b_on_line: Second point on the line
+        p: point to be projected onto the line
+    Returns: Tensor of shape (BATCH_SIZE, n) which is the orthogonal projection
+            of p on the line 
+    """
     ap = torch.unsqueeze(p - a_on_line, 2)
     ab = b_on_line - a_on_line
     # normalize
@@ -60,8 +72,15 @@ def project_to_line(a_on_line, b_on_line, p):
 
 def pos_traj_loss(start_state, drone_state):
     """
-    states are not normalized, target state is zero
-    only position
+    Compute position loss based on the projection of the drone state on the
+    target trajectory (from start_state to zero)
+    Arguments: (Shape BATCH_SIZE, 3)
+        start_state: Drone position before action
+        drone_state: Position after applying action to start_state
+    Returns:
+        Two tensors, each of shape (BATCH_SIZE, 1)
+        divergence_loss: divergence from the target trajectory
+        progress_loss: 1 - how far did the drone progress towards the target
     """
     # distance from start to target
     total_distance = torch.sum(start_state**2, 1)
@@ -84,8 +103,8 @@ def trajectory_loss(
     printout=0
 ):
     """
-    Loss for attemtping to traverse from state to target_state but ending up
-    at drone_state
+    Trajectory loss for position and attitude (in contrast to pos_traj_loss)
+    Input states must be normalized!
     """
     if mask is None:
         mask = torch.ones(state.size()[1])
