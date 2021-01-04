@@ -43,7 +43,7 @@ else:
     (STD, MEAN) = (reference_data.std, reference_data.mean)
 
 # Use cuda if available
-device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
 
 # define optimizer and torch normalization parameters
@@ -87,9 +87,6 @@ for epoch in range(NR_EPOCHS):
             num_states=EPOCH_SIZE,
             # reset_strength=.6 + epoch / 50
         )
-        trainloader = torch.utils.data.DataLoader(
-            state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
-        )
 
     print()
     print(f"Epoch {epoch} (before)")
@@ -117,6 +114,12 @@ for epoch in range(NR_EPOCHS):
         #     np.save("check_added_data.npy", np.array(new_data))
         print("new added data:", selected_new_data.shape)
 
+    # Initialize train loader
+    trainloader = torch.utils.data.DataLoader(
+        state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
+    )
+
+    # Training
     running_loss = 0
     try:
         for i, data in enumerate(trainloader, 0):
@@ -150,7 +153,7 @@ for epoch in range(NR_EPOCHS):
             loss = drone_loss_function(
                 current_state, start_state=start_state, printout=0
             )
-            # 2) ------------- Trajectory loss -------------
+            # ------------- VERSION 3: Trajectory loss -------------
             # drone_state = (current_state - torch_mean) / torch_std
             # loss = trajectory_loss(
             #     inputs,
@@ -165,8 +168,6 @@ for epoch in range(NR_EPOCHS):
             loss.backward()
             optimizer.step()
 
-            # print statistics
-            # print(net.fc3.weight.grad)
             running_loss += loss.item()
 
         loss_list.append(running_loss / i)
@@ -176,7 +177,7 @@ for epoch in range(NR_EPOCHS):
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
 
-#
+# Save model
 torch.save(net, os.path.join(SAVE, "model_quad"))
 plot_loss(loss_list, SAVE)
 plot_success(success_mean_list, success_std_list, SAVE)
