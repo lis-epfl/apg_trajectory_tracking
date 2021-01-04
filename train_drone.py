@@ -24,8 +24,8 @@ NR_ACTIONS = 5
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # os.path.join("trained_models/drone/new_hutter_model")
-BASE_MODEL_NAME = 'model_quad12'
+BASE_MODEL = None  # os.path.join("trained_models/drone/first_traj_model")
+BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
 if BASE_MODEL is not None:
@@ -56,11 +56,11 @@ with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
 
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
-target_state = torch.zeros(STATE_SIZE)
-mask = torch.ones(STATE_SIZE)
-mask[6:13] = 0  # rotor speeds and xyz velocity don't matter
-loss_weights = mask.clone()
-target_state = ((target_state - torch_mean) / torch_std) * mask
+# target_state = torch.zeros(STATE_SIZE)
+# mask = torch.ones(STATE_SIZE)
+# mask[6:13] = 0  # rotor speeds and xyz velocity don't matter
+# loss_weights = mask.clone()
+# target_state = ((target_state - torch_mean) / torch_std) * mask
 
 
 def adjust_learning_rate(optimizer, epoch, every_x=5):
@@ -90,6 +90,7 @@ for epoch in range(NR_EPOCHS):
     print()
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, MEAN, STD)
+    _ = eval_env.stabilize(nr_iters=5)
     suc_mean, suc_std, new_data = eval_env.evaluate(
         nr_hover_iters=NR_EVAL_ITERS, nr_traj_iters=NR_EVAL_ITERS
     )
@@ -128,7 +129,8 @@ for epoch in range(NR_EPOCHS):
             actions = net(inputs)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-            loss = 0
+            # loss = 0
+            start_state = current_state.clone()
             for k in range(NR_ACTIONS):
                 # normalize loss by the start distance
                 action = action_seq[:, k]
@@ -141,7 +143,9 @@ for epoch in range(NR_EPOCHS):
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------
-            loss = drone_loss_function(current_state, printout=0)
+            loss = drone_loss_function(
+                current_state, start_state=start_state, printout=0
+            )
             # 2) ------------- Trajectory loss -------------
             # drone_state = (current_state - torch_mean) / torch_std
             # loss = trajectory_loss(

@@ -11,16 +11,13 @@ import torch
 import gym
 from gym import spaces
 from gym.utils import seeding
-from gym_quadrotor.dynamics import Euler
-from gym_quadrotor.dynamics.coordinates import (
-    angle_difference, angvel_to_euler
-)
 
-from gym_quadrotor.envs.rendering import Renderer, Ground, QuadCopter
 try:
-    from .copter import copter_params, DynamicsState
+    from .rendering import Renderer, Ground, QuadCopter
+    from .copter import copter_params, DynamicsState, Euler
     from .drone_dynamics import simulate_quadrotor
 except ImportError:
+    from rendering import Renderer, Ground, QuadCopter
     from copter import copter_params, DynamicsState
     from drone_dynamics import simulate_quadrotor
 
@@ -127,19 +124,10 @@ class QuadRotorEnvBase(gym.Env):
 
         # self.renderer.set_center(None)
 
-        return self._get_state()
+        return self._state
 
     def get_copter_state(self):
         return self._state
-
-    def _get_state(self):
-        s = self._state
-        rate = angvel_to_euler(s.attitude, s.angular_velocity)
-        state = [
-            s.attitude.roll, s.attitude.pitch,
-            angle_difference(s.attitude.yaw, 0.0), rate[0], rate[1], rate[2]
-        ]
-        return np.array(state)
 
     def _process_action(self, action):
         return action

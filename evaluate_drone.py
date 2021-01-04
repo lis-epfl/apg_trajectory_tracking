@@ -8,7 +8,7 @@ import torch
 from environments.drone_env import QuadRotorEnvBase
 from utils.plotting import plot_state_variables
 from dataset import raw_states_to_torch
-from models.resnet_like_model import Net
+# from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
 
 ROLL_OUT = 1
@@ -28,7 +28,7 @@ class QuadEvaluator():
         Predict an action for the current state. This function is used by all
         evaluation functions
         """
-        print([round(s, 2) for s in current_np_state])
+        # print([round(s, 2) for s in current_np_state])
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
         )
@@ -42,7 +42,7 @@ class QuadEvaluator():
         return numpy_action_seq
 
     def stabilize(
-        self, nr_iters=1, render=False, max_time=300, start_loss=100
+        self, nr_iters=1, render=False, max_time=300, start_loss=200
     ):
         """
         Hover as long as possible
@@ -283,17 +283,15 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # # watch
-    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=False)
-    for d in collect_data:
-        print([round(s, 2) for s in d])
+    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
     # # compute stats
     # success_mean, success_std, _, _ = evaluator.stabilize(
     #     nr_iters=100, render=False
     # )
     # print(success_mean, success_std)
-    plot_state_variables(
-        collect_data, save_path=os.path.join(model_path, "evaluation.png")
-    )
+    # plot_state_variables(
+    #     collect_data, save_path=os.path.join(model_path, "evaluation.png")
+    # )
 
     # test trajectory
     # knots = QuadEvaluator.random_trajectory(1.5)

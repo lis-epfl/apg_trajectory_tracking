@@ -3,9 +3,7 @@ from environments.drone_dynamics import simulate_quadrotor
 torch.autograd.set_detect_anomaly(True)
 
 
-def drone_loss_function(
-    current_state, printout=0, loss_weights=torch.ones(16), start_dist=1
-):
+def drone_loss_function(current_state, start_state=None, printout=0):
     """
     Computes loss for applying an action to the current state by comparing to
     the target state
@@ -16,16 +14,18 @@ def drone_loss_function(
     # weighting
     angle_factor = 1
     angvel_factor = 2e-2
-    pos_factor = 1
+    pos_factor = .5
 
     # attittude and att velocity loss
     angle_error = torch.sum(current_state[:, 3:6]**2, axis=1)
     ang_vel_error = torch.sum(current_state[:, 13:16]**2, axis=1)
 
     # position loss
-    position_loss = torch.sum(
-        current_state[:, :3]**2 * torch.tensor([1, 2, 2]), dim=1
-    )
+    div, prog = pos_traj_loss(start_state[:, :3], current_state[:, :3])
+    position_loss = div + 3 * prog  # added 3 only
+    # torch.sum(
+    #     current_state[:, :3]**2 * torch.tensor([.5, 2, 2]), dim=1
+    # )
 
     # angle_factor = torch.relu(angle_factor - position_loss)
 
@@ -56,6 +56,23 @@ def project_to_line(a_on_line, b_on_line, p):
     projected = a_on_line + (product.t() / norm).t()
 
     return projected
+
+
+def pos_traj_loss(start_state, drone_state):
+    """
+    states are not normalized, target state is zero
+    only position
+    """
+    # distance from start to target
+    total_distance = torch.sum(start_state**2, 1)
+    # project to trajectory
+    projected_state = project_to_line(start_state, torch.zeros(3), drone_state)
+    # losses
+    divergence_loss = torch.sum(
+        (projected_state - drone_state)**2, 1
+    ) / total_distance
+    progress_loss = torch.sum(projected_state**2, 1) / total_distance
+    return divergence_loss, progress_loss
 
 
 def trajectory_loss(

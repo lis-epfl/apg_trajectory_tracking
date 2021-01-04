@@ -1,5 +1,4 @@
 import numpy as np
-from gym_quadrotor.dynamics import Euler
 
 copter_params = {
     "thrust_factor": 5.723e-6,
@@ -87,3 +86,75 @@ class DynamicsState(object):
         self._velocity = state_array[6:9]
         self._rotorspeeds = state_array[9:13]
         self._angular_velocity = state_array[13:16]
+
+
+class Euler(object):
+    """
+    Defines an Euler angle (roll, pitch, yaw). We
+    do try to cache as many intermediate results
+    as possible here (e.g. the transformation matrices).
+
+    Therefore, do not change the `_euler` attribute
+    except for using the provided setters!
+    """
+
+    def __init__(self, roll, pitch, yaw):
+        self._euler = np.array([roll, pitch, yaw])
+        self._cache = {}
+
+    @staticmethod
+    def from_numpy_array(array):
+        array = np.asarray(array)
+        assert array.shape == (3, )
+        return Euler(array[0], array[1], array[2])
+
+    @staticmethod
+    def zero():
+        return Euler(0, 0, 0)
+
+    @property
+    def roll(self):
+        return self._euler[0]
+
+    @roll.setter
+    def roll(self, value):
+        self._euler[0] = value
+        self._cache = {}
+
+    @property
+    def pitch(self):
+        return self._euler[1]
+
+    @pitch.setter
+    def pitch(self, value):
+        self._euler[1] = value
+        self._cache = {}
+
+    @property
+    def yaw(self):
+        return self._euler[2]
+
+    @yaw.setter
+    def yaw(self, value):
+        self._euler[2] = value
+        self._cache = {}
+
+    def rotate(self, amount):
+        self._euler += amount
+        self._cache = {}
+
+    def rotated(self, amount):
+        return Euler(
+            self.roll + amount[0], self.pitch + amount[1], self.yaw + amount[2]
+        )
+
+    def add_to_cache(self, key, value):
+        self._cache[key] = value
+
+    def get_from_cache(self, key):
+        return self._cache.get(key)
+
+    def __repr__(self):
+        return "Euler(roll=%g, pitch=%g, yaw=%g)" % (
+            self.roll, self.pitch, self.yaw
+        )
