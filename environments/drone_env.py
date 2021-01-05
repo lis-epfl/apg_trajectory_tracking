@@ -18,7 +18,7 @@ try:
     from .drone_dynamics import simulate_quadrotor
 except ImportError:
     from rendering import Renderer, Ground, QuadCopter
-    from copter import copter_params, DynamicsState
+    from copter import copter_params, DynamicsState, Euler
     from drone_dynamics import simulate_quadrotor
 
 
@@ -135,14 +135,15 @@ class QuadRotorEnvBase(gym.Env):
         #
 
         self.randomize_angle(5 * strength)
-        self.randomize_angular_velocity(2.0)
+        self.randomize_angular_velocity(2.0 * strength)
         self._state.attitude.yaw = self.random_state.uniform(
             low=-0.3 * strength, high=0.3 * strength
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
-        self._state.angular_velocity[2] *= 0.5 * strength
+        self._state.angular_velocity[2] *= 0.5  # * strength
+        self.randomize_velocity(1.3 * strength)
 
         # self.renderer.set_center(None)
 

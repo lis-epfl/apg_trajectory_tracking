@@ -4,6 +4,7 @@ import argparse
 import json
 import numpy as np
 import torch
+import pickle
 
 from environments.drone_env import QuadRotorEnvBase
 from utils.plotting import plot_state_variables
@@ -113,7 +114,7 @@ class QuadEvaluator():
         data_list,
         render=False,
         target_change_theta=.5,
-        max_iters=300
+        max_iters=500
     ):
         """
         Evaluate the ability of the drone to follow a trajectory defined by
@@ -142,6 +143,7 @@ class QuadEvaluator():
         eval_env.zero_reset(*tuple(knots[0]))
         current_np_state = eval_env._state.as_np
 
+        state_list = []
         target_ind = 1
         time_stable = 0
         stable = True
@@ -161,6 +163,7 @@ class QuadEvaluator():
                 current_np_state, stable = eval_env.step(action)
 
                 # output
+                state_list.append(current_np_state[:3])
                 if render:
                     eval_env.render()
                     time.sleep(.1)
@@ -200,6 +203,8 @@ class QuadEvaluator():
                 if render:
                     print("--------- go to next target:", target_ind, "------")
                 time.sleep(1)
+        with open("trained_models/follow_traj.dat", "wb") as outfile:
+            pickle.dump((np.array(state_list), knots), outfile)
         return min_distance_to_target, time_stable, data_list
 
     def evaluate(self, nr_hover_iters=5, nr_traj_iters=10):
@@ -327,7 +332,7 @@ if __name__ == "__main__":
         std=np.array(param_dict["std"])
     )
     # # watch
-    _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
+    # _, _, _, collect_data = evaluator.stabilize(nr_iters=1, render=True)
     # # compute stats
     # success_mean, success_std, _, _ = evaluator.stabilize(
     #     nr_iters=100, render=False
@@ -338,12 +343,12 @@ if __name__ == "__main__":
     # )
 
     # test trajectory
-    # knots = QuadEvaluator.random_trajectory(1.5)
-    # # hover_trajectory()
-    # # random_trajectory(10, 4)
-    # print("Knots:")
-    # print(np.around(knots, 2))
-    # with torch.no_grad():
-    #     evaluator.follow_trajectory(knots, [], render=True)
+    knots = QuadEvaluator.random_trajectory(1.5)
+    # hover_trajectory()
+    # random_trajectory(10, 4)
+    print("Knots:")
+    print(np.around(knots, 2))
+    with torch.no_grad():
+        evaluator.follow_trajectory(knots, [], render=0)
 
     # evaluator.evaluate()
