@@ -47,7 +47,24 @@ def plot_state_variables(collect_data, save_path=None):
     plt.figure(figsize=(20, 10))
     for i in range(collect_data.shape[1]):
         plt.plot(collect_data[:, i], label=labels[i])
-    plt.legend()
+    plt.legend(fontsize="15")
+    plt.ylim(-2, 2)
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+
+
+def plot_position(collect_data, save_path=None):
+    """
+    Plot only how the position evolves
+    """
+    plt.figure(figsize=(20, 10))
+    labels = ["x", "y", "z"]
+    for i in range(3):
+        plt.plot(collect_data[:, i], label=labels[i])
+    plt.legend(fontsize="15")
+    plt.ylim(-1, 1)
     if save_path is None:
         plt.show()
     else:

@@ -6,6 +6,13 @@ except ImportError:
     from copter import copter_params
 from types import SimpleNamespace
 copter_params = SimpleNamespace(**copter_params)
+copter_params.translational_drag = torch.from_numpy(
+    copter_params.translational_drag
+)
+copter_params.gravity = torch.from_numpy(copter_params.gravity)
+copter_params.rotational_drag = torch.from_numpy(copter_params.rotational_drag)
+copter_params.frame_inertia = torch.from_numpy(copter_params.frame_inertia
+                                               ).float()
 
 
 def world_to_body_matrix(attitude):
@@ -56,7 +63,7 @@ def linear_dynamics(rotor_speed, attitude, velocity):
     """
     m = copter_params.mass
     b = copter_params.thrust_factor
-    Kt = torch.from_numpy(copter_params.translational_drag)
+    Kt = copter_params.translational_drag
 
     world_to_body = world_to_body_matrix(attitude)
     body_to_world = torch.transpose(world_to_body, 1, 2)
@@ -72,7 +79,7 @@ def linear_dynamics(rotor_speed, attitude, velocity):
         body_to_world, torch.matmul(torch.diag(Kt).float(), world_to_body)
     )
     drag = torch.squeeze(torch.matmul(Ktw, torch.unsqueeze(velocity, 2)) / m)
-    thrust_minus_drag = thrust - drag + torch.from_numpy(copter_params.gravity)
+    thrust_minus_drag = thrust - drag + copter_params.gravity
     # version for batch size 1 (working version)
     # summed = torch.add(
     #     torch.transpose(drag * (-1), 0, 1), thrust
@@ -156,8 +163,8 @@ def angular_momentum_body_frame(rotor_speeds, angular_velocity):
     """
     av = angular_velocity
     J = copter_params.rotor_inertia
-    Kr = torch.from_numpy(copter_params.rotational_drag)
-    inertia = torch.from_numpy(copter_params.frame_inertia).float()
+    Kr = copter_params.rotational_drag
+    inertia = copter_params.frame_inertia
 
     # this is the wrong shape, should be transposed, but for multipluing later
     # in gyro we would have to transpose again - so don't do it here
@@ -206,7 +213,7 @@ def simulate_quadrotor(action, state, dt=0.02):
     acceleration = linear_dynamics(rotor_speed, attitude, velocity)
 
     ang_momentum = angular_momentum_body_frame(rotor_speed, angular_velocity)
-    angular_acc = ang_momentum / torch.from_numpy(copter_params.frame_inertia)
+    angular_acc = ang_momentum / copter_params.frame_inertia
     # update state variables
     position = position + 0.5 * dt * dt * acceleration + 0.5 * dt * velocity
     velocity = velocity + dt * acceleration
