@@ -5,14 +5,15 @@ try:
 except ImportError:
     from copter import copter_params
 from types import SimpleNamespace
+device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 copter_params = SimpleNamespace(**copter_params)
 copter_params.translational_drag = torch.from_numpy(
     copter_params.translational_drag
-)
-copter_params.gravity = torch.from_numpy(copter_params.gravity)
-copter_params.rotational_drag = torch.from_numpy(copter_params.rotational_drag)
+).to(device)
+copter_params.gravity = torch.from_numpy(copter_params.gravity).to(device)
+copter_params.rotational_drag = torch.from_numpy(copter_params.rotational_drag).to(device)
 copter_params.frame_inertia = torch.from_numpy(copter_params.frame_inertia
-                                               ).float()
+                                               ).float().to(device)
 
 
 def world_to_body_matrix(attitude):
@@ -69,7 +70,7 @@ def linear_dynamics(rotor_speed, attitude, velocity):
     body_to_world = torch.transpose(world_to_body, 1, 2)
 
     squared_speed = torch.sum(rotor_speed**2, axis=1)
-    constant_vec = torch.zeros(3)
+    constant_vec = torch.zeros(3).to(device)
     constant_vec[2] = 1
 
     thrust = b / m * torch.mul(
@@ -97,16 +98,19 @@ def to_euler_matrix(attitude):
     Cr = torch.cos(roll)
     Sr = torch.sin(roll)
 
+    zero_vec_bs = torch.zeros(Sp.size()).to(device)
+    ones_vec_bs = torch.ones(Sp.size()).to(device)
+
     # create matrix
     m1 = torch.transpose(
-        torch.vstack([torch.ones(Sp.size()),
-                      torch.zeros(Sp.size()), -Sp]), 0, 1
+        torch.vstack([ones_vec_bs,
+                      zero_vec_bs, -Sp]), 0, 1
     )
     m2 = torch.transpose(
-        torch.vstack([torch.zeros(Sr.size()), Cr, Cp * Sr]), 0, 1
+        torch.vstack([zero_vec_bs, Cr, Cp * Sr]), 0, 1
     )
     m3 = torch.transpose(
-        torch.vstack([torch.zeros(Sr.size()), -Sr, Cp * Cr]), 0, 1
+        torch.vstack([zero_vec_bs, -Sr, Cp * Cr]), 0, 1
     )
     matrix = torch.stack((m1, m2, m3), dim=1)
 
@@ -166,10 +170,12 @@ def angular_momentum_body_frame(rotor_speeds, angular_velocity):
     Kr = copter_params.rotational_drag
     inertia = copter_params.frame_inertia
 
+    zeros_av = torch.zeros(av.size()[0]).to(device)
+
     # this is the wrong shape, should be transposed, but for multipluing later
     # in gyro we would have to transpose again - so don't do it here
     transformed_av = torch.stack(
-        (av[:, 2], -av[:, 1], torch.zeros(av.size()[0]))
+        (av[:, 2], -av[:, 1], zeros_av)
     )
     # J is scalar, net rotor speed outputs vector of len batch size
     gyro = torch.transpose(
@@ -204,11 +210,13 @@ def simulate_quadrotor(action, state, dt=0.02):
     # # set desired rotor speeds based on action # TODO: was sqrt action
     desired_rotor_speeds = action * copter_params.max_rotor_speed
 
+    zero_for_rotor = torch.zeros(rotor_speed.size()).to(device)
+
     # let rotor speed approach desired rotor speed and avoid negative rotation
     # gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
     # dw = gamma * (desired_rotor_speeds - rotor_speed)
     rotor_speed = rotor_speed + .5 * (desired_rotor_speeds - rotor_speed)
-    rotor_speed = torch.maximum(rotor_speed, torch.zeros(rotor_speed.size()))
+    rotor_speed = torch.maximum(rotor_speed, zero_for_rotor)
 
     acceleration = linear_dynamics(rotor_speed, attitude, velocity)
 

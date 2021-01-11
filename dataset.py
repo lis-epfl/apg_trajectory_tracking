@@ -3,6 +3,7 @@ import numpy as np
 import os
 from environments.cartpole_env import construct_states
 
+device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def raw_states_to_torch(
     states, normalize=False, std=None, mean=None, return_std=False
@@ -35,7 +36,7 @@ def raw_states_to_torch(
     # if we computed mean and std here, return it
     if return_std:
         return states_to_torch, mean, std
-    return states_to_torch
+    return states_to_torch.to(device)
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -62,8 +63,8 @@ class Dataset(torch.utils.data.Dataset):
             std=std,
             return_std=True
         )
-        self.labels = torch.from_numpy(state_arr_numpy).float()
-        self.states = normalized_state
+        self.labels = torch.from_numpy(state_arr_numpy).float().to(device)
+        self.states = normalized_state.to(device)
 
     def add_data(self, new_numpy_data):
         """
@@ -75,7 +76,7 @@ class Dataset(torch.utils.data.Dataset):
             std=self.std,
             mean=self.mean
         )
-        unnormalized_new_states = torch.from_numpy(new_numpy_data).float()
+        unnormalized_new_states = torch.from_numpy(new_numpy_data).float().to(device)
         self.labels = torch.vstack((self.labels, unnormalized_new_states))
         self.states = torch.vstack((self.states, normalized_new_states))
 

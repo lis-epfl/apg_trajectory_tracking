@@ -1,7 +1,7 @@
 import torch
-from environments.drone_dynamics import simulate_quadrotor
+from environments.drone_dynamics import simulate_quadrotor, device
 torch.autograd.set_detect_anomaly(True)
-
+zero_tensor = torch.zeros(3).to(device)
 
 def drone_loss_function(current_state, start_state=None, printout=0):
     """
@@ -85,7 +85,7 @@ def pos_traj_loss(start_state, drone_state):
     # distance from start to target
     total_distance = torch.sum(start_state**2, 1)
     # project to trajectory
-    projected_state = project_to_line(start_state, torch.zeros(3), drone_state)
+    projected_state = project_to_line(start_state, zero_tensor, drone_state)
     # losses
     divergence_loss = torch.sum(
         (projected_state - drone_state)**2, 1

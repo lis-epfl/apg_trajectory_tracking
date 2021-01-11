@@ -15,6 +15,8 @@ from drone_loss import drone_loss_function
 ROLL_OUT = 1
 ACTION_DIM = 4
 
+# Use cuda if available
+device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class QuadEvaluator():
 
@@ -23,9 +25,6 @@ class QuadEvaluator():
         # self.mean[2] -= 2  # for old models
         self.std = std
         self.net = model
-        self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
-        )
 
     def predict_actions(self, current_np_state):
         """
@@ -35,7 +34,7 @@ class QuadEvaluator():
         # print([round(s, 2) for s in current_np_state])
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
-        ).to(self.device)
+        ).to(device)
         # print([round(s, 2) for s in current_torch_state[0].numpy()])
         suggested_action = self.net(current_torch_state)
         suggested_action = torch.sigmoid(suggested_action)[0]
@@ -321,8 +320,6 @@ if __name__ == "__main__":
         param_dict = json.load(outfile)
 
     net = torch.load(os.path.join(model_path, "model_quad" + args.epoch))
-    # Use cuda if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     net = net.to(device)
     net.eval()
 

@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import numpy as np
 import torch.optim as optim
 import torch
@@ -43,7 +44,8 @@ else:
     (STD, MEAN) = (reference_data.std, reference_data.mean)
 
 # Use cuda if available
-device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+global device
+device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
 
 # define optimizer and torch normalization parameters
@@ -120,6 +122,7 @@ for epoch in range(NR_EPOCHS):
     )
 
     # Training
+    tic_epoch = time.time()
     running_loss = 0
     try:
         for i, data in enumerate(trainloader, 0):
@@ -138,6 +141,7 @@ for epoch in range(NR_EPOCHS):
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # loss = 0
             start_state = current_state.clone()
+            intermediate_states = []
             for k in range(NR_ACTIONS):
                 # normalize loss by the start distance
                 action = action_seq[:, k]
@@ -147,6 +151,7 @@ for epoch in range(NR_EPOCHS):
                 # action = net(net_input_state)
                 # action = torch.sigmoid(action)
                 current_state = simulate_quadrotor(action, current_state)
+                intermediate_states.append(current_state)
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------
@@ -173,6 +178,7 @@ for epoch in range(NR_EPOCHS):
         loss_list.append(running_loss / i)
     except KeyboardInterrupt:
         break
+    print("time one epoch", time.time() - tic_epoch)
 
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)

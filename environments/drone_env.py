@@ -21,6 +21,7 @@ except ImportError:
     from copter import copter_params, DynamicsState, Euler
     from drone_dynamics import simulate_quadrotor
 
+device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class QuadRotorEnvBase(gym.Env):
     """
@@ -78,10 +79,10 @@ class QuadRotorEnvBase(gym.Env):
         assert action.shape == (4, ), f"action not size 4 but {action.shape}"
 
         # set the blade speeds. as F ~ w², and we want F ~ action.
-        torch_state = torch.from_numpy(np.array([self._state.as_np]))
-        torch_action = torch.from_numpy(np.array([action]))
+        torch_state = torch.from_numpy(np.array([self._state.as_np])).to(device)
+        torch_action = torch.from_numpy(np.array([action])).to(device)
         new_state_arr = simulate_quadrotor(torch_action, torch_state)
-        numpy_out_state = new_state_arr.numpy()[0]
+        numpy_out_state = new_state_arr.cpu().numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
         # attitude = self._state.attitude
