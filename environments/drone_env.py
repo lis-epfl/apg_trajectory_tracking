@@ -12,6 +12,8 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
+from utils.trajectory import straight_training_sample
+
 try:
     from .rendering import Renderer, Ground, QuadCopter
     from .copter import copter_params, DynamicsState, Euler
@@ -244,31 +246,15 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
     # print("saved first data", np.mean(is_stable_list))
     return data
 
-def straight_traj(len_data, step_size=0, max_drone_dist=0.1, ref_length=5):
-    """
-    Sample a drone state and a reference trajectory
-    """
+def trajectory_training_data(len_data, step_size=0.2, max_drone_dist=0.1, ref_length=5):
     env = QuadRotorEnvBase()
     drone_states, ref_states = [], []
     for _ in range(len_data):
         env.reset()
         drone_state = env._state.as_np
-        # sample trajectory
-        start = np.random.rand(3)-0.5
-        end = np.random.rand(3)-0.5
-        connection = end - start
-        dist = np.sqrt(np.sum(connection**2))
-        point_on_traj = start + np.random.rand() * connection
-        # drone is in position in slight divergence from the trajectory
-        pos_drone = point_on_traj + np.random.rand(3) * max_drone_dist
-        reference_states = np.zeros((ref_length, 3))
-        # one step is step_size times unit vector
-        step_dir = connection / dist * step_size  
-        for i in range(ref_length-1):
-            reference_states[i] = point_on_traj + i* step_dir
-        # use velocity etc from input, but replace position
-        drone_state[:3] = pos_drone
-
+        reference_states = straight_training_sample(
+            step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
+        )
         drone_states.append(drone_state)
         # TODO: not flatten?
         ref_states.append(reference_states.flatten())

@@ -11,7 +11,7 @@ from drone_loss import drone_loss_function, trajectory_loss, reference_loss
 from environments.drone_dynamics import simulate_quadrotor
 from evaluate_drone import QuadEvaluator
 from models.hutter_model import Net
-from environments.drone_env import straight_traj
+from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss, plot_success
 
 EPOCH_SIZE = 5000
@@ -20,7 +20,7 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 NR_EVAL_ITERS = 5
-STATE_SIZE = 16
+STATE_SIZE = 13
 NR_ACTIONS = 5
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
@@ -38,7 +38,7 @@ if BASE_MODEL is not None:
     MEAN = np.array(param_dict["mean"]).astype(float)
 else:
     reference_data = Dataset(
-        straight_traj, normalize=True, num_states=EPOCH_SIZE
+        trajectory_training_data, normalize=True, num_states=EPOCH_SIZE
     )
     net = Net(STATE_SIZE, reference_data.labels.size()[1], ACTION_DIM * NR_ACTIONS)
     (STD, MEAN) = (reference_data.std, reference_data.mean)
@@ -82,7 +82,7 @@ for epoch in range(NR_EPOCHS):
     # Generate data dynamically
     if epoch % 2 == 0:
         state_data = Dataset(
-            straight_traj,
+            trajectory_training_data,
             normalize=True,
             mean=MEAN,
             std=STD,
@@ -130,6 +130,14 @@ for epoch in range(NR_EPOCHS):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
             in_state, ref_states = data
+            # unnormalize TODO: maybe return from dataset simply
+            current_state = in_state * torch_std + torch_mean
+            current_state[:, :3] = 0
+            # print(current_state.size())
+            # print("vcurrent_state", current_state[0])
+            # print("in_state", in_state[0])
+            # print(ref_states.size())
+            # print(ref_states[:2])
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -137,11 +145,10 @@ for epoch in range(NR_EPOCHS):
             # loss_weights = 1 + torch.abs(current_state)  # TODO
 
             # ------------ VERSION 1 (x states at once)-----------------
-            actions = net(in_state, ref_states)
+            actions = net(in_state[:, 3:], ref_states)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
-            current_state = in_state * torch_std + torch_mean
             # start_state = current_state.clone()
             # TODO: not only position
             intermediate_states = torch.zeros(BATCH_SIZE, NR_ACTIONS, 3)

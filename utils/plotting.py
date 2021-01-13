@@ -69,3 +69,24 @@ def plot_position(collect_data, save_path=None):
         plt.show()
     else:
         plt.savefig(save_path)
+
+def plot_trajectory(knots, states, save_path):
+        states = np.array(states)
+        buffer = 1
+        plt.figure(figsize=(20,10))
+        min_z = np.min(knots[:,2] - .5)
+        max_z = np.max(knots[:,2] + .5)
+        normed_z = (states[:,2] - min_z) / (max_z - min_z)
+        # scatter states
+        plt.scatter(states[:,0], states[:,1], s=50*normed_z, c="green")
+        # scatter trajectory
+        normed_knot_z = (knots[:,2] - min_z) / (max_z - min_z)
+        plt.scatter(knots[:,0], knots[:,1], s=50*normed_knot_z, c="red")
+        plt.scatter(
+            knots[-1,0], knots[-1,1], s=50*normed_knot_z[-1], c="blue", label="target"
+        )
+
+        plt.xlim(np.min(knots[:,0]) - buffer, np.max(knots[:,0]) + buffer)
+        plt.ylim(np.min(knots[:,1]) - buffer, np.max(knots[:,1]) + buffer)
+        # plt.xlim(-1,1)
+        plt.savefig(save_path)

@@ -6,8 +6,9 @@ import numpy as np
 import torch
 import pickle
 
-from environments.drone_env import QuadRotorEnvBase, straight_traj
-from utils.plotting import plot_state_variables
+from environments.drone_env import QuadRotorEnvBase
+from utils.plotting import plot_state_variables, plot_trajectory
+from utils.trajectory import sample_points_on_straight, sample_to_input, np_project_line
 from dataset import raw_states_to_torch
 # from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
@@ -25,6 +26,7 @@ class QuadEvaluator():
         # self.mean[2] -= 2  # for old models
         self.std = std
         self.net = model
+        self.eval_env = QuadRotorEnvBase()
 
     def predict_actions(self, current_np_state, ref_states=None):
         """
@@ -38,7 +40,9 @@ class QuadEvaluator():
         if ref_states is not None:
             reference = torch.unsqueeze(torch.from_numpy(ref_states).float(), 0)
             # print([round(s, 2) for s in current_torch_state[0].numpy()])
-            suggested_action = self.net(current_torch_state, reference)
+            # print("reference", reference)
+            # print("position", current_torch_state[:, 3:])
+            suggested_action = self.net(current_torch_state[:, 3:], reference)
         else:
             suggested_action = self.net(current_torch_state)
         suggested_action = torch.sigmoid(suggested_action)[0]
@@ -69,14 +73,13 @@ class QuadEvaluator():
         pos_loss_list = list()  # collect the reason for failure
         collect_runs = list()
         with torch.no_grad():
-            eval_env = QuadRotorEnvBase()
             for _ in range(nr_iters):
                 time_stable = 0
                 # Reset and run until failing or reaching max_time
-                eval_env.render_reset()
+                self.eval_env.render_reset()
                 stable = True
                 while stable and time_stable < max_time:
-                    current_np_state = eval_env._state.as_np.copy()
+                    current_np_state = self.eval_env._state.as_np.copy()
                     current_np_state[2] -= 2  # correct for height
                     if time_stable > start_loss:
                         pos_loss_list.append(np.absolute(current_np_state[:3]))
@@ -86,7 +89,7 @@ class QuadEvaluator():
                         # if render:
                         #     # print(np.around(current_np_state[3:6], 2))
                         #     print("action:", np.around(suggested_action, 2))
-                        current_np_state, stable = eval_env.step(action)
+                        current_np_state, stable = self.eval_env.step(action)
                         if time_stable > 20:
                             collect_data.append(current_np_state)
                         if not stable:
@@ -98,7 +101,7 @@ class QuadEvaluator():
                     if render:
                         # .numpy()[0]
                         print([round(s, 2) for s in current_np_state])
-                        eval_env.render()
+                        self.eval_env.render()
                         time.sleep(.1)
                 collect_runs.append(time_stable)
         collect_data = np.array(collect_data)
@@ -142,9 +145,8 @@ class QuadEvaluator():
         distance_between_knots = np.linalg.norm(knots[1] - knots[0])
 
         # Set up environment
-        eval_env = QuadRotorEnvBase()
-        eval_env.zero_reset(*tuple(knots[0]))
-        current_np_state = eval_env._state.as_np
+        self.eval_env.zero_reset(*tuple(knots[0]))
+        current_np_state = self.eval_env._state.as_np
 
         state_list = []
         target_ind = 1
@@ -163,12 +165,12 @@ class QuadEvaluator():
                 # retrieve next action
                 action = numpy_action_seq[nr_action]
                 # take step in environment
-                current_np_state, stable = eval_env.step(action)
+                current_np_state, stable = self.eval_env.step(action)
 
                 # output
                 state_list.append(current_np_state[:3])
                 if render:
-                    eval_env.render()
+                    self.self.eval_env.render()
                     time.sleep(.1)
                     if time_stable % 30 == 0:
                         print()
@@ -211,18 +213,20 @@ class QuadEvaluator():
         return min_distance_to_target, time_stable, data_list
     
     def eval_traj_input(self, nr_test_data = 5, max_nr_steps=100, render=False):
-        current_np_state, ref_states = straight_traj(1)
-        current_np_state = current_np_state[0]
-        ref_states = ref_states[0]
-        trajectory = np.reshape(ref_states, (5, 3))
-        traj_direction = trajectory[-1] - trajectory[-2]
+        self.eval_env.reset()
+        traj_direction = np.random.rand(3)
+
+        current_np_state = self.eval_env._state.as_np
+        trajectory = sample_points_on_straight(current_np_state[:3], traj_direction)
+        initial_trajectory = trajectory.copy()
         # if the reference is input relative to drone state, there is no need to roll?
         # actually there is, because change of drone state
-        eval_env = QuadRotorEnvBase()
-        eval_env._state.from_np(current_np_state)
+        
+        drone_trajectory = []
         with torch.no_grad():
             for i in range(max_nr_steps):
-                print(current_np_state.shape, ref_states.shape)
+                ref_states = sample_to_input(current_np_state, trajectory)
+                print(ref_states[:6])
                 numpy_action_seq = self.predict_actions(current_np_state, ref_states)
                 # only use first action (as in mpc)
                 action = numpy_action_seq[0]
@@ -230,15 +234,22 @@ class QuadEvaluator():
                 #     # retrieve next action
                 #     action = numpy_action_seq[nr_action]
                 #     # take step in environment
-                current_np_state, stable = eval_env.step(action)
-                # update reference
-                trajectory = np.roll(trajectory, 1, axis=0)
-                trajectory[-1] = trajectory[-2] + traj_direction
-                ref_states = traj_direction.flatten()
+                current_np_state, stable = self.eval_env.step(action)
+                drone_trajectory.append(current_np_state[:3])
+                if not stable:
+                    break
+                # # update reference - 1) next timestep:
+                # trajectory = np.roll(trajectory, -1, axis=0)
+                # trajectory[-1] = 2* trajectory[-2] - trajectory[-3]
+                # # 2) project pos to line
+                new_point_on_line = np_project_line(trajectory[0], trajectory[1], current_np_state[:3])
+                trajectory = sample_points_on_straight(new_point_on_line, traj_direction)
                 if render:
-                    print([round(s, 2) for s in current_np_state])
-                    eval_env.render()
+                    # print([round(s, 2) for s in current_np_state])
+                    self.eval_env.render()
                     time.sleep(.2)
+        evaluator.eval_env.close()
+        return initial_trajectory, drone_trajectory
                 
 
     def evaluate(self, nr_hover_iters=5, nr_traj_iters=10):
@@ -320,9 +331,8 @@ class QuadEvaluator():
         to position and hover there
         Target position is always 0,0,2
         """
-        eval_env = QuadRotorEnvBase()
-        eval_env.render_reset()
-        start = eval_env._state.as_np[:3]
+        self.eval_env.render_reset()
+        start = self.eval_env._state.as_np[:3]
         end = [0, 0, 2]
         return np.array([start, end])
 
@@ -384,6 +394,11 @@ if __name__ == "__main__":
     #     evaluator.follow_trajectory(knots, [], render=0)
 
     # Straight with reference as input
-    evaluator.eval_traj_input(nr_test_data=1, render=True)
-
+    try:
+        initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
+            nr_test_data=1, render=True
+        )
+        plot_trajectory(initial_trajectory, drone_trajectory, os.path.join(model_path, "traj.png"))
+    except KeyboardInterrupt:
+        evaluator.eval_env.close()
     # evaluator.evaluate()
