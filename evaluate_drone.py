@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import pickle
 
-from environments.drone_env import QuadRotorEnvBase
+from environments.drone_env import QuadRotorEnvBase, straight_traj
 from utils.plotting import plot_state_variables
 from dataset import raw_states_to_torch
 # from models.resnet_like_model import Net
@@ -26,7 +26,7 @@ class QuadEvaluator():
         self.std = std
         self.net = model
 
-    def predict_actions(self, current_np_state):
+    def predict_actions(self, current_np_state, ref_states=None):
         """
         Predict an action for the current state. This function is used by all
         evaluation functions
@@ -35,8 +35,12 @@ class QuadEvaluator():
         current_torch_state = raw_states_to_torch(
             current_np_state, normalize=True, mean=self.mean, std=self.std
         ).to(device)
-        # print([round(s, 2) for s in current_torch_state[0].numpy()])
-        suggested_action = self.net(current_torch_state)
+        if ref_states is not None:
+            reference = torch.unsqueeze(torch.from_numpy(ref_states).float(), 0)
+            # print([round(s, 2) for s in current_torch_state[0].numpy()])
+            suggested_action = self.net(current_torch_state, reference)
+        else:
+            suggested_action = self.net(current_torch_state)
         suggested_action = torch.sigmoid(suggested_action)[0]
 
         suggested_action = torch.reshape(suggested_action, (-1, ACTION_DIM))
@@ -205,6 +209,37 @@ class QuadEvaluator():
         with open("trained_models/follow_traj.dat", "wb") as outfile:
             pickle.dump((np.array(state_list), knots), outfile)
         return min_distance_to_target, time_stable, data_list
+    
+    def eval_traj_input(self, nr_test_data = 5, max_nr_steps=100, render=False):
+        current_np_state, ref_states = straight_traj(1)
+        current_np_state = current_np_state[0]
+        ref_states = ref_states[0]
+        trajectory = np.reshape(ref_states, (5, 3))
+        traj_direction = trajectory[-1] - trajectory[-2]
+        # if the reference is input relative to drone state, there is no need to roll?
+        # actually there is, because change of drone state
+        eval_env = QuadRotorEnvBase()
+        eval_env._state.from_np(current_np_state)
+        with torch.no_grad():
+            for i in range(max_nr_steps):
+                print(current_np_state.shape, ref_states.shape)
+                numpy_action_seq = self.predict_actions(current_np_state, ref_states)
+                # only use first action (as in mpc)
+                action = numpy_action_seq[0]
+                # for nr_action in range(ROLL_OUT):
+                #     # retrieve next action
+                #     action = numpy_action_seq[nr_action]
+                #     # take step in environment
+                current_np_state, stable = eval_env.step(action)
+                # update reference
+                trajectory = np.roll(trajectory, 1, axis=0)
+                trajectory[-1] = trajectory[-2] + traj_direction
+                ref_states = traj_direction.flatten()
+                if render:
+                    print([round(s, 2) for s in current_np_state])
+                    eval_env.render()
+                    time.sleep(.2)
+                
 
     def evaluate(self, nr_hover_iters=5, nr_traj_iters=10):
         """
@@ -339,13 +374,16 @@ if __name__ == "__main__":
     #     collect_data, save_path=os.path.join(model_path, "evaluation.png")
     # )
 
-    # test trajectory
-    knots = QuadEvaluator.random_trajectory(1.5)
+    # # test trajectory
+    # knots = QuadEvaluator.random_trajectory(1.5)
     # hover_trajectory()
     # random_trajectory(10, 4)
-    print("Knots:")
-    print(np.around(knots, 2))
-    with torch.no_grad():
-        evaluator.follow_trajectory(knots, [], render=0)
+    # print("Knots:")
+    # print(np.around(knots, 2))
+    # with torch.no_grad():
+    #     evaluator.follow_trajectory(knots, [], render=0)
+
+    # Straight with reference as input
+    evaluator.eval_traj_input(nr_test_data=1, render=True)
 
     # evaluator.evaluate()

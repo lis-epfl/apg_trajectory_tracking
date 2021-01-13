@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import os
-from environments.cartpole_env import construct_states
+# from environments.cartpole_env import construct_states
 
 device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -54,7 +54,7 @@ class Dataset(torch.utils.data.Dataset):
         self.std = std
         self.mean = mean
         # sample states
-        state_arr_numpy = state_sampling_method(num_states, **kwargs)
+        state_arr_numpy, reference_arr = state_sampling_method(num_states, **kwargs)
         # convert to normalized tensors
         normalized_state, self.mean, self.std = raw_states_to_torch(
             state_arr_numpy,
@@ -63,7 +63,7 @@ class Dataset(torch.utils.data.Dataset):
             std=std,
             return_std=True
         )
-        self.labels = torch.from_numpy(state_arr_numpy).float().to(device)
+        self.labels = torch.from_numpy(reference_arr).float().to(device)
         self.states = normalized_state.to(device)
 
     def add_data(self, new_numpy_data):
