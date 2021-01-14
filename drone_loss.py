@@ -51,7 +51,7 @@ def reference_loss(states, ref_states, printout=0):
     # TODO: add loss on actions with quaternion formulation
     # (9.81, 0,0,0)
     # TODO: include attitude in reference
-    angle_factor = 10
+    angle_factor = 0
     angvel_factor = 2e-2
     pos_factor = 1
 

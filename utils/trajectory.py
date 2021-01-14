@@ -26,7 +26,7 @@ def sample_points_on_straight(current_ref_point, direction, step_size=0.2, ref_l
     # one step is step_size times unit vector
     step_dir = direction / dist * step_size
     for i in range(ref_length):
-        reference_states[i] = current_ref_point + i* step_dir
+        reference_states[i] = current_ref_point + (i)* step_dir
     return reference_states
 
 def np_project_line(a, b, p):
@@ -52,7 +52,7 @@ def straight_training_sample(training=False, step_size=0.2, max_drone_dist=0.1, 
     connection = end - start
     point_on_traj = start + np.random.rand() * connection
     # drone is in position in slight divergence from the trajectory
-    pos_drone = point_on_traj + np.random.rand(3) * max_drone_dist
+    pos_drone = point_on_traj + (np.random.rand(3) *2 -1) * max_drone_dist
     reference_states = sample_points_on_straight(
         point_on_traj, connection, step_size=step_size, ref_length=ref_length
     )

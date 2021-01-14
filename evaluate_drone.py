@@ -212,11 +212,13 @@ class QuadEvaluator():
             pickle.dump((np.array(state_list), knots), outfile)
         return min_distance_to_target, time_stable, data_list
     
-    def eval_traj_input(self, nr_test_data = 5, max_nr_steps=200, step_size=0, render=False):
+    def eval_traj_input(self, nr_test_data = 5, max_nr_steps=200, step_size=0.01, render=False):
+        # init_state = np.random.rand(3)
+        # self.eval_env.zero_reset(*tuple(init_state))
         self.eval_env.reset()
-        traj_direction = np.random.rand(3)
 
         current_np_state = self.eval_env._state.as_np
+        traj_direction = current_np_state[6:9] # np.random.rand(3)
         trajectory = sample_points_on_straight(current_np_state[:3], traj_direction, step_size=step_size)
         initial_trajectory = trajectory.copy()
         # if the reference is input relative to drone state, there is no need to roll?
@@ -233,6 +235,7 @@ class QuadEvaluator():
                 #     # retrieve next action
                 #     action = numpy_action_seq[nr_action]
                 #     # take step in environment
+                # for action in numpy_action_seq:
                 current_np_state, stable = self.eval_env.step(action)
                 if render:
                     print(current_np_state[:3], trajectory[0])
@@ -250,7 +253,7 @@ class QuadEvaluator():
                     self.eval_env.render()
                     time.sleep(.2)
         print("Number of stable steps:", i)
-        evaluator.eval_env.close()
+        self.eval_env.close()
         return initial_trajectory, drone_trajectory
                 
 

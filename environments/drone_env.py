@@ -12,8 +12,8 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
-from utils.trajectory import straight_training_sample
 
+from utils.trajectory import straight_training_sample
 try:
     from .rendering import Renderer, Ground, QuadCopter
     from .copter import copter_params, DynamicsState, Euler
@@ -255,6 +255,7 @@ def trajectory_training_data(len_data, step_size=0, max_drone_dist=0.1, ref_leng
         reference_states = straight_training_sample(
             step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
         )
+        drone_state[6:9] = (reference_states[1] - reference_states[0]) * 10
         drone_states.append(drone_state)
         # TODO: not flatten?
         ref_states.append(reference_states.flatten())
@@ -275,6 +276,10 @@ def get_avg_distance():
 
 if __name__ == "__main__":
     env = QuadRotorEnvBase()
+    env.reset()
+    # a1, a2 = trajectory_training_data(1000, step_size=0.1)
+    # np.save("drone_states.npy", a1)
+    # np.save("ref_states.npy", a2)
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
     states = construct_states(100)
     # states = np.load("check_added_data.npy")

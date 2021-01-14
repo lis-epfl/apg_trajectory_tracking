@@ -14,7 +14,7 @@ from models.hutter_model import Net
 from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss, plot_success
 
-STEP_SIZE = 0
+STEP_SIZE = 0.01
 EPOCH_SIZE = 5000
 USE_NEW_DATA = 0 # 250
 PRINT = (EPOCH_SIZE // 30)
@@ -26,7 +26,7 @@ NR_ACTIONS = 5
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # os.path.join("trained_models/drone/first_traj_model")
+BASE_MODEL = os.path.join("trained_models/drone/traj_hover")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -95,8 +95,8 @@ for epoch in range(NR_EPOCHS):
     # TODO: new eval method
     print()
     print(f"Epoch {epoch} (before)")
-    # eval_env = QuadEvaluator(net, MEAN, STD)
-    _ = eval_env.stabilize(nr_iters=5)
+    eval_env = QuadEvaluator(net, MEAN, STD)
+    _ = eval_env.eval_traj_input(step_size=STEP_SIZE)
     # suc_mean, suc_std, new_data = eval_env.evaluate(
     #     nr_hover_iters=NR_EVAL_ITERS, nr_traj_iters=NR_EVAL_ITERS
     # )
