@@ -21,12 +21,13 @@ device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class QuadEvaluator():
 
-    def __init__(self, model, mean=0, std=1):
+    def __init__(self, model, mean=0, std=1, horizon=5):
         self.mean = mean
         # self.mean[2] -= 2  # for old models
         self.std = std
         self.net = model
         self.eval_env = QuadRotorEnvBase()
+        self.horizon = horizon
 
     def predict_actions(self, current_np_state, ref_states=None):
         """
@@ -222,7 +223,7 @@ class QuadEvaluator():
 
             current_np_state = self.eval_env._state.as_np
             traj_direction = current_np_state[6:9] # np.random.rand(3)
-            trajectory = sample_points_on_straight(current_np_state[:3], traj_direction, step_size=step_size)
+            trajectory = sample_points_on_straight(current_np_state[:3], traj_direction, step_size=step_size, ref_length=self.horizon)
             initial_trajectory = trajectory.copy().tolist()
             # if the reference is input relative to drone state, there is no need to roll?
             # actually there is, because change of drone state
@@ -394,7 +395,8 @@ if __name__ == "__main__":
     evaluator = QuadEvaluator(
         net,
         mean=np.array(param_dict["mean"]),
-        std=np.array(param_dict["std"])
+        std=np.array(param_dict["std"]),
+        horizon=param_dict["horizon"]
     )
 
     threshold_divergence = 5 * param_dict["max_drone_dist"]

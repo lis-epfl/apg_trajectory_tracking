@@ -14,7 +14,7 @@ from models.hutter_model import Net
 from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss, plot_success
 
-STEP_SIZE = 0.02
+STEP_SIZE = 0 #.01
 EPOCH_SIZE = 5000
 USE_NEW_DATA = 0 # 250
 PRINT = (EPOCH_SIZE // 30)
@@ -25,11 +25,11 @@ MAX_DRONE_DIST = 0.1
 threshold_divergence = 5 * MAX_DRONE_DIST
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
-NR_ACTIONS = 5
+NR_ACTIONS = 10
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/traj_001")
+BASE_MODEL = None # os.path.join("trained_models/drone/traj_001")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -42,7 +42,13 @@ if BASE_MODEL is not None:
     MEAN = np.array(param_dict["mean"]).astype(float)
 else:
     reference_data = Dataset(
-        trajectory_training_data, normalize=True, num_states=EPOCH_SIZE
+        trajectory_training_data, 
+        normalize=True, 
+        num_states=EPOCH_SIZE,
+        step_size = STEP_SIZE,
+        reset_strength=RESET_STRENGTH, 
+        max_drone_dist=MAX_DRONE_DIST,
+        ref_length=NR_ACTIONS
     )
     net = Net(STATE_SIZE, reference_data.labels.size()[1], ACTION_DIM * NR_ACTIONS)
     (STD, MEAN) = (reference_data.std, reference_data.mean)
@@ -65,6 +71,7 @@ param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
 param_dict["step_size"] = STEP_SIZE
 param_dict["reset"] = RESET_STRENGTH
 param_dict["max_drone_dist"] = MAX_DRONE_DIST
+param_dict["horizon"] = NR_ACTIONS
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
@@ -98,13 +105,14 @@ for epoch in range(NR_EPOCHS):
             num_states=EPOCH_SIZE,
             step_size = STEP_SIZE,
             reset_strength=RESET_STRENGTH, 
-            max_drone_dist=MAX_DRONE_DIST
+            max_drone_dist=MAX_DRONE_DIST,
+            ref_length=NR_ACTIONS
             # reset_strength=.6 + epoch / 50
         )
 
     print()
     print(f"Epoch {epoch} (before)")
-    eval_env = QuadEvaluator(net, MEAN, STD)
+    eval_env = QuadEvaluator(net, MEAN, STD, horizon=NR_ACTIONS)
     suc_mean, suc_std = eval_env.eval_traj_input(threshold_divergence, nr_test_data=25, step_size=STEP_SIZE)
 
     success_mean_list.append(suc_mean)

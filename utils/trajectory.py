@@ -21,6 +21,14 @@ def straight_traj(drone_pos):
     end = np.random.rand(3)-0.5
 
 def sample_points_on_straight(current_ref_point, direction, step_size=0.2, ref_length=5):
+    """
+    Get the next x reference points in direction direction starting from current_ref_point
+    Arguments:
+        current_ref_point: coordinates of the start position of the reference
+        direction: 3D vector with direction of reference
+        step_size: distance between subsequent states
+        ref_length: Number of states to sample (horizon)
+    """
     reference_states = np.zeros((ref_length, 3))
     dist = np.sqrt(np.sum(direction**2))
     # one step is step_size times unit vector

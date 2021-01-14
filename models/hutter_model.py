@@ -16,9 +16,12 @@ class Net(nn.Module):
         """
         super(Net, self).__init__()
         self.states_in = nn.Linear(state_dim, 64)
-        # todo: maybe conv2d
-        self.ref_in = nn.Linear(ref_dim, 64)
-        self.fc1 = nn.Linear(128, 64)
+        self.conv_ref = nn.Conv1d(3, 20, kernel_size=3)
+        # the size will be nr_channels * (1dlength - kernel_size + 1)
+        self.ref_dim = ref_dim // 3
+        self.reshape_len = 20 * (ref_dim // 3 - 2)
+        # self.ref_in = nn.Linear(ref_dim, 64)
+        self.fc1 = nn.Linear(64 + self.reshape_len, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 64)
         self.fc_out = nn.Linear(64, out_size)
@@ -26,7 +29,10 @@ class Net(nn.Module):
     def forward(self, state, ref):
         # process state and reference differently
         state = torch.tanh(self.states_in(state))
-        ref = torch.tanh(self.ref_in(ref))
+        ref = torch.transpose(torch.reshape(ref, (-1, self.ref_dim, 3)), 1,2)
+        ref = torch.relu(self.conv_ref(ref))
+        ref = torch.reshape(ref, (-1, self.reshape_len))
+        # ref = torch.tanh(self.ref_in(ref))
         # concatenate
         x = torch.hstack((state, ref))
         # normal feed-forward

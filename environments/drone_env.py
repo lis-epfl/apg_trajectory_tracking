@@ -268,7 +268,8 @@ def trajectory_training_data(
         reference_states = straight_training_sample(
             step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
         )
-        drone_state[6:9] = (reference_states[1] - reference_states[0]) * 10
+        if step_size!=0:
+            drone_state[6:9] = (reference_states[1] - reference_states[0]) * 10
         drone_states.append(drone_state)
         # TODO: not flatten?
         ref_states.append(reference_states.flatten())

@@ -51,26 +51,26 @@ def reference_loss(states, ref_states, printout=0):
     # TODO: add loss on actions with quaternion formulation
     # (9.81, 0,0,0)
     # TODO: include attitude in reference
-    angle_factor = 0
+    angle_factor = 10
     angvel_factor = 2e-2
     pos_factor = 1
 
     position_loss = torch.sum((states[:,:,:3] - ref_states)**2)
 
-    angle_error = torch.sum(states[:, :, 3:6]**2)
-    ang_vel_error = torch.sum(states[:, :, 13:16]**2)
+    # angle_error = torch.sum(states[:, :, 3:6]**2)
+    # ang_vel_error = torch.sum(states[:, :, 13:16]**2)
 
-    loss = (
-        angle_factor * angle_error + angvel_factor * ang_vel_error +
-        pos_factor * position_loss
-    )
+    # loss = (
+    #     angle_factor * angle_error + angvel_factor * ang_vel_error +
+    #     pos_factor * position_loss
+    # )
 
     if printout:
         print()
         print("attitude loss", (angle_factor * angle_error).item())
         print("att vel loss", (angvel_factor * ang_vel_error).item())
         print("position loss", (pos_factor * position_loss).item())
-    return torch.sum(loss)
+    return position_loss # torch.sum(loss)
 
 def project_to_line(a_on_line, b_on_line, p):
     """
