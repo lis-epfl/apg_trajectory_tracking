@@ -246,11 +246,24 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
     # print("saved first data", np.mean(is_stable_list))
     return data
 
-def trajectory_training_data(len_data, step_size=0, max_drone_dist=0.1, ref_length=5):
+def trajectory_training_data(
+    len_data, step_size=0, max_drone_dist=0.1, ref_length=5, reset_strength=1
+):
+    """
+    Generate training dataset for trajectories as input
+    Arguments:
+        len_data: int, how much data to generate
+        step_size: Distance between two points on the trajectory
+        max_drone_dist: Maximum distance of the drone from the first state
+        ref_length: Number of states sampled from reference traj
+        reset_strength: How much to reset the model
+    Returns:
+        Array of size (len_data, reference_shape) with the training data
+    """
     env = QuadRotorEnvBase()
     drone_states, ref_states = [], []
     for _ in range(len_data):
-        env.reset()
+        env.reset(strength=reset_strength)
         drone_state = env._state.as_np
         reference_states = straight_training_sample(
             step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length

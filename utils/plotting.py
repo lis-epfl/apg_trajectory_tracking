@@ -72,7 +72,7 @@ def plot_position(collect_data, save_path=None):
 
 def plot_trajectory(knots, states, save_path):
         states = np.array(states)
-        buffer = 1
+        buffer = 0.2
         plt.figure(figsize=(20,10))
         min_z = np.min(knots[:,2] - .5)
         max_z = np.max(knots[:,2] + .5)

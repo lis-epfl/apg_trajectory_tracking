@@ -14,19 +14,22 @@ from models.hutter_model import Net
 from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss, plot_success
 
-STEP_SIZE = 0.01
+STEP_SIZE = 0.02
 EPOCH_SIZE = 5000
 USE_NEW_DATA = 0 # 250
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
+RESET_STRENGTH = 1
+MAX_DRONE_DIST = 0.1
+threshold_divergence = 5 * MAX_DRONE_DIST
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
 NR_ACTIONS = 5
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/traj_hover")
+BASE_MODEL = os.path.join("trained_models/drone/traj_001")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -58,6 +61,11 @@ torch_mean, torch_std = (
 
 # save std for normalization during test time
 param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
+# update the used parameters:
+param_dict["step_size"] = STEP_SIZE
+param_dict["reset"] = RESET_STRENGTH
+param_dict["max_drone_dist"] = MAX_DRONE_DIST
+
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
 
@@ -77,7 +85,7 @@ def adjust_learning_rate(optimizer, epoch, every_x=5):
         param_group['lr'] = lr
 
 
-highest_success = np.inf
+highest_success = 0 # np.inf
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
@@ -88,36 +96,25 @@ for epoch in range(NR_EPOCHS):
             mean=MEAN,
             std=STD,
             num_states=EPOCH_SIZE,
-            step_size = STEP_SIZE
+            step_size = STEP_SIZE,
+            reset_strength=RESET_STRENGTH, 
+            max_drone_dist=MAX_DRONE_DIST
             # reset_strength=.6 + epoch / 50
         )
 
-    # TODO: new eval method
     print()
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, MEAN, STD)
-    _ = eval_env.eval_traj_input(step_size=STEP_SIZE)
-    # suc_mean, suc_std, new_data = eval_env.evaluate(
-    #     nr_hover_iters=NR_EVAL_ITERS, nr_traj_iters=NR_EVAL_ITERS
-    # )
-    # success_mean_list.append(suc_mean)
-    # success_std_list.append(suc_std)
-    # if epoch > 0:
-    #     if suc_mean > highest_success:
-    #         highest_success = suc_mean
-    #         print("Best model")
-    #         torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
-    #     print("Loss:", round(running_loss / i, 2))
+    suc_mean, suc_std = eval_env.eval_traj_input(threshold_divergence, nr_test_data=25, step_size=STEP_SIZE)
 
-    # # self-play: add acquired data
-    # if USE_NEW_DATA > 0 and epoch > 2 and len(new_data) > 0:
-    #     rand_inds_include = np.random.permutation(len(new_data))[:USE_NEW_DATA]
-    #     selected_new_data = np.array(new_data)[rand_inds_include]
-    #     # np.save("selected_new_data.npy", selected_new_data)
-    #     state_data.add_data(selected_new_data)
-    #     # if (epoch + 1) % 10 == 0:
-    #     #     np.save("check_added_data.npy", np.array(new_data))
-    #     print("new added data:", selected_new_data.shape)
+    success_mean_list.append(suc_mean)
+    success_std_list.append(suc_std)
+            
+    # save best model
+    if epoch > 0 and suc_mean > highest_success:
+        highest_success = suc_mean
+        print("Best model")
+        torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
 
     # Initialize train loader
     trainloader = torch.utils.data.DataLoader(
@@ -135,11 +132,6 @@ for epoch in range(NR_EPOCHS):
             # unnormalize TODO: maybe return from dataset simply
             current_state = in_state * torch_std + torch_mean
             current_state[:, :3] = 0
-            # print(current_state.size())
-            # print("vcurrent_state", current_state[0])
-            # print("in_state", in_state[0])
-            # print(ref_states.size())
-            # print(ref_states[:2])
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -189,25 +181,6 @@ for epoch in range(NR_EPOCHS):
 
             running_loss += loss.item()
 
-            # Evaluate on train data (new dataset) --> evaluate one batch
-            # TODO: might be problematic to evaluate on new data if
-            # dataset is renewed every two epochs
-            if i==0:
-                # compute deviation from reference:
-                divergence = torch.sqrt((intermediate_states[:,:,:3] - ref_states)**2)
-                avg_ref = torch.mean(divergence, dim=0)
-                suc_mean = torch.mean(divergence).item()
-                
-                print("Average divergence:", suc_mean)
-                print("Across reference states:", avg_ref)
-                # save best model
-                if epoch > 0 and suc_mean < highest_success:
-                    highest_success = suc_mean
-                    print("Best model")
-                    torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
-
-                success_std_list.append(0)
-                success_mean_list.append(suc_mean)
         loss_list.append(running_loss / i)
 
     except KeyboardInterrupt:
