@@ -2,6 +2,20 @@ import numpy as np
 
 # TODO: compute attitude velocities etc
 
+def positions_to_state_trajectory(drone_state, ref_positions):
+    """
+    Compute full reference trajectory from given drone state and
+    target positions
+    Arguments:
+        drone_state: vector of size s (state dimension),
+            full state of the drone
+        ref_positions: array of size (x,3) with the x next target
+            positions in 3D space.
+    Returns:
+        Array of size (x, s) with the x next reference states
+    """
+    pass
+
 def straight_traj(drone_pos):
     # TODO: execute one step and make this to a straight trajectory
     end = np.random.rand(3)-0.5
@@ -19,6 +33,8 @@ def np_project_line(a, b, p):
     """
     Project point p on line spanned by a and b
     """
+    if np.all(a==b):
+        return a
     ap = p-a
     ab = np.expand_dims(b-a, 1)
     dot = np.dot(ab, ab.T)

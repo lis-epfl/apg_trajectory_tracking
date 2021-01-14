@@ -246,7 +246,7 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
     # print("saved first data", np.mean(is_stable_list))
     return data
 
-def trajectory_training_data(len_data, step_size=0.2, max_drone_dist=0.1, ref_length=5):
+def trajectory_training_data(len_data, step_size=0, max_drone_dist=0.1, ref_length=5):
     env = QuadRotorEnvBase()
     drone_states, ref_states = [], []
     for _ in range(len_data):

@@ -14,6 +14,7 @@ from models.hutter_model import Net
 from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss, plot_success
 
+STEP_SIZE = 0
 EPOCH_SIZE = 5000
 USE_NEW_DATA = 0 # 250
 PRINT = (EPOCH_SIZE // 30)
@@ -87,6 +88,7 @@ for epoch in range(NR_EPOCHS):
             mean=MEAN,
             std=STD,
             num_states=EPOCH_SIZE,
+            step_size = STEP_SIZE
             # reset_strength=.6 + epoch / 50
         )
 
@@ -94,7 +96,7 @@ for epoch in range(NR_EPOCHS):
     print()
     print(f"Epoch {epoch} (before)")
     # eval_env = QuadEvaluator(net, MEAN, STD)
-    # _ = eval_env.stabilize(nr_iters=5)
+    _ = eval_env.stabilize(nr_iters=5)
     # suc_mean, suc_std, new_data = eval_env.evaluate(
     #     nr_hover_iters=NR_EVAL_ITERS, nr_traj_iters=NR_EVAL_ITERS
     # )
@@ -151,7 +153,7 @@ for epoch in range(NR_EPOCHS):
             # unnnormalize state
             # start_state = current_state.clone()
             # TODO: not only position
-            intermediate_states = torch.zeros(BATCH_SIZE, NR_ACTIONS, 3)
+            intermediate_states = torch.zeros(BATCH_SIZE, NR_ACTIONS, STATE_SIZE+3)
             for k in range(NR_ACTIONS):
                 # normalize loss by the start distance
                 action = action_seq[:, k]
@@ -161,7 +163,7 @@ for epoch in range(NR_EPOCHS):
                 # action = net(net_input_state)
                 # action = torch.sigmoid(action)
                 current_state = simulate_quadrotor(action, current_state)
-                intermediate_states[:, k] = current_state[:, :3]
+                intermediate_states[:, k] = current_state # [:, :3]
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------

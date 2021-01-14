@@ -212,21 +212,20 @@ class QuadEvaluator():
             pickle.dump((np.array(state_list), knots), outfile)
         return min_distance_to_target, time_stable, data_list
     
-    def eval_traj_input(self, nr_test_data = 5, max_nr_steps=100, render=False):
+    def eval_traj_input(self, nr_test_data = 5, max_nr_steps=200, step_size=0, render=False):
         self.eval_env.reset()
         traj_direction = np.random.rand(3)
 
         current_np_state = self.eval_env._state.as_np
-        trajectory = sample_points_on_straight(current_np_state[:3], traj_direction)
+        trajectory = sample_points_on_straight(current_np_state[:3], traj_direction, step_size=step_size)
         initial_trajectory = trajectory.copy()
         # if the reference is input relative to drone state, there is no need to roll?
         # actually there is, because change of drone state
-        
+
         drone_trajectory = []
         with torch.no_grad():
             for i in range(max_nr_steps):
                 ref_states = sample_to_input(current_np_state, trajectory)
-                print(ref_states[:6])
                 numpy_action_seq = self.predict_actions(current_np_state, ref_states)
                 # only use first action (as in mpc)
                 action = numpy_action_seq[0]
@@ -235,6 +234,8 @@ class QuadEvaluator():
                 #     action = numpy_action_seq[nr_action]
                 #     # take step in environment
                 current_np_state, stable = self.eval_env.step(action)
+                if render:
+                    print(current_np_state[:3], trajectory[0])
                 drone_trajectory.append(current_np_state[:3])
                 if not stable:
                     break
@@ -243,11 +244,12 @@ class QuadEvaluator():
                 # trajectory[-1] = 2* trajectory[-2] - trajectory[-3]
                 # # 2) project pos to line
                 new_point_on_line = np_project_line(trajectory[0], trajectory[1], current_np_state[:3])
-                trajectory = sample_points_on_straight(new_point_on_line, traj_direction)
+                trajectory = sample_points_on_straight(new_point_on_line, traj_direction, step_size=step_size)
                 if render:
                     # print([round(s, 2) for s in current_np_state])
                     self.eval_env.render()
                     time.sleep(.2)
+        print("Number of stable steps:", i)
         evaluator.eval_env.close()
         return initial_trajectory, drone_trajectory
                 
