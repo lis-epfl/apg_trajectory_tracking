@@ -9,18 +9,19 @@ class Net(nn.Module):
     group
     """
 
-    def __init__(self, state_dim, ref_dim, out_size):
+    def __init__(self, state_dim, ref_length, ref_dim, out_size, conv=True):
         """
         in_size: number of input neurons (features)
         out_size: number of output neurons
         """
         super(Net, self).__init__()
         self.states_in = nn.Linear(state_dim, 64)
-        self.conv_ref = nn.Conv1d(3, 20, kernel_size=3)
+        self.conv_ref = nn.Conv1d(ref_dim, 20, kernel_size=3)
         # the size will be nr_channels * (1dlength - kernel_size + 1)
-        self.ref_dim = ref_dim // 3
-        self.reshape_len = 20 * (ref_dim // 3 - 2)
-        # self.ref_in = nn.Linear(ref_dim, 64)
+        self.ref_length = ref_length
+        self.conv = conv
+        self.reshape_len = 20 * (ref_length - 2) if conv else 64
+        self.ref_in = nn.Linear(ref_length * ref_dim, 64)
         self.fc1 = nn.Linear(64 + self.reshape_len, 64)
         self.fc2 = nn.Linear(64, 64)
         self.fc3 = nn.Linear(64, 64)
@@ -29,10 +30,13 @@ class Net(nn.Module):
     def forward(self, state, ref):
         # process state and reference differently
         state = torch.tanh(self.states_in(state))
-        ref = torch.transpose(torch.reshape(ref, (-1, self.ref_dim, 3)), 1,2)
-        ref = torch.relu(self.conv_ref(ref))
-        ref = torch.reshape(ref, (-1, self.reshape_len))
-        # ref = torch.tanh(self.ref_in(ref))
+        if self.conv:
+            # ref = torch.reshape(ref, (-1, self.ref_dim, 3))
+            ref = torch.transpose(ref, 1, 2)
+            ref = torch.relu(self.conv_ref(ref))
+            ref = torch.reshape(ref, (-1, self.reshape_len))
+        else:
+            ref = torch.tanh(self.ref_in(ref))
         # concatenate
         x = torch.hstack((state, ref))
         # normal feed-forward

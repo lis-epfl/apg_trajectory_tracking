@@ -13,15 +13,15 @@ from gym import spaces
 from gym.utils import seeding
 
 
-from utils.trajectory import straight_training_sample
+from utils.trajectory import straight_training_sample, get_reference
 try:
     from .rendering import Renderer, Ground, QuadCopter
     from .copter import copter_params, DynamicsState, Euler
-    from .drone_dynamics import simulate_quadrotor
+    from .drone_dynamics import simulate_quadrotor, linear_dynamics, action_to_rotor
 except ImportError:
     from rendering import Renderer, Ground, QuadCopter
     from copter import copter_params, DynamicsState, Euler
-    from drone_dynamics import simulate_quadrotor
+    from drone_dynamics import simulate_quadrotor, linear_dynamics, action_to_rotor
 
 device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -69,6 +69,14 @@ class QuadRotorEnvBase(gym.Env):
         # only roll and pitch are constrained
         attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
         return attitude_condition
+
+    def get_acceleration(self):
+        """
+        Compute acceleration from current state (pos, vel and att)
+        """
+        torch_state = torch.from_numpy(np.array([self._state.as_np])).to(device)
+        acceleration = linear_dynamics(torch_state[:, 9:13], torch_state[:,3:6], torch_state[:,6:9])
+        return acceleration[0]
 
     def step(self, action):
         """
@@ -264,15 +272,28 @@ def trajectory_training_data(
     drone_states, ref_states = [], []
     for _ in range(len_data):
         env.reset(strength=reset_strength)
+        # sample a drone state
         drone_state = env._state.as_np
-        reference_states = straight_training_sample(
-            step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
-        )
-        if step_size!=0:
-            drone_state[6:9] = (reference_states[1] - reference_states[0]) * 10
+        pos0, vel0 = (drone_state[:3], drone_state[6:9])
+        acc0 = env.get_acceleration().numpy() 
+        # sample two goal states (for velocity)
+        direction = np.random.rand(3)-0.5
+        while np.sum(direction*vel0) <0:
+            # if opposite direction, resample
+            direction = np.random.rand(3)-.5
+        direction = direction / np.linalg.norm(direction)
+        posf = pos0 + direction * max_drone_dist
+        velf = direction
+        # get reference states
+        reference_states = get_reference(pos0, vel0, acc0, posf, velf, ref_length=ref_length)
+        reference_states[:,:3] = reference_states[:,:3] - pos0
+        # reference_states = straight_training_sample(
+        #     step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
+        # )
+        # if step_size!=0:
+        #     drone_state[6:9] = (reference_states[1] - reference_states[0]) * 10
         drone_states.append(drone_state)
-        # TODO: not flatten?
-        ref_states.append(reference_states.flatten())
+        ref_states.append(reference_states)
     drone_states = np.array(drone_states)
     ref_states = np.array(ref_states)
     return drone_states, ref_states

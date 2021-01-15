@@ -187,6 +187,18 @@ def angular_momentum_body_frame(rotor_speeds, angular_velocity):
     B = Mp - drag + gyro - torch.cross(av, inertia * av, dim=1)
     return B
 
+def action_to_rotor(action, rotor_speed):
+    # # set desired rotor speeds based on action # TODO: was sqrt action
+    desired_rotor_speeds = action * copter_params.max_rotor_speed
+
+    zero_for_rotor = torch.zeros(rotor_speed.size()).to(device)
+
+    # let rotor speed approach desired rotor speed and avoid negative rotation
+    # gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
+    # dw = gamma * (desired_rotor_speeds - rotor_speed)
+    rotor_speed = rotor_speed + .5 * (desired_rotor_speeds - rotor_speed)
+    rotor_speed = torch.maximum(rotor_speed, zero_for_rotor)
+    return rotor_speed
 
 def simulate_quadrotor(action, state, dt=0.02):
     """
@@ -207,16 +219,7 @@ def simulate_quadrotor(action, state, dt=0.02):
     rotor_speed = state[:, 9:13]
     angular_velocity = state[:, 13:16]
 
-    # # set desired rotor speeds based on action # TODO: was sqrt action
-    desired_rotor_speeds = action * copter_params.max_rotor_speed
-
-    zero_for_rotor = torch.zeros(rotor_speed.size()).to(device)
-
-    # let rotor speed approach desired rotor speed and avoid negative rotation
-    # gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
-    # dw = gamma * (desired_rotor_speeds - rotor_speed)
-    rotor_speed = rotor_speed + .5 * (desired_rotor_speeds - rotor_speed)
-    rotor_speed = torch.maximum(rotor_speed, zero_for_rotor)
+    rotor_speed = action_to_rotor(action, rotor_speed)
 
     acceleration = linear_dynamics(rotor_speed, attitude, velocity)
 

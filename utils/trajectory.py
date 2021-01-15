@@ -1,11 +1,54 @@
 import numpy as np
+from .plan_trajectory import RapidTrajectory
+
+
+def get_reference(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
+    """
+    Compute reference trajectory based on start (0) and final (f) states
+    """
+    traj = RapidTrajectory(pos0, vel0, acc0, [0,0,-9.81])
+    traj.set_goal_position(posf)
+    traj.set_goal_velocity(velf)
+    traj.set_goal_acceleration([0,0,0])
+    # Run the algorithm, and generate the trajectory.
+    traj.generate(delta_t * ref_length)
+    # # Test input feasibility
+    # fmin = 5  #[m/s**2]
+    # fmax = 25 #[m/s**2]
+    # wmax = 20 #[rad/s]
+    # minTimeSec = 0.02 #[s]
+    # inputsFeasible = traj.check_input_feasibility(fmin, fmax, wmax, minTimeSec)
+
+    # output reference of pos, vel, and acc
+    ref_states = np.zeros((ref_length, 9))
+    for j, t in enumerate(np.arange(0, ref_length*delta_t, delta_t)):
+        # print(t, traj.get_velocity(t))
+        ref_states[j] = np.concatenate((traj.get_position(t), traj.get_velocity(t), traj.get_acceleration(t)))
+        # print(ref_states[j])
+    return ref_states
+
+def eval_get_reference(drone_state, drone_acc, a_on_line, b_on_line, max_drone_dist, ref_length):
+    """
+    Given a straight reference between A and B, compute the next x reference states
+    b_on_line - a_on_line must be a unit vector!
+    """
+    drone_pos = drone_state[:3]
+    projected = np_project_line(a_on_line, b_on_line, drone_pos)
+    direction = b_on_line - a_on_line
+    # norm squared is a^2
+    dist1 = np.sum((projected - drone_pos)**2)
+    # a^2 + b^2 = max_drone_dist^2
+    dist_on_line = np.sqrt(max([max_drone_dist**2 - dist1, 0]))
+    goal_pos = projected + direction * dist_on_line
+    reference = get_reference(drone_pos, drone_state[6:9], drone_acc, goal_pos, direction, ref_length=ref_length)
+    return reference
 
 # TODO: compute attitude velocities etc
 
-def positions_to_state_trajectory(drone_state, ref_positions):
+def positions_to_state_trajectory(drone_state, ref_positions, delta_t=0.02):
     """
     Compute full reference trajectory from given drone state and
-    target positions
+    target positions -> for testing
     Arguments:
         drone_state: vector of size s (state dimension),
             full state of the drone
@@ -14,7 +57,11 @@ def positions_to_state_trajectory(drone_state, ref_positions):
     Returns:
         Array of size (x, s) with the x next reference states
     """
-    pass
+    # get appropriate ref state as goal
+    # project drone to ref traj
+    # get reference
+    reference = get_reference(drone_state[:3], drone_state[6:9], )
+
 
 def straight_traj(drone_pos):
     # TODO: execute one step and make this to a straight trajectory
@@ -75,5 +122,5 @@ def sample_to_input(drone_state, reference_states):
         drone_state: np array of size s_dim, full state of drone (unnormalized!)
         reference_state: np array of size (x, 3) containing target positions
     """
-    reference_states = (reference_states - drone_state[:3]).flatten()
+    reference_states = (reference_states - drone_state[:3])# .flatten()
     return reference_states
