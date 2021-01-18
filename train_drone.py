@@ -20,9 +20,9 @@ USE_NEW_DATA = 0  # 250
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
-RESET_STRENGTH = 1
+RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.2
-threshold_divergence = 20 * MAX_DRONE_DIST
+threshold_divergence = 5 * MAX_DRONE_DIST
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
 NR_ACTIONS = 10
@@ -30,8 +30,8 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # os.path.join("trained_models/drone/conv_traj_0")
-BASE_MODEL_NAME = 'model_quad'
+BASE_MODEL = os.path.join("trained_models/drone/reference_001")
+BASE_MODEL_NAME = 'model_quad6'
 
 # Load model or initialize model
 if BASE_MODEL is not None:

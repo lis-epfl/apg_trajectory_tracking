@@ -77,93 +77,115 @@ class SingleAxisTrajectory:
         """
         #define starting position:
         delta_a = self._af - self._a0
-        delta_v = self._vf - self._v0 - self._a0*Tf
-        delta_p = self._pf - self._p0 - self._v0*Tf - 0.5*self._a0*Tf*Tf
+        delta_v = self._vf - self._v0 - self._a0 * Tf
+        delta_p = self._pf - self._p0 - self._v0 * Tf - 0.5 * self._a0 * Tf * Tf
 
         #powers of the end time:
-        T2 = Tf*Tf
-        T3 = T2*Tf
-        T4 = T3*Tf
-        T5 = T4*Tf
+        T2 = Tf * Tf
+        T3 = T2 * Tf
+        T4 = T3 * Tf
+        T5 = T4 * Tf
 
         #solve the trajectories, depending on what's constrained:
         if self._posGoalDefined and self._velGoalDefined and self._accGoalDefined:
-            self._a = ( 60*T2*delta_a - 360*Tf*delta_v + 720* 1*delta_p)/T5
-            self._b = (-24*T3*delta_a + 168*T2*delta_v - 360*Tf*delta_p)/T5
-            self._g = (  3*T4*delta_a -  24*T3*delta_v +  60*T2*delta_p)/T5
+            self._a = (
+                60 * T2 * delta_a - 360 * Tf * delta_v + 720 * 1 * delta_p
+            ) / T5
+            self._b = (
+                -24 * T3 * delta_a + 168 * T2 * delta_v - 360 * Tf * delta_p
+            ) / T5
+            self._g = (
+                3 * T4 * delta_a - 24 * T3 * delta_v + 60 * T2 * delta_p
+            ) / T5
         elif self._posGoalDefined and self._velGoalDefined:
-            self._a = (-120*Tf*delta_v + 320*   delta_p)/T5
-            self._b = (  72*T2*delta_v - 200*Tf*delta_p)/T5
-            self._g = ( -12*T3*delta_v +  40*T2*delta_p)/T5
+            self._a = (-120 * Tf * delta_v + 320 * delta_p) / T5
+            self._b = (72 * T2 * delta_v - 200 * Tf * delta_p) / T5
+            self._g = (-12 * T3 * delta_v + 40 * T2 * delta_p) / T5
         elif self._posGoalDefined and self._accGoalDefined:
-            self._a = (-15*T2*delta_a + 90*   delta_p)/(2*T5)
-            self._b = ( 15*T3*delta_a - 90*Tf*delta_p)/(2*T5)
-            self._g = (- 3*T4*delta_a + 30*T2*delta_p)/(2*T5)
+            self._a = (-15 * T2 * delta_a + 90 * delta_p) / (2 * T5)
+            self._b = (15 * T3 * delta_a - 90 * Tf * delta_p) / (2 * T5)
+            self._g = (-3 * T4 * delta_a + 30 * T2 * delta_p) / (2 * T5)
         elif self._velGoalDefined and self._accGoalDefined:
             self._a = 0
-            self._b = ( 6*Tf*delta_a - 12*   delta_v)/T3
-            self._g = (-2*T2*delta_a +  6*Tf*delta_v)/T3
+            self._b = (6 * Tf * delta_a - 12 * delta_v) / T3
+            self._g = (-2 * T2 * delta_a + 6 * Tf * delta_v) / T3
         elif self._posGoalDefined:
-            self._a =  20*delta_p/T5
-            self._b = -20*delta_p/T4
-            self._g =  10*delta_p/T3
+            self._a = 20 * delta_p / T5
+            self._b = -20 * delta_p / T4
+            self._g = 10 * delta_p / T3
         elif self._velGoalDefined:
             self._a = 0
-            self._b =-3*delta_v/T3
-            self._g = 3*delta_v/T2
+            self._b = -3 * delta_v / T3
+            self._g = 3 * delta_v / T2
         elif self._accGoalDefined:
             self._a = 0
             self._b = 0
-            self._g = delta_a/Tf
+            self._g = delta_a / Tf
         else:
             #Nothing to do!
             self._a = self._b = self._g = 0
 
         #Calculate the cost:
-        self._cost =  (self._g**2) + self._b*self._g*Tf + (self._b**2)*T2/3.0 + self._a*self._g*T2/3.0 + self._a*self._b*T3/4.0 + (self._a**2)*T4/20.0
+        self._cost = (
+            self._g**2
+        ) + self._b * self._g * Tf + (self._b**2) * T2 / 3.0 + (
+            self._a * self._g * T2 / 3.0
+        ) + self._a * self._b * T3 / 4.0 + (self._a**2) * T4 / 20.0
+
     def reset(self):
         """Reset the trajectory parameters."""
         self._cost = float("inf")
         self._accGoalDefined = self._velGoalDefined = self._posGoalDefined = False
-        self._accPeakTimes = [None,None]
+        self._accPeakTimes = [None, None]
         pass
+
     def resetPeak(self):
-        self._accPeakTimes = [None,None]
+        self._accPeakTimes = [None, None]
 
     def get_jerk(self, t):
         """Return the scalar jerk at time t."""
-        return self._g  + self._b*t  + (1.0/2.0)*self._a*t*t
+        return self._g + self._b * t + (1.0 / 2.0) * self._a * t * t
 
     def get_acceleration(self, t):
         """Return the scalar acceleration at time t."""
-        return self._a0 + self._g*t  + (1.0/2.0)*self._b*t*t  + (1.0/6.0)*self._a*t*t*t
+        return self._a0 + self._g * t + (1.0 / 2.0) * self._b * t * t + (
+            1.0 / 6.0
+        ) * self._a * t * t * t
 
     def get_velocity(self, t):
         """Return the scalar velocity at time t."""
-        return self._v0 + self._a0*t + (1.0/2.0)*self._g*t*t  + (1.0/6.0)*self._b*t*t*t + (1.0/24.0)*self._a*t*t*t*t
+        return self._v0 + self._a0 * t + (1.0 / 2.0) * self._g * t * t + (
+            1.0 / 6.0
+        ) * self._b * t * t * t + (1.0 / 24.0) * self._a * t * t * t * t
 
     def get_position(self, t):
         """Return the scalar position at time t."""
-        return self._p0 + self._v0*t + (1.0/2.0)*self._a0*t*t + (1.0/6.0)*self._g*t*t*t + (1.0/24.0)*self._b*t*t*t*t + (1.0/120.0)*self._a*t*t*t*t*t
+        return self._p0 + self._v0 * t + (1.0 / 2.0) * self._a0 * t * t + (
+            1.0 / 6.0
+        ) * self._g * t * t * t + (1.0 / 24.0) * self._b * t * t * t * t + (
+            1.0 / 120.0
+        ) * self._a * t * t * t * t * t
 
     def get_min_max_acc(self, t1, t2):
-        """Return the extrema of the acceleration trajectory between t1 and t2."""
+        """
+        Return the extrema of the acceleration trajectory between t1 and t2.
+        """
         if self._accPeakTimes[0] is None:
             #uninitialised: calculate the roots of the polynomial
             if self._a:
                 #solve a quadratic
-                det = self._b*self._b - 2*self._g*self._a
-                if det<0:
+                det = self._b * self._b - 2 * self._g * self._a
+                if det < 0:
                     #no real roots
                     self._accPeakTimes[0] = 0
                     self._accPeakTimes[1] = 0
                 else:
-                    self._accPeakTimes[0] = (-self._b + np.sqrt(det))/self._a
-                    self._accPeakTimes[1] = (-self._b - np.sqrt(det))/self._a
+                    self._accPeakTimes[0] = (-self._b + np.sqrt(det)) / self._a
+                    self._accPeakTimes[1] = (-self._b - np.sqrt(det)) / self._a
             else:
                 #_g + _b*t == 0:
                 if self._b:
-                    self._accPeakTimes[0] = -self._g/self._b
+                    self._accPeakTimes[0] = -self._g / self._b
                     self._accPeakTimes[1] = 0
                 else:
                     self._accPeakTimes[0] = 0
@@ -174,31 +196,36 @@ class SingleAxisTrajectory:
         aMaxOut = max(self.get_acceleration(t1), self.get_acceleration(t2))
 
         #Evaluate at the maximum/minimum times:
-        for i in [0,1]:
+        for i in [0, 1]:
             if self._accPeakTimes[i] <= t1: continue
             if self._accPeakTimes[i] >= t2: continue
 
-            aMinOut = min(aMinOut, self.get_acceleration(self._accPeakTimes[i]))
-            aMaxOut = max(aMaxOut, self.get_acceleration(self._accPeakTimes[i]))
+            aMinOut = min(
+                aMinOut, self.get_acceleration(self._accPeakTimes[i])
+            )
+            aMaxOut = max(
+                aMaxOut, self.get_acceleration(self._accPeakTimes[i])
+            )
         return (aMinOut, aMaxOut)
 
-    def get_max_jerk_squared(self,t1, t2):
-        """Return the extrema of the jerk squared trajectory between t1 and t2."""
-        jMaxSqr = max(self.get_jerk(t1)**2,self.get_jerk(t2)**2)
+    def get_max_jerk_squared(self, t1, t2):
+        """
+        Return the extrema of the jerk squared trajectory between t1 and t2.
+        """
+        jMaxSqr = max(self.get_jerk(t1)**2, self.get_jerk(t2)**2)
 
         if self._a:
-            tMax = -self._b/self._a
-            if(tMax>t1 and tMax<t2):
-                jMaxSqr = max(pow(self.get_jerk(tMax),2),jMaxSqr)
+            tMax = -self._b / self._a
+            if (tMax > t1 and tMax < t2):
+                jMaxSqr = max(pow(self.get_jerk(tMax), 2), jMaxSqr)
 
         return jMaxSqr
-
 
     def get_param_alpha(self):
         """Return the parameter alpha which defines the trajectory."""
         return self._a
 
-    def get_param_beta (self):
+    def get_param_beta(self):
         """Return the parameter beta which defines the trajectory."""
         return self._b
 
@@ -230,24 +257,27 @@ class InputFeasibilityResult:
     first segment that fails. The different outcomes are:
         0: Feasible -- trajectory is feasible with respect to inputs
         1: Indeterminable -- a section's feasibility could not be determined
-        2: InfeasibleThrustHigh -- a section failed due to max thrust constraint
-        3: InfeasibleThrustLow -- a section failed due to min thrust constraint
-        4: InfeasibleOrientation -- a section failed due to orientation constraints
+        2: InfeasibleThrustHigh -- a section failed due to max thrust constr
+        3: InfeasibleThrustLow -- a section failed due to min thrust constr
+        4: InfeasibleOrientation -- a section failed due to orientation constr
     """
-    Feasible, Indeterminable, InfeasibleThrustHigh, InfeasibleThrustLow, InfeasibleOrientation = range(5)
+    (
+        Feasible, Indeterminable, InfeasibleThrustHigh, InfeasibleThrustLow,
+        InfeasibleOrientation
+    ) = range(5)
 
     @classmethod
-    def to_string(cls,ifr):
+    def to_string(cls, ifr):
         """Return the name of the result."""
-        if   ifr==InputFeasibilityResult.Feasible:
+        if ifr == InputFeasibilityResult.Feasible:
             return "Feasible"
-        elif ifr==InputFeasibilityResult.Indeterminable:
+        elif ifr == InputFeasibilityResult.Indeterminable:
             return "Indeterminable"
-        elif  ifr==InputFeasibilityResult.InfeasibleThrustHigh:
+        elif ifr == InputFeasibilityResult.InfeasibleThrustHigh:
             return "InfeasibleThrustHigh"
-        elif ifr==InputFeasibilityResult.InfeasibleThrustLow:
+        elif ifr == InputFeasibilityResult.InfeasibleThrustLow:
             return "InfeasibleThrustLow"
-        elif ifr==InputFeasibilityResult.InfeasibleOrientation:
+        elif ifr == InputFeasibilityResult.InfeasibleOrientation:
             return "InfeasibleOrientation"
         return "Unknown"
 
@@ -259,11 +289,11 @@ class StateFeasibilityResult:
     Feasible, Infeasible = range(2)
 
     @classmethod
-    def to_string(cls,ifr):
+    def to_string(cls, ifr):
         """Return the name of the result."""
-        if   ifr==StateFeasibilityResult.Feasible:
+        if ifr == StateFeasibilityResult.Feasible:
             return "Feasible"
-        elif ifr==StateFeasibilityResult.Infeasible:
+        elif ifr == StateFeasibilityResult.Infeasible:
             return "Infeasible"
         return "Unknown"
 
@@ -304,14 +334,18 @@ class RapidTrajectory:
               the trajectories (e.g. [0,0,-9.81] for an East-North-Up frame).
         """
 
-        self._axis = [SingleAxisTrajectory(pos0[i],vel0[i],acc0[i]) for i in range(3)]
+        self._axis = [
+            SingleAxisTrajectory(pos0[i], vel0[i], acc0[i]) for i in range(3)
+        ]
         self._grav = gravity
         self._tf = None
         self.threshold = -0.5
         self.reset()
+
     def unset_orientation_bound(self):
         for i in range(3):
             self._axis[i].unset_orientation_bound()
+
     def set_goal_position(self, pos):
         """ Define the goal end position.
         Define the end position for all three axes. To leave components free,
@@ -321,7 +355,7 @@ class RapidTrajectory:
         for i in range(3):
             if pos[i] is None:
                 continue
-            self.set_goal_position_in_axis(i,pos[i])
+            self.set_goal_position_in_axis(i, pos[i])
 
     def set_goal_velocity(self, vel):
         """ Define the goal end velocity.
@@ -332,7 +366,7 @@ class RapidTrajectory:
         for i in range(3):
             if vel[i] is None:
                 continue
-            self.set_goal_velocity_in_axis(i,vel[i])
+            self.set_goal_velocity_in_axis(i, vel[i])
 
     def set_goal_acceleration(self, acc):
         """ Define the goal end acceleration.
@@ -343,7 +377,7 @@ class RapidTrajectory:
         for i in range(3):
             if acc[i] is None:
                 continue
-            self.set_goal_acceleration_in_axis(i,acc[i])
+            self.set_goal_acceleration_in_axis(i, acc[i])
 
     def set_goal_position_in_axis(self, axNum, pos):
         """ Define the goal end position in axis `axNum`."""
@@ -356,9 +390,11 @@ class RapidTrajectory:
     def set_goal_acceleration_in_axis(self, axNum, acc):
         """ Define the goal end acceleration in axis `axNum`."""
         self._axis[axNum].set_goal_acceleration(acc)
+
     def resetPeak(self):
         for i in range(3):
             self._axis[i].resetPeak()
+
     def reset(self):
         """ Reset the trajectory generator.
         Removes all goal states, and resets the cost. Use this if you want to
@@ -377,8 +413,9 @@ class RapidTrajectory:
         for i in range(3):
             self._axis[i].generate(self._tf)
 
-    def check_input_feasibility(self, fminAllowed, fmaxAllowed, wmaxAllowed,
-                                minTimeSection):
+    def check_input_feasibility(
+        self, fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection
+    ):
         """ Run recursive input feasibility test on trajectory.
         Attempts to prove/disprove the feasibility of the trajectory with
         respect to input constraints. The result is one of three outcomes:
@@ -398,16 +435,18 @@ class RapidTrajectory:
         """
 
         self.resetPeak()
-        return self._check_input_feasibility_section(fminAllowed, fmaxAllowed,
-                                    wmaxAllowed, minTimeSection, 0, self._tf)
+        return self._check_input_feasibility_section(
+            fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection, 0, self._tf
+        )
 
-    def _check_input_feasibility_section(self, fminAllowed, fmaxAllowed,
-                             wmaxAllowed, minTimeSection, t1, t2):
+    def _check_input_feasibility_section(
+        self, fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection, t1, t2
+    ):
         """Recursive test used by `check_input_feasibility`.
         Returns:
             An enumeration, of type InputFeasibilityResult.
         """
-        if (t2-t1)<minTimeSection:
+        if (t2 - t1) < minTimeSection:
             return InputFeasibilityResult.Indeterminable
 
         #test the acceleration at the two limits:
@@ -426,14 +465,14 @@ class RapidTrajectory:
         for i in range(3):
             amin, amax = self._axis[i].get_min_max_acc(t1, t2)
             #distance from zero thrust point in this axis
-            v1 = amin - self._grav[i] #left
-            v2 = amax - self._grav[i] #right
+            v1 = amin - self._grav[i]  #left
+            v2 = amax - self._grav[i]  #right
 
             #definitely infeasible:
             if (max(v1**2, v2**2) > fmaxAllowed**2):
                 return InputFeasibilityResult.InfeasibleThrustHigh
 
-            if(v1*v2 < 0):
+            if (v1 * v2 < 0):
                 #sign of acceleration changes, so we've gone through zero
                 fminSqr += 0
             else:
@@ -445,22 +484,27 @@ class RapidTrajectory:
 
             # print("left", self.get_normal_vector(t1))
             # print("right", self.get_normal_vector(t2))
-            max_z = max(self.get_normal_vector(t1)[2],self.get_normal_vector(t2)[2])
+            max_z = max(
+                self.get_normal_vector(t1)[2],
+                self.get_normal_vector(t2)[2]
+            )
             peak1 = self._axis[i]._accPeakTimes[0]
             peak2 = self._axis[i]._accPeakTimes[0]
-            if t1< peak1 <t2:
+            if t1 < peak1 < t2:
                 max_z = max(max_z, self.get_normal_vector(peak1)[2])
                 # print("peak1", self.get_normal_vector(peak1))
-            if t1< peak2 <t2:
+            if t1 < peak2 < t2:
                 max_z = max(max_z, self.get_normal_vector(peak2)[2])
                 # print("peak2", self.get_normal_vector(peak2))
-            if max_z> self.threshold:
+            if max_z > self.threshold:
                 return InputFeasibilityResult.InfeasibleOrientation
 
         fmin = np.sqrt(fminSqr)
         fmax = np.sqrt(fmaxSqr)
         if fminSqr > 1e-6:
-            wBound = np.sqrt(jmaxSqr / fminSqr)#the 1e-6 is a divide-by-zero protection
+            wBound = np.sqrt(
+                jmaxSqr / fminSqr
+            )  #the 1e-6 is a divide-by-zero protection
         else:
             wBound = float("inf")
 
@@ -471,14 +515,21 @@ class RapidTrajectory:
             return InputFeasibilityResult.InfeasibleThrustHigh
 
         #possibly infeasible:
-        if (fmin < fminAllowed) or (fmax > fmaxAllowed) or (wBound > wmaxAllowed):
+        if (fmin < fminAllowed) or (fmax >
+                                    fmaxAllowed) or (wBound > wmaxAllowed):
             #indeterminate: must check more closely:
             tHalf = (t1 + t2) / 2.0
-            r1 = self._check_input_feasibility_section(fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection, t1, tHalf)
+            r1 = self._check_input_feasibility_section(
+                fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection, t1,
+                tHalf
+            )
 
             if r1 == InputFeasibilityResult.Feasible:
                 #check the other half
-                return self._check_input_feasibility_section(fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection, tHalf, t2)
+                return self._check_input_feasibility_section(
+                    fminAllowed, fmaxAllowed, wmaxAllowed, minTimeSection,
+                    tHalf, t2
+                )
             else:
                 #infeasible, or indeterminable
                 return r1
@@ -504,10 +555,10 @@ class RapidTrajectory:
         """
 
         boundaryNormal = np.array(boundaryNormal)
-        boundaryPoint  = np.array(boundaryPoint)
+        boundaryPoint = np.array(boundaryPoint)
 
         #make sure it's a unit vector:
-        boundaryNormal = boundaryNormal/np.linalg.norm(boundaryNormal)
+        boundaryNormal = boundaryNormal / np.linalg.norm(boundaryNormal)
 
         #first, we will build the polynomial describing the velocity of the a
         #quadrocopter in the direction of the normal. Then we will solve for
@@ -518,25 +569,34 @@ class RapidTrajectory:
         coeffs = np.zeros(5)
 
         for i in range(3):
-            coeffs[0] += boundaryNormal[i]*self._axis[i].get_param_alpha()/24.0            # t**4
-            coeffs[1] += boundaryNormal[i]*self._axis[i].get_param_beta() /6.0              # t**3
-            coeffs[2] += boundaryNormal[i]*self._axis[i].get_param_gamma()/2.0             # t**2
-            coeffs[3] += boundaryNormal[i]*self._axis[i].get_initial_acceleration()/6.0    # t
-            coeffs[4] += boundaryNormal[i]*self._axis[i].get_initial_velocity()            # 1
+            coeffs[0] += boundaryNormal[i] * self._axis[i].get_param_alpha(
+            ) / 24.0  # t**4
+            coeffs[1] += boundaryNormal[i] * self._axis[i].get_param_beta(
+            ) / 6.0  # t**3
+            coeffs[2] += boundaryNormal[i] * self._axis[i].get_param_gamma(
+            ) / 2.0  # t**2
+            coeffs[3] += boundaryNormal[i] * self._axis[
+                i].get_initial_acceleration() / 6.0  # t
+            coeffs[4] += boundaryNormal[i] * self._axis[
+                i].get_initial_velocity()  # 1
 
         #calculate the roots
         tRoots = np.roots(coeffs)
 
         #test these times, and the initial & end times:
-        for t in np.append(tRoots,[0,self._tf]):
-            distToPoint = np.dot(self.get_position(t) - boundaryPoint, boundaryNormal)
+        for t in np.append(tRoots, [0, self._tf]):
+            distToPoint = np.dot(
+                self.get_position(t) - boundaryPoint, boundaryNormal
+            )
             if distToPoint <= 0:
                 return StateFeasibilityResult.Infeasible
 
         #all points tested feasible:
         return StateFeasibilityResult.Feasible
+
     def unset_orientation_bound(self):
         self.threshold = 1
+
     def get_jerk(self, t):
         """ Return the trajectory's 3D jerk value at time `t`."""
         return np.array([self._axis[i].get_jerk(t) for i in range(3)])
@@ -567,7 +627,7 @@ class RapidTrajectory:
             np.array() containing a unit vector.
         """
         v = (self.get_acceleration(t) - self._grav)
-        return v/np.linalg.norm(v)
+        return v / np.linalg.norm(v)
 
     def get_thrust(self, t):
         """ Return the thrust input at time `t`.
@@ -595,13 +655,13 @@ class RapidTrajectory:
         n0 = self.get_normal_vector(t)
         n1 = self.get_normal_vector(t + dt)
 
-        crossProd = np.cross(n0,n1) #direction of omega, in inertial axes
+        crossProd = np.cross(n0, n1)  #direction of omega, in inertial axes
 
         if np.linalg.norm(crossProd) > 1e-6:
-            return  np.arccos(np.dot(n0,n1))/dt*(crossProd/np.linalg.norm(crossProd))
+            return np.arccos(np.dot(n0, n1)
+                             ) / dt * (crossProd / np.linalg.norm(crossProd))
         else:
-            return np.array([0,0,0])
-
+            return np.array([0, 0, 0])
 
     def get_cost(self):
         """ Return the total trajectory cost.
@@ -609,7 +669,8 @@ class RapidTrajectory:
         tend to have more aggressive inputs (thrust and body rates), so that
         this is a cheap way to compare two trajectories.
         """
-        return self._axis[0].get_cost() + self._axis[1].get_cost() + self._axis[2].get_cost()
+        return self._axis[0].get_cost() + self._axis[1].get_cost(
+        ) + self._axis[2].get_cost()
 
     def get_param_alpha(self, axNum):
         """Return the three parameters alpha which defines the trajectory."""
@@ -624,30 +685,30 @@ class RapidTrajectory:
         return self._axis[axNum].get_param_gamma()
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
 
     pos0 = np.random.rand(3)
     vel0 = np.random.rand(3)
     acc0 = np.random.rand(3)
-    posf = [0,0,0]
-    velf = [0,0,0]
-    accf = [0,0,0]
+    posf = [0, 0, 0]
+    velf = [0, 0, 0]
+    accf = [0, 0, 0]
     # get_reference(pos0, vel0, acc0, posf, velf)
     # exit()
 
     # Define how gravity lies:
-    gravity = [0,0,-9.81]
-    
+    gravity = [0, 0, -9.81]
+
     traj = RapidTrajectory(pos0, vel0, acc0, gravity)
     traj.set_goal_position(posf)
     traj.set_goal_velocity(velf)
     traj.set_goal_acceleration(accf)
 
     # Define the input limits:
-    fmin = 5  #[m/s**2]
-    fmax = 25 #[m/s**2]
-    wmax = 20 #[rad/s]
-    minTimeSec = 0.02 #[s]
+    fmin = 5  # [m/s**2]
+    fmax = 25  # [m/s**2]
+    wmax = 20  # [rad/s]
+    minTimeSec = 0.02  # [s]
     Tf = 1
 
     # Run the algorithm, and generate the trajectory.
@@ -655,7 +716,7 @@ if __name__=="__main__":
 
     # Test input feasibility
     inputsFeasible = traj.check_input_feasibility(fmin, fmax, wmax, minTimeSec)
-    
+
     numPlotPoints = 20
     time = np.linspace(0, Tf, numPlotPoints)
 

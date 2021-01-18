@@ -57,6 +57,7 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     angvel_factor = 2e-2
     vel_factor = 0.5
     pos_factor = 1
+    yaw_factor = 10
 
     position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)
     velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 3:6])**2)
@@ -70,7 +71,8 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         # subtract from desired acceleration
         angle_error += torch.sum((acc_ref - acc)**2)
 
-    ang_vel_error = torch.sum(states[:, :, 13:16]**2)
+    ang_vel_error = torch.sum(states[:, :, 13:15]**2
+                              ) + yaw_factor * torch.sum(states[:, :, 15]**2)
 
     loss = (
         angle_factor * angle_error + angvel_factor * ang_vel_error +
@@ -94,7 +96,7 @@ def project_to_line(a_on_line, b_on_line, p):
         b_on_line: Second point on the line
         p: point to be projected onto the line
     Returns: Tensor of shape (BATCH_SIZE, n) which is the orthogonal projection
-            of p on the line 
+            of p on the line
     """
     ap = torch.unsqueeze(p - a_on_line, 2)
     ab = b_on_line - a_on_line
@@ -179,5 +181,5 @@ def trajectory_loss(
         print("divergence", divergence_loss[0].item())
         print("progress_loss", progress_loss[0].item())
         print("final", progress_loss + .1 * divergence_loss)
-        print(fail)
+        exit()
     return torch.sum(progress_loss + .1 * divergence_loss)
