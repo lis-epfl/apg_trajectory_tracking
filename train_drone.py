@@ -12,7 +12,7 @@ from environments.drone_dynamics import simulate_quadrotor
 from evaluate_drone import QuadEvaluator
 from models.hutter_model import Net
 from environments.drone_env import trajectory_training_data
-from utils.plotting import plot_loss, plot_success
+from utils.plotting import plot_loss_episode_len
 
 STEP_SIZE = 0.01
 EPOCH_SIZE = 500
@@ -22,7 +22,7 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.2
-threshold_divergence = 5 * MAX_DRONE_DIST
+THRESH_DIV = 5 * MAX_DRONE_DIST
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
 NR_ACTIONS = 10
@@ -115,7 +115,7 @@ for epoch in range(NR_EPOCHS):
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, MEAN, STD, horizon=NR_ACTIONS)
     suc_mean, suc_std = eval_env.eval_traj_input(
-        threshold_divergence, nr_test_data=25, step_size=STEP_SIZE
+        THRESH_DIV, nr_test_data=25, step_size=STEP_SIZE
     )
 
     success_mean_list.append(suc_mean)
@@ -147,15 +147,12 @@ for epoch in range(NR_EPOCHS):
             # zero the parameter gradients
             optimizer.zero_grad()
 
-            # loss_weights = 1 + torch.abs(current_state)  # TODO
-
             # ------------ VERSION 1 (x states at once)-----------------
             actions = net(in_state[:, 3:], ref_states)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
             # start_state = current_state.clone()
-            # TODO: not only position
             intermediate_states = torch.zeros(
                 in_state.size()[0], NR_ACTIONS, STATE_SIZE + 3
             )
@@ -202,6 +199,7 @@ if not os.path.exists(SAVE):
 
 # Save model
 torch.save(net, os.path.join(SAVE, "model_quad"))
-plot_loss(loss_list, SAVE)
-plot_success(success_mean_list, success_std_list, SAVE)
+plot_loss_episode_len(
+    success_mean_list, success_std_list, loss_list, save_path=SAVE
+)
 print("finished and saved.")

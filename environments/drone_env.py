@@ -119,7 +119,7 @@ class QuadRotorEnvBase(gym.Env):
             self.renderer.setup()
 
             # update the renderer's center position
-            self.renderer.set_center(self._state.position[0])
+            self.renderer.set_center(0)  # self._state.position[0])
 
         return self.renderer.render(mode, close)
 

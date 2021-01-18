@@ -7,8 +7,11 @@ import torch
 import pickle
 
 from environments.drone_env import QuadRotorEnvBase
-from utils.plotting import plot_state_variables, plot_trajectory
-from utils.trajectory import sample_points_on_straight, sample_to_input, np_project_line, eval_get_reference
+from utils.plotting import plot_state_variables, plot_trajectory, plot_position
+from utils.trajectory import (
+    sample_points_on_straight, sample_to_input, np_project_line,
+    eval_get_reference, get_reference
+)
 from dataset import raw_states_to_torch
 # from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
@@ -41,6 +44,7 @@ class QuadEvaluator():
             current_np_state, normalize=True, mean=self.mean, std=self.std
         ).to(device)
         if ref_states is not None:
+            ref_states[:, :3] = ref_states[:, :3] - current_np_state[:3]
             reference = torch.unsqueeze(
                 torch.from_numpy(ref_states).float(), 0
             )
@@ -57,74 +61,65 @@ class QuadEvaluator():
         # print([round(a, 2) for a in numpy_action_seq[0]])
         return numpy_action_seq
 
-    def stabilize(
-        self, nr_iters=1, render=False, max_time=300, start_loss=200
-    ):
+    def help_render(self, render):
         """
-        Measure nr_iters times how long the drone can hover without falling.
-        Arguments:
-            nr_iters (int): Number of runs (multiple to compute statistics)
-            render (bool): if true, showing a simple drone simulation
-            max_time (int): Maximum number of steps to hover
-            start_loss (int): At this point we start to record the average
-                divergence from the target for evaluation --> In the optimal
-                case the drone has stabilized around the target at this time
-        Returns:
-            Average number of steps before failure
-            Standard deviation of steps before failure
-            collect_data: Array with all encountered states
+        Helper function to make rendering prettier
         """
-        collect_data = []
-        pos_loss_list = list()  # collect the reason for failure
-        collect_runs = list()
-        with torch.no_grad():
-            for _ in range(nr_iters):
-                time_stable = 0
-                # Reset and run until failing or reaching max_time
-                self.eval_env.render_reset()
-                stable = True
-                while stable and time_stable < max_time:
-                    current_np_state = self.eval_env._state.as_np.copy()
-                    current_np_state[2] -= 2  # correct for height
-                    if time_stable > start_loss:
-                        pos_loss_list.append(np.absolute(current_np_state[:3]))
-                    numpy_action_seq = self.predict_actions(current_np_state)
-                    for nr_action in range(ROLL_OUT):
-                        action = numpy_action_seq[nr_action]
-                        # if render:
-                        #     # print(np.around(current_np_state[3:6], 2))
-                        #     print("action:", np.around(suggested_action, 2))
-                        current_np_state, stable = self.eval_env.step(action)
-                        if time_stable > 20:
-                            collect_data.append(current_np_state)
-                        if not stable:
-                            break
-                        # if render:
-                        #     print(current_np_state[:3])
-                        # count nr of actions that the drone can hover
-                        time_stable += 1
-                    if render:
-                        # .numpy()[0]
-                        print([round(s, 2) for s in current_np_state])
-                        self.eval_env.render()
-                        time.sleep(.1)
-                collect_runs.append(time_stable)
-        collect_data = np.array(collect_data)
-        if len(pos_loss_list) > 0:
-            print(
-                "average deviation from target pos:", [
-                    round(s, 2)
-                    for s in np.mean(np.array(pos_loss_list), axis=0)
-                ]
+        if render:
+            # print([round(s, 2) for s in current_np_state])
+            current_np_state = self.eval_env._state.as_np
+            self.eval_env._state.set_position(
+                current_np_state[:3] + np.array([0, 0, 1])
             )
-        return (np.mean(collect_runs), np.std(collect_runs), 0, collect_data)
+            self.eval_env.render()
+            self.eval_env._state.set_position(current_np_state[:3])
+            time.sleep(.05)
+
+    def stabilize(self, nr_test_data=1, max_nr_steps=300, render=True):
+        nr_stable = []
+        for k in range(nr_test_data):
+            self.eval_env.reset()
+            current_np_state = self.eval_env._state.as_np
+            # Goal state: constant position and velocity
+            posf = current_np_state[:3].copy()
+            # if render:
+            print("target pos:", posf)
+            velf = np.zeros(3)
+            # Run
+            drone_trajectory = []
+            with torch.no_grad():
+                for i in range(max_nr_steps):
+                    # goal state: same pos, zero velocity
+                    pos0 = current_np_state[:3]
+                    vel0 = current_np_state[6:9]
+                    acc0 = self.eval_env.get_acceleration()
+                    trajectory = get_reference(
+                        pos0,
+                        vel0,
+                        acc0,
+                        posf,
+                        velf,
+                        delta_t=self.eval_env.dt,
+                        ref_length=self.horizon
+                    )
+                    numpy_action_seq = self.predict_actions(
+                        current_np_state, trajectory
+                    )
+                    action = numpy_action_seq[0]
+                    current_np_state, stable = self.eval_env.step(action)
+                    drone_trajectory.append(current_np_state[:3])
+                    if not stable:
+                        break
+                    self.help_render(render)
+            nr_stable.append(i)
+        print("Average episode length: ", np.mean(nr_stable))
+        return drone_trajectory
 
     def eval_traj_input(
         self,
         threshold_divergence,
         nr_test_data=5,
         max_nr_steps=200,
-        step_size=0.01,
         render=False
     ):
 
@@ -169,8 +164,6 @@ class QuadEvaluator():
                     # for action in numpy_action_seq:
                     # print(action)
                     current_np_state, stable = self.eval_env.step(action)
-                    if render:
-                        print(current_np_state[:3], trajectory[0, :3])
                     drone_trajectory.append(current_np_state[:3])
                     if not stable:
                         break
@@ -183,14 +176,7 @@ class QuadEvaluator():
                     #  trajectory[1], current_np_state[:3])
                     # trajectory = sample_points_on_straight(new_point_on_line,
                     #  traj_direction, step_size=step_size)
-                    if render:
-                        # print([round(s, 2) for s in current_np_state])
-                        self.eval_env._state.set_position(
-                            current_np_state[:3] + np.array([0, 0, 1])
-                        )
-                        self.eval_env.render()
-                        self.eval_env._state.set_position(current_np_state[:3])
-                        time.sleep(.2)
+                    self.help_render(render)
 
                     drone_on_line = np_project_line(
                         a_on_line, b_on_line, current_np_state[:3]
@@ -258,17 +244,26 @@ if __name__ == "__main__":
     threshold_divergence = 5 * param_dict["max_drone_dist"]
     # Straight with reference as input
     try:
-        initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
-            threshold_divergence,
+        # STRAIGHT
+        # initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
+        #     threshold_divergence,
+        #     nr_test_data=1,
+        #     render=True,
+        #     max_nr_steps=300,
+        # )
+        # plot_trajectory(
+        #     initial_trajectory, drone_trajectory,
+        #     os.path.join(model_path, "traj.png")
+        # )
+
+        # STABILIZE
+        drone_trajectory = evaluator.stabilize(
             nr_test_data=1,
-            render=True,
+            render=False,
             max_nr_steps=300,
-            step_size=param_dict["step_size"],
         )
-        plot_trajectory(
-            initial_trajectory, drone_trajectory,
-            os.path.join(model_path, "traj.png")
-        )
+        plot_position(drone_trajectory, os.path.join(model_path, "stable.png"))
+
         # evaluator.eval_traj_input(threshold_divergence, nr_test_data=50,
         # render=False, max_nr_steps=200, step_size=param_dict["step_size"])
     except KeyboardInterrupt:
