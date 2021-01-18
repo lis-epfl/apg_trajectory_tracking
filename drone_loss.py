@@ -3,6 +3,7 @@ from environments.drone_dynamics import simulate_quadrotor, device
 torch.autograd.set_detect_anomaly(True)
 zero_tensor = torch.zeros(3).to(device)
 
+
 def drone_loss_function(current_state, start_state=None, printout=0):
     """
     Computes loss of the current state (target is assumed to be zero-state)
@@ -44,6 +45,7 @@ def drone_loss_function(current_state, start_state=None, printout=0):
         print("position loss", (pos_factor * position_loss)[0])
     return torch.sum(loss)
 
+
 def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     """
     Compute loss with respect to reference trajectory
@@ -51,21 +53,22 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     # TODO: add loss on actions with quaternion formulation
     # (9.81, 0,0,0)
     # TODO: include attitude in reference
-    angle_factor = 1
+    angle_factor = 0.01
     angvel_factor = 2e-2
     vel_factor = 0.5
     pos_factor = 1
 
-    position_loss = torch.sum((states[:,:,:3] - ref_states[:,:,:3])**2)
-    velocity_loss = torch.sum((states[:,:,6:9] - ref_states[:,:,3:6])**2)
-    
+    position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)
+    velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 3:6])**2)
+
     # TODO super high
     angle_error = 0
-    for k in range(len(states)-1):
+    for k in range(states.size()[1] - 1):
         # approximate acceleration
-        acc = (states[:, k+1, 6:9] - states[:, k, 6:9]) / delta_t
+        acc = (states[:, k + 1, 6:9] - states[:, k, 6:9]) / delta_t
+        acc_ref = ref_states[:, k, 6:9] * delta_t
         # subtract from desired acceleration
-        angle_error += torch.sum((ref_states[:, k, 6:9] - acc)**2)
+        angle_error += torch.sum((acc_ref - acc)**2)
 
     ang_vel_error = torch.sum(states[:, :, 13:16]**2)
 
@@ -79,8 +82,8 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         print("attitude loss", (angle_factor * angle_error).item())
         print("att vel loss", (angvel_factor * ang_vel_error).item())
         print("position loss", (pos_factor * position_loss).item())
-    exit()
     return loss
+
 
 def project_to_line(a_on_line, b_on_line, p):
     """

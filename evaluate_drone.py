@@ -17,7 +17,8 @@ ROLL_OUT = 1
 ACTION_DIM = 4
 
 # Use cuda if available
-device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class QuadEvaluator():
 
@@ -40,7 +41,9 @@ class QuadEvaluator():
             current_np_state, normalize=True, mean=self.mean, std=self.std
         ).to(device)
         if ref_states is not None:
-            reference = torch.unsqueeze(torch.from_numpy(ref_states).float(), 0)
+            reference = torch.unsqueeze(
+                torch.from_numpy(ref_states).float(), 0
+            )
             # print([round(s, 2) for s in current_torch_state[0].numpy()])
             # print("reference", reference)
             # print("position", current_torch_state[:, 3:])
@@ -69,7 +72,7 @@ class QuadEvaluator():
         Returns:
             Average number of steps before failure
             Standard deviation of steps before failure
-            collect_data: Array with all encountered states   
+            collect_data: Array with all encountered states
         """
         collect_data = []
         pos_loss_list = list()  # collect the reason for failure
@@ -213,9 +216,16 @@ class QuadEvaluator():
         with open("trained_models/follow_traj.dat", "wb") as outfile:
             pickle.dump((np.array(state_list), knots), outfile)
         return min_distance_to_target, time_stable, data_list
-    
-    def eval_traj_input(self, threshold_divergence, nr_test_data = 5, max_nr_steps=200, step_size=0.01, render=False):
-        
+
+    def eval_traj_input(
+        self,
+        threshold_divergence,
+        nr_test_data=5,
+        max_nr_steps=200,
+        step_size=0.01,
+        render=False
+    ):
+
         nr_stable, divergence = [], []
         for k in range(nr_test_data):
             # init_state = np.random.rand(3)
@@ -223,22 +233,31 @@ class QuadEvaluator():
             self.eval_env.reset()
 
             current_np_state = self.eval_env._state.as_np
-            traj_direction = current_np_state[6:9] # np.random.rand(3)
+            traj_direction = current_np_state[6:9]  # np.random.rand(3)
             a_on_line = current_np_state[:3]
-            b_on_line = a_on_line + traj_direction / np.linalg.norm(traj_direction)
+            b_on_line = a_on_line + traj_direction / np.linalg.norm(
+                traj_direction
+            )
 
-            # trajectory = sample_points_on_straight(current_np_state[:3], traj_direction, step_size=step_size, ref_length=self.horizon)
+            # trajectory = sample_points_on_straight(current_np_state[:3],
+            # traj_direction, step_size=step_size, ref_length=self.horizon)
             initial_trajectory = [a_on_line]
-            # if the reference is input relative to drone state, there is no need to roll?
+            # if the reference is input relative to drone state,
+            # there is no need to roll?
             # actually there is, because change of drone state
 
             drone_trajectory = []
             with torch.no_grad():
                 for i in range(max_nr_steps):
                     acc = self.eval_env.get_acceleration()
-                    trajectory = eval_get_reference(current_np_state, acc, a_on_line, b_on_line, self.max_drone_dist, self.horizon)
-                    # ref_states = sample_to_input(current_np_state, trajectory)
-                    numpy_action_seq = self.predict_actions(current_np_state, trajectory)
+                    trajectory = eval_get_reference(
+                        current_np_state, acc, a_on_line, b_on_line,
+                        self.max_drone_dist, self.horizon
+                    )
+                    # ref_s = sample_to_input(current_np_state, trajectory)
+                    numpy_action_seq = self.predict_actions(
+                        current_np_state, trajectory
+                    )
                     # only use first action (as in mpc)
                     action = numpy_action_seq[0]
                     # for nr_action in range(ROLL_OUT):
@@ -256,16 +275,25 @@ class QuadEvaluator():
                     # # update reference - 1) next timestep:
                     # trajectory = np.roll(trajectory, -1, axis=0)
                     # trajectory[-1] = 2* trajectory[-2] - trajectory[-3]
-                    initial_trajectory.append(trajectory[0, :3])
+                    # initial_trajectory.append(trajectory[0, :3])
                     # # 2) project pos to line
-                    # new_point_on_line = np_project_line(trajectory[0], trajectory[1], current_np_state[:3])
-                    # trajectory = sample_points_on_straight(new_point_on_line, traj_direction, step_size=step_size)
+                    # new_point_on_line = np_project_line(trajectory[0],
+                    #  trajectory[1], current_np_state[:3])
+                    # trajectory = sample_points_on_straight(new_point_on_line,
+                    #  traj_direction, step_size=step_size)
                     if render:
                         # print([round(s, 2) for s in current_np_state])
+                        self.eval_env._state.set_position(
+                            current_np_state[:3] + np.array([0, 0, 1])
+                        )
                         self.eval_env.render()
+                        self.eval_env._state.set_position(current_np_state[:3])
                         time.sleep(.2)
-                    
-                    drone_on_line = np_project_line(a_on_line, b_on_line, current_np_state[:3])
+
+                    drone_on_line = np_project_line(
+                        a_on_line, b_on_line, current_np_state[:3]
+                    )
+                    initial_trajectory.append(drone_on_line)
                     div = np.linalg.norm(drone_on_line - current_np_state[:3])
                     if div > threshold_divergence:
                         if render:
@@ -274,15 +302,16 @@ class QuadEvaluator():
             nr_stable.append(i)
             divergence.append(i)
         # print("Number of stable steps:", round(np.mean(nr_stable)))
-        print(f"Number of steps until divergence {round(np.mean(divergence), 2)} ({round(np.std(divergence), 2)})")
-        # print(f"Average divergence in the end: {round(np.mean(divergence), 2)} ({round(np.std(divergence), 2)})")
+        print(
+            f"Number of steps until divergence {round(np.mean(divergence), 2)}\
+                 ({round(np.std(divergence), 2)})"
+        )
         self.eval_env.close()
-        print(initial_trajectory)
+        # print(initial_trajectory)
         if render:
             return np.array(initial_trajectory), drone_trajectory
         else:
             return round(np.mean(divergence), 2), round(np.std(divergence), 2)
-                
 
     def evaluate(self, nr_hover_iters=5, nr_traj_iters=10):
         """
@@ -405,17 +434,25 @@ if __name__ == "__main__":
         mean=np.array(param_dict["mean"]),
         std=np.array(param_dict["std"]),
         horizon=param_dict["horizon"],
-        max_drone_dist = param_dict["max_drone_dist"]
+        max_drone_dist=param_dict["max_drone_dist"]
     )
 
     threshold_divergence = 5 * param_dict["max_drone_dist"]
     # Straight with reference as input
     try:
         initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
-            threshold_divergence, nr_test_data=1, render=True, max_nr_steps=300, step_size=param_dict["step_size"], 
+            threshold_divergence,
+            nr_test_data=1,
+            render=True,
+            max_nr_steps=300,
+            step_size=param_dict["step_size"],
         )
-        plot_trajectory(initial_trajectory, drone_trajectory, os.path.join(model_path, "traj.png"))
-        # evaluator.eval_traj_input(threshold_divergence, nr_test_data=50, render=False, max_nr_steps=200, step_size=param_dict["step_size"])
+        plot_trajectory(
+            initial_trajectory, drone_trajectory,
+            os.path.join(model_path, "traj.png")
+        )
+        # evaluator.eval_traj_input(threshold_divergence, nr_test_data=50,
+        # render=False, max_nr_steps=200, step_size=param_dict["step_size"])
     except KeyboardInterrupt:
         evaluator.eval_env.close()
     # evaluator.evaluate()

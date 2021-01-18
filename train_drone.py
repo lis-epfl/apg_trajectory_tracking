@@ -16,7 +16,7 @@ from utils.plotting import plot_loss, plot_success
 
 STEP_SIZE = 0.01
 EPOCH_SIZE = 500
-USE_NEW_DATA = 0 # 250
+USE_NEW_DATA = 0  # 250
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -30,7 +30,7 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None # os.path.join("trained_models/drone/conv_traj_0")
+BASE_MODEL = None  # os.path.join("trained_models/drone/conv_traj_0")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -43,11 +43,11 @@ if BASE_MODEL is not None:
     MEAN = np.array(param_dict["mean"]).astype(float)
 else:
     reference_data = Dataset(
-        trajectory_training_data, 
-        normalize=True, 
+        trajectory_training_data,
+        normalize=True,
         num_states=EPOCH_SIZE,
-        step_size = STEP_SIZE,
-        reset_strength=RESET_STRENGTH, 
+        step_size=STEP_SIZE,
+        reset_strength=RESET_STRENGTH,
         max_drone_dist=MAX_DRONE_DIST,
         ref_length=NR_ACTIONS
     )
@@ -56,7 +56,7 @@ else:
 
 # Use cuda if available
 global device
-device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
 
 # define optimizer and torch normalization parameters
@@ -93,7 +93,7 @@ def adjust_learning_rate(optimizer, epoch, every_x=5):
         param_group['lr'] = lr
 
 
-highest_success = 0 # np.inf
+highest_success = 0  # np.inf
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
@@ -104,8 +104,8 @@ for epoch in range(NR_EPOCHS):
             mean=MEAN,
             std=STD,
             num_states=EPOCH_SIZE,
-            step_size = STEP_SIZE,
-            reset_strength=RESET_STRENGTH, 
+            step_size=STEP_SIZE,
+            reset_strength=RESET_STRENGTH,
             max_drone_dist=MAX_DRONE_DIST,
             ref_length=NR_ACTIONS
             # reset_strength=.6 + epoch / 50
@@ -114,11 +114,13 @@ for epoch in range(NR_EPOCHS):
     print()
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, MEAN, STD, horizon=NR_ACTIONS)
-    suc_mean, suc_std = eval_env.eval_traj_input(threshold_divergence, nr_test_data=25, step_size=STEP_SIZE)
+    suc_mean, suc_std = eval_env.eval_traj_input(
+        threshold_divergence, nr_test_data=25, step_size=STEP_SIZE
+    )
 
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
-            
+
     # save best model
     if epoch > 0 and suc_mean > highest_success:
         highest_success = suc_mean
@@ -154,7 +156,9 @@ for epoch in range(NR_EPOCHS):
             # unnnormalize state
             # start_state = current_state.clone()
             # TODO: not only position
-            intermediate_states = torch.zeros(in_state.size()[0], NR_ACTIONS, STATE_SIZE+3)
+            intermediate_states = torch.zeros(
+                in_state.size()[0], NR_ACTIONS, STATE_SIZE + 3
+            )
             for k in range(NR_ACTIONS):
                 # normalize loss by the start distance
                 action = action_seq[:, k]
@@ -164,13 +168,11 @@ for epoch in range(NR_EPOCHS):
                 # action = net(net_input_state)
                 # action = torch.sigmoid(action)
                 current_state = simulate_quadrotor(action, current_state)
-                intermediate_states[:, k] = current_state # [:, :3]
+                intermediate_states[:, k] = current_state  # [:, :3]
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------
-            loss = reference_loss(
-                intermediate_states, ref_states, printout=1
-            )
+            loss = reference_loss(intermediate_states, ref_states, printout=0)
             # ------------- VERSION 3: Trajectory loss -------------
             # drone_state = (current_state - torch_mean) / torch_std
             # loss = trajectory_loss(

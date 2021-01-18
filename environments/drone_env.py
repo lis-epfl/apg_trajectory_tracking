@@ -12,18 +12,18 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
-
 from utils.trajectory import straight_training_sample, get_reference
 try:
     from .rendering import Renderer, Ground, QuadCopter
     from .copter import copter_params, DynamicsState, Euler
-    from .drone_dynamics import simulate_quadrotor, linear_dynamics, action_to_rotor
+    from .drone_dynamics import simulate_quadrotor, linear_dynamics
 except ImportError:
     from rendering import Renderer, Ground, QuadCopter
     from copter import copter_params, DynamicsState, Euler
-    from drone_dynamics import simulate_quadrotor, linear_dynamics, action_to_rotor
+    from drone_dynamics import simulate_quadrotor, linear_dynamics
 
-device = "cpu" # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 class QuadRotorEnvBase(gym.Env):
     """
@@ -59,6 +59,7 @@ class QuadRotorEnvBase(gym.Env):
         # self._attitude_reward = AttitudeReward(
         #     1.0, attitude_error_transform=np.sqrt
         # )
+        self.dt = 0.02
 
     @staticmethod
     def get_is_stable(np_state):
@@ -74,8 +75,11 @@ class QuadRotorEnvBase(gym.Env):
         """
         Compute acceleration from current state (pos, vel and att)
         """
-        torch_state = torch.from_numpy(np.array([self._state.as_np])).to(device)
-        acceleration = linear_dynamics(torch_state[:, 9:13], torch_state[:,3:6], torch_state[:,6:9])
+        torch_state = torch.from_numpy(np.array([self._state.as_np])
+                                       ).to(device)
+        acceleration = linear_dynamics(
+            torch_state[:, 9:13], torch_state[:, 3:6], torch_state[:, 6:9]
+        )
         return acceleration[0]
 
     def step(self, action):
@@ -89,9 +93,12 @@ class QuadRotorEnvBase(gym.Env):
         assert action.shape == (4, ), f"action not size 4 but {action.shape}"
 
         # set the blade speeds. as F ~ w², and we want F ~ action.
-        torch_state = torch.from_numpy(np.array([self._state.as_np])).to(device)
+        torch_state = torch.from_numpy(np.array([self._state.as_np])
+                                       ).to(device)
         torch_action = torch.from_numpy(np.array([action])).to(device)
-        new_state_arr = simulate_quadrotor(torch_action, torch_state)
+        new_state_arr = simulate_quadrotor(
+            torch_action, torch_state, dt=self.dt
+        )
         numpy_out_state = new_state_arr.cpu().numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
@@ -254,6 +261,7 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
     # print("saved first data", np.mean(is_stable_list))
     return data
 
+
 def trajectory_training_data(
     len_data, step_size=0, max_drone_dist=0.1, ref_length=5, reset_strength=1
 ):
@@ -275,18 +283,25 @@ def trajectory_training_data(
         # sample a drone state
         drone_state = env._state.as_np
         pos0, vel0 = (drone_state[:3], drone_state[6:9])
-        acc0 = env.get_acceleration().numpy() 
+        acc0 = env.get_acceleration().numpy()
         # sample two goal states (for velocity)
-        direction = np.random.rand(3)-0.5
-        while np.sum(direction*vel0) <0:
+        direction = np.random.rand(3) - 0.5
+        while np.sum(direction * vel0) < 0:
             # if opposite direction, resample
-            direction = np.random.rand(3)-.5
+            direction = np.random.rand(3) - .5
         direction = direction / np.linalg.norm(direction)
         posf = pos0 + direction * max_drone_dist
         velf = direction
-        # get reference states
-        reference_states = get_reference(pos0, vel0, acc0, posf, velf, ref_length=ref_length)
-        reference_states[:,:3] = reference_states[:,:3] - pos0
+        reference_states = get_reference(
+            pos0,
+            vel0,
+            acc0,
+            posf,
+            velf,
+            ref_length=ref_length,
+            delta_t=env.dt
+        )
+        reference_states[:, :3] = reference_states[:, :3] - pos0
         # reference_states = straight_training_sample(
         #     step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
         # )
@@ -296,6 +311,8 @@ def trajectory_training_data(
         ref_states.append(reference_states)
     drone_states = np.array(drone_states)
     ref_states = np.array(ref_states)
+    # np.save("ref_states.npy", ref_states)
+    # exit()
     return drone_states, ref_states
 
 

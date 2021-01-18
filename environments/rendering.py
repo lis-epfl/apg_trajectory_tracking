@@ -183,6 +183,9 @@ class QuadCopter(RenderedObject):  # pragma: no cover
             status.rotor_speeds[3] / setup.max_rotor_speed
         )
 
+        # renderer.draw_circle((-1, 2, 4), 0.15, (0, 1, 0))
+        # renderer.draw_circle((4, 2, 2), 0.15, (1, 0, 0))
+
     @staticmethod
     def draw_propeller(
         renderer, euler, position, propeller_position, rotor_speed
