@@ -80,10 +80,22 @@ def plot_trajectory(knots, states, save_path):
     max_z = np.max(knots[:, 2] + .5)
     normed_z = (states[:, 2] - min_z) / (max_z - min_z)
     # scatter states
-    plt.scatter(states[:, 0], states[:, 1], s=50 * normed_z, c="green")
+    plt.scatter(
+        states[:, 0],
+        states[:, 1],
+        s=50 * normed_z,
+        c="green",
+        label="drone trajectory"
+    )
     # scatter trajectory
     normed_knot_z = (knots[:, 2] - min_z) / (max_z - min_z)
-    plt.scatter(knots[:, 0], knots[:, 1], s=50 * normed_knot_z, c="red")
+    plt.scatter(
+        knots[:, 0],
+        knots[:, 1],
+        s=50 * normed_knot_z,
+        c="red",
+        label="reference"
+    )
     plt.scatter(
         knots[-1, 0],
         knots[-1, 1],
@@ -95,6 +107,7 @@ def plot_trajectory(knots, states, save_path):
     plt.xlim(np.min(knots[:, 0]) - buffer, np.max(knots[:, 0]) + buffer)
     plt.ylim(np.min(knots[:, 1]) - buffer, np.max(knots[:, 1]) + buffer)
     # plt.xlim(-1,1)
+    plt.legend()
     plt.savefig(save_path)
 
 
@@ -104,6 +117,8 @@ def plot_loss_episode_len(
     """
     Plot episode length and losses together in one plot
     """
+    episode_length_mean = np.array(episode_length_mean)
+    episode_length_std = np.array(episode_length_std)
     x = np.arange(len(episode_length_mean))
     fig, ax1 = plt.subplots(figsize=(20, 10))
 
@@ -132,3 +147,15 @@ def plot_loss_episode_len(
         plt.show()
     else:
         plt.savefig(save_path)
+
+
+def plot_suc_by_dist(distances, success_mean_list, save_path):
+    """
+    Plot success rate by the distance of the drone from the target
+    """
+    plt.plot(distances, success_mean_list)
+    plt.xlabel("distance of drone ")
+    plt.ylabel("Average episode length")
+    plt.ylim(0, 200)
+    plt.xlim(0, 0.8)
+    plt.savefig(os.path.join(save_path, "succ_by_dist.png"))

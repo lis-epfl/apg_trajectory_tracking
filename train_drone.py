@@ -14,15 +14,14 @@ from models.hutter_model import Net
 from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss_episode_len
 
-STEP_SIZE = 0.01
-EPOCH_SIZE = 500
+EPOCH_SIZE = 5000
 USE_NEW_DATA = 0  # 250
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
-MAX_DRONE_DIST = 0.2
-THRESH_DIV = 5 * MAX_DRONE_DIST
+MAX_DRONE_DIST = 0.35
+THRESH_DIV = 2
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
 NR_ACTIONS = 10
@@ -30,8 +29,8 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/reference_001")
-BASE_MODEL_NAME = 'model_quad6'
+BASE_MODEL = os.path.join("trained_models/drone/reference_003")
+BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
 if BASE_MODEL is not None:
@@ -46,7 +45,6 @@ else:
         trajectory_training_data,
         normalize=True,
         num_states=EPOCH_SIZE,
-        step_size=STEP_SIZE,
         reset_strength=RESET_STRENGTH,
         max_drone_dist=MAX_DRONE_DIST,
         ref_length=NR_ACTIONS
@@ -69,7 +67,6 @@ torch_mean, torch_std = (
 # save std for normalization during test time
 param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
 # update the used parameters:
-param_dict["step_size"] = STEP_SIZE
 param_dict["reset"] = RESET_STRENGTH
 param_dict["max_drone_dist"] = MAX_DRONE_DIST
 param_dict["horizon"] = NR_ACTIONS
@@ -104,19 +101,15 @@ for epoch in range(NR_EPOCHS):
             mean=MEAN,
             std=STD,
             num_states=EPOCH_SIZE,
-            step_size=STEP_SIZE,
             reset_strength=RESET_STRENGTH,
             max_drone_dist=MAX_DRONE_DIST,
             ref_length=NR_ACTIONS
             # reset_strength=.6 + epoch / 50
         )
 
-    print()
     print(f"Epoch {epoch} (before)")
-    eval_env = QuadEvaluator(net, MEAN, STD, horizon=NR_ACTIONS)
-    suc_mean, suc_std = eval_env.eval_traj_input(
-        THRESH_DIV, nr_test_data=25, step_size=STEP_SIZE
-    )
+    eval_env = QuadEvaluator(net, **param_dict)
+    suc_mean, suc_std = eval_env.eval_traj_input(THRESH_DIV, nr_test_data=5)
 
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
@@ -131,6 +124,7 @@ for epoch in range(NR_EPOCHS):
     trainloader = torch.utils.data.DataLoader(
         state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
     )
+    print()
 
     # Training
     tic_epoch = time.time()
@@ -200,6 +194,9 @@ if not os.path.exists(SAVE):
 # Save model
 torch.save(net, os.path.join(SAVE, "model_quad"))
 plot_loss_episode_len(
-    success_mean_list, success_std_list, loss_list, save_path=SAVE
+    success_mean_list,
+    success_std_list,
+    loss_list,
+    save_path=os.path.join(SAVE, "performance.png")
 )
 print("finished and saved.")

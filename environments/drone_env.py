@@ -68,7 +68,7 @@ class QuadRotorEnvBase(gym.Env):
         Returns bool --> if true then still stable
         """
         # only roll and pitch are constrained
-        attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < .8)
         return attitude_condition
 
     def get_acceleration(self):
