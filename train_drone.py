@@ -20,16 +20,16 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
-MAX_DRONE_DIST = 0.35
+MAX_DRONE_DIST = 0.2
 THRESH_DIV = 2
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
-NR_ACTIONS = 10
+NR_ACTIONS = 5
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/reference_003")
+BASE_MODEL = None  # os.path.join("trained_models/drone/reference_003")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model

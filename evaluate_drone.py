@@ -121,11 +121,11 @@ class QuadEvaluator():
 
     def circle_traj(self, thresh, max_nr_steps=200, render=False):
         # reset drone state
-        self.eval_env.reset()
+        self.eval_env.reset(strength=.1)
         current_np_state = self.eval_env._state.as_np
 
         # init circle
-        circ_ref = Circle(plane=[0, 2], radius=1)
+        circ_ref = Circle(plane=[0, 1], radius=1)
         circ_ref.init_from_tangent(current_np_state[:3], current_np_state[6:9])
 
         reference_trajectory = []
@@ -280,27 +280,25 @@ if __name__ == "__main__":
     # Straight with reference as input
     try:
         # STRAIGHT
-        initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
-            threshold_divergence,
-            nr_test_data=1,
-            render=True,
-            max_nr_steps=300,
-        )
-        plot_trajectory(
-            initial_trajectory, drone_trajectory,
-            os.path.join(model_path, "traj.png")
-        )
+        # initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
+        #     threshold_divergence,
+        #     nr_test_data=1,
+        #     render=True,
+        #     max_nr_steps=300,
+        # )
+        # plot_trajectory(
+        #     initial_trajectory, drone_trajectory,
+        #     os.path.join(model_path, "traj.png")
+        # )
 
         # CIRCLE
-        # ref_trajectory, drone_trajectory = evaluator.circle_traj(
-        #     threshold_divergence, max_nr_steps=1000, render=1
-        # )
-        # np.save("ref_trajectory.npy", ref_trajectory)
-        # np.save("drone_trajectory.npy", drone_trajectory)
-        # plot_trajectory(
-        #     ref_trajectory, drone_trajectory,
-        #     os.path.join(model_path, "circle_traj.png")
-        # )
+        ref_trajectory, drone_trajectory = evaluator.circle_traj(
+            threshold_divergence, max_nr_steps=1000, render=1
+        )
+        plot_trajectory(
+            ref_trajectory, drone_trajectory,
+            os.path.join(model_path, "circle_traj.png")
+        )
 
         # MEASURE change by drone dist
         # success_mean_list = []
