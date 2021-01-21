@@ -6,12 +6,11 @@ import torch.optim as optim
 import torch
 import torch.nn.functional as F
 
-from dataset import Dataset
+from dataset import DroneDataset
 from drone_loss import drone_loss_function, trajectory_loss, reference_loss
 from environments.drone_dynamics import simulate_quadrotor
 from evaluate_drone import QuadEvaluator
 from models.hutter_model import Net
-from environments.drone_env import trajectory_training_data
 from utils.plotting import plot_loss_episode_len
 
 EPOCH_SIZE = 5000
@@ -29,7 +28,7 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # os.path.join("trained_models/drone/reference_003")
+BASE_MODEL = None  # os.path.join("trained_models/drone/reference_5_add1")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -40,22 +39,33 @@ if BASE_MODEL is not None:
         param_dict = json.load(outfile)
     STD = np.array(param_dict["std"]).astype(float)
     MEAN = np.array(param_dict["mean"]).astype(float)
+    state_data = DroneDataset(
+        mean=MEAN,
+        std=STD,
+        num_states=EPOCH_SIZE,
+        reset_strength=RESET_STRENGTH,
+        max_drone_dist=MAX_DRONE_DIST,
+        ref_length=NR_ACTIONS
+    )
 else:
-    reference_data = Dataset(
-        trajectory_training_data,
-        normalize=True,
+    state_data = DroneDataset(
         num_states=EPOCH_SIZE,
         reset_strength=RESET_STRENGTH,
         max_drone_dist=MAX_DRONE_DIST,
         ref_length=NR_ACTIONS
     )
     net = Net(STATE_SIZE, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
-    (STD, MEAN) = (reference_data.std, reference_data.mean)
+    (STD, MEAN) = (state_data.std, state_data.mean)
 
 # Use cuda if available
 global device
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
+
+# Initialize train loader
+trainloader = torch.utils.data.DataLoader(
+    state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
+)
 
 # define optimizer and torch normalization parameters
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
@@ -95,17 +105,7 @@ for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
     if epoch % 2 == 0:
-        state_data = Dataset(
-            trajectory_training_data,
-            normalize=True,
-            mean=MEAN,
-            std=STD,
-            num_states=EPOCH_SIZE,
-            reset_strength=RESET_STRENGTH,
-            max_drone_dist=MAX_DRONE_DIST,
-            ref_length=NR_ACTIONS
-            # reset_strength=.6 + epoch / 50
-        )
+        state_data.sample_data(num_states=EPOCH_SIZE)
 
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, **param_dict)
@@ -120,10 +120,6 @@ for epoch in range(NR_EPOCHS):
         print("Best model")
         torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
 
-    # Initialize train loader
-    trainloader = torch.utils.data.DataLoader(
-        state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
-    )
     print()
 
     # Training
@@ -133,16 +129,18 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, ref_states = data
+            in_state, ref_world, ref_body = data
             # unnormalize TODO: maybe return from dataset simply
             current_state = in_state * torch_std + torch_mean
             current_state[:, :3] = 0
+
+            # TODO: Could input :3 to NN with vel (problem: normalization)
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # ------------ VERSION 1 (x states at once)-----------------
-            actions = net(in_state[:, 3:], ref_states)
+            actions = net(in_state[:, 3:], ref_body)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
@@ -163,7 +161,7 @@ for epoch in range(NR_EPOCHS):
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------
-            loss = reference_loss(intermediate_states, ref_states, printout=0)
+            loss = reference_loss(intermediate_states, ref_world, printout=0)
             # ------------- VERSION 3: Trajectory loss -------------
             # drone_state = (current_state - torch_mean) / torch_std
             # loss = trajectory_loss(

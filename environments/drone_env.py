@@ -284,7 +284,24 @@ def trajectory_training_data(
         drone_state = env._state.as_np
         pos0, vel0 = (drone_state[:3], drone_state[6:9])
         acc0 = env.get_acceleration().numpy()
-        # sample two goal states (for velocity)
+
+        # sample a direction where the next position is located
+        norm_vel = np.linalg.norm(vel0)
+        # should not diverge too much from velocity direction of drone
+        sampled_pos_dir = (
+            vel0 + (np.random.rand(3) - .5) * reset_strength * norm_vel
+        )
+        sampled_pos_dir = sampled_pos_dir / np.linalg.norm(sampled_pos_dir)
+        # sample direction where the velocity should show in the end
+        sampled_vel_dir = (
+            sampled_pos_dir + (np.random.rand(3) - .5) * reset_strength
+        )
+
+        # final goal state:
+        posf = pos0 + sampled_pos_dir * max_drone_dist
+        # multiply by norm to get a velocity of similar strength
+        velf = sampled_vel_dir * (norm_vel * (1 + np.random.rand(1) + .1))
+
         direction = np.random.rand(3) - 0.5
         while np.sum(direction * vel0) < 0:
             # if opposite direction, resample
@@ -301,7 +318,6 @@ def trajectory_training_data(
             ref_length=ref_length,
             delta_t=env.dt
         )
-        reference_states[:, :3] = reference_states[:, :3] - pos0
         # reference_states = straight_training_sample(
         #     step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
         # )

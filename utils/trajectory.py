@@ -131,12 +131,15 @@ def get_reference(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
     """
     Compute reference trajectory based on start (0) and final (f) states
     """
+    # generate trajectory
     traj = RapidTrajectory(pos0, vel0, acc0, [0, 0, -9.81])
     traj.set_goal_position(posf)
     traj.set_goal_velocity(velf)
     traj.set_goal_acceleration([0, 0, 0])
     # Run the algorithm, and generate the trajectory.
     traj.generate(delta_t * ref_length)
+    # add 1 because otherwise the current state of the drone counts as well
+    ref_length += 1
     # # Test input feasibility
     # fmin = 5  #[m/s**2]
     # fmax = 25 #[m/s**2]
@@ -154,7 +157,8 @@ def get_reference(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
                 traj.get_acceleration(timepoint)
             )
         )
-    return ref_states
+    # exclude the current state
+    return ref_states[1:]
 
 
 def eval_get_straight_ref(
