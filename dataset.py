@@ -48,6 +48,7 @@ class DroneDataset(torch.utils.data.Dataset):
         # First constructor: New dataset for training
         self.mean = mean
         self.std = std
+        self.num_states = num_states
         states, ref_states = trajectory_training_data(num_states, **kwargs)
         if mean is None:
             # sample states
@@ -58,13 +59,38 @@ class DroneDataset(torch.utils.data.Dataset):
         (self.states, self.ref_world,
          self.ref_body) = self.prepare_data(states, ref_states)
 
-    def sample_data(self, num_states=1000):
+        # count how much of the data was replaced by self play
+        self.eval_counter = 0
+        self.self_play = 0
+
+    def sample_data(self, self_play=0):
+        """
+        Sample new training data and replace dataset with it
+        """
+        self.self_play = self_play
         states, ref_states = trajectory_training_data(
-            num_states, **self.kwargs
+            self.num_states, **self.kwargs
         )
         self.states, self.ref_world, self.ref_body = self.prepare_data(
             states, ref_states
         )
+        self.eval_counter = 0
+
+    def get_and_add_eval_data(self, states, ref_states):
+        """
+        While evaluating, add the data to the dataset with some probability
+        to achieve self play
+        """
+        states, ref_world, ref_body = self.prepare_data(states, ref_states)
+        if (np.random.rand() < self.self_play
+            ) and (self.eval_counter < self.self_play * self.num_states):
+            # replace data with eval data if below max eval data thresh
+            self.states[self.eval_counter] = states[0]
+            self.ref_world[self.eval_counter] = ref_world[0]
+            self.ref_body[self.eval_counter] = ref_body[0]
+            self.eval_counter += 1
+
+        return states, ref_world, ref_body
 
     def to_torch(self, states):
         return torch.from_numpy(states).float().to(device)
@@ -99,12 +125,13 @@ class DroneDataset(torch.utils.data.Dataset):
                 torch_ref_states[:, i, :3] - unnormalized_position
             )
 
-        # World to body frame
-        drone_att = torch_states[:, 3:6]
-        world_to_body = world_to_body_matrix(drone_att)
+        # # World to body frame - TODO: not working properly
+        # drone_att = torch_states[:, 3:6]
+        # world_to_body = world_to_body_matrix(drone_att)
         # TODO: add vel body to drone state instead of pos?
         # drone_vel_body = torch.matmul(world_to_body, torch_states[6:9])
-        ref_states_body = torch.unsqueeze(torch_ref_states.clone(), 3)
+        ref_states_body = torch_ref_states.clone()
+        # ref_states_body = torch.unsqueeze(ref_states_body, 3)
         # for i in range(ref_states.shape[1]):
         #     # for each time step in the reference:
         #     # subtract position
@@ -120,10 +147,8 @@ class DroneDataset(torch.utils.data.Dataset):
         #     ref_states_body[:, i, 6:9] = torch.matmul(
         #         world_to_body, ref_states_body[:, i, 6:9]
         #     )
-
-        return torch_states, torch_ref_states, torch.squeeze(
-            ref_states_body, dim=3
-        )
+        # ref_states_body = torch.squeeze(ref_states_body, dim=3)
+        return torch_states, torch_ref_states, ref_states_body
 
 
 class CartpoleDataset(torch.utils.data.Dataset):

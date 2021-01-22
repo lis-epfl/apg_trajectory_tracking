@@ -20,7 +20,7 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.2
-THRESH_DIV = 2
+THRESH_DIV = 1
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
 NR_ACTIONS = 5
@@ -105,11 +105,12 @@ for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
     if epoch % 2 == 0:
-        state_data.sample_data(num_states=EPOCH_SIZE)
+        state_data.sample_data(self_play=0)
 
     print(f"Epoch {epoch} (before)")
-    eval_env = QuadEvaluator(net, **param_dict)
-    suc_mean, suc_std = eval_env.eval_traj_input(THRESH_DIV, nr_test_data=5)
+    eval_env = QuadEvaluator(net, state_data, **param_dict)
+    suc_mean, suc_std = eval_env.eval_traj_input(THRESH_DIV, nr_test_data=10)
+    _ = eval_env.circle_traj(THRESH_DIV)
 
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
@@ -119,6 +120,9 @@ for epoch in range(NR_EPOCHS):
         highest_success = suc_mean
         print("Best model")
         torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
+
+    # self play
+    print(f"Self play data: {round(100*state_data.eval_counter/EPOCH_SIZE)}%")
 
     print()
 

@@ -30,16 +30,13 @@ class QuadEvaluator():
     def __init__(
         self,
         model,
-        mean=0,
-        std=1,
+        dataset,
         horizon=5,
         max_drone_dist=0.1,
         render=0,
         **kwargs
     ):
-        self.mean = mean
-        self.std = std
-        self.dataset = DroneDataset(mean=self.mean, std=self.std)
+        self.dataset = dataset
         self.net = model
         self.eval_env = QuadRotorEnvBase()
         self.horizon = horizon
@@ -53,7 +50,7 @@ class QuadEvaluator():
         evaluation functions
         """
         # print([round(s, 2) for s in current_np_state])
-        in_state, ref_world, ref_body = self.dataset.prepare_data(
+        in_state, _, ref_body = self.dataset.get_and_add_eval_data(
             current_np_state, ref_states
         )
         # if self.render:
@@ -91,7 +88,9 @@ class QuadEvaluator():
                 "acc_2", "acc_3"
             ]
         )
-        normed_drone_state = np.absolute((drone_state - self.mean) / self.std)
+        normed_drone_state = np.absolute(
+            (drone_state - self.dataset.mean) / self.dataset.std
+        )
         normed_ref_state = np.absolute(
             (ref_states - self.training_means) / self.training_std
         )
@@ -196,7 +195,7 @@ class QuadEvaluator():
                         print("divregence to high", div)
                     break
 
-        print(f"Number of steps until divergence / failure {i}")
+        print(f"Circle: Steps until divergence: {i}")
         self.eval_env.close()
         return np.array(reference_trajectory), drone_trajectory
 
@@ -274,7 +273,7 @@ class QuadEvaluator():
             (np.mean(traj_len_stable), np.std(traj_len_stable))
         )
         print(
-            f"Number of steps until divergence {round(np.mean(divergence), 2)}\
+            f"Straight: Steps until divergence {round(np.mean(divergence), 2)}\
                  ({round(np.std(divergence), 2)})"
         )
         self.eval_env.close()
@@ -316,7 +315,8 @@ if __name__ == "__main__":
     net = net.to(device)
     net.eval()
 
-    evaluator = QuadEvaluator(net, render=1, **param_dict)
+    dataset = DroneDataset(num_states=1, **param_dict)
+    evaluator = QuadEvaluator(net, dataset, render=1, **param_dict)
 
     threshold_divergence = 5 * param_dict["max_drone_dist"]
     # Straight with reference as input

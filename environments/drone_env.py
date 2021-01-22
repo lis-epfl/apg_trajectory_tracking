@@ -300,7 +300,7 @@ def trajectory_training_data(
         # final goal state:
         posf = pos0 + sampled_pos_dir * max_drone_dist
         # multiply by norm to get a velocity of similar strength
-        velf = sampled_vel_dir * (norm_vel * (1 + np.random.rand(1) + .1))
+        velf = sampled_vel_dir * (norm_vel * (1 + np.random.rand(1) * .2 - .1))
 
         reference_states = get_reference(
             pos0,
@@ -311,11 +311,7 @@ def trajectory_training_data(
             ref_length=ref_length,
             delta_t=env.dt
         )
-        # reference_states = straight_training_sample(
-        #     step_size=step_size, max_drone_dist=max_drone_dist, ref_length=ref_length
-        # )
-        # if step_size!=0:
-        #     drone_state[6:9] = (reference_states[1] - reference_states[0]) * 10
+
         drone_states.append(drone_state)
         ref_states.append(reference_states)
     drone_states = np.array(drone_states)
