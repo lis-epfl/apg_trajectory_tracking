@@ -28,7 +28,7 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # os.path.join("trained_models/drone/reference_5_add1")
+BASE_MODEL = os.path.join("trained_models/drone/ref_good_noselfplay")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -80,6 +80,7 @@ param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
 param_dict["reset"] = RESET_STRENGTH
 param_dict["max_drone_dist"] = MAX_DRONE_DIST
 param_dict["horizon"] = NR_ACTIONS
+param_dict["treshold_divergence"] = THRESH_DIV
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
@@ -104,13 +105,12 @@ highest_success = 0  # np.inf
 for epoch in range(NR_EPOCHS):
 
     # Generate data dynamically
-    if epoch % 2 == 0:
-        state_data.sample_data(self_play=0)
+    state_data.sample_data(self_play=0.1)
 
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, state_data, **param_dict)
-    suc_mean, suc_std = eval_env.eval_traj_input(THRESH_DIV, nr_test_data=10)
-    _ = eval_env.circle_traj(THRESH_DIV)
+    suc_mean, suc_std = eval_env.eval_traj_input(nr_test_data=10)
+    _ = eval_env.circle_traj()
 
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)

@@ -263,7 +263,12 @@ def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
 
 
 def trajectory_training_data(
-    len_data, step_size=0, max_drone_dist=0.1, ref_length=5, reset_strength=1
+    len_data,
+    step_size=0,
+    max_drone_dist=0.1,
+    ref_length=5,
+    reset_strength=1,
+    **kwargs
 ):
     """
     Generate training dataset for trajectories as input

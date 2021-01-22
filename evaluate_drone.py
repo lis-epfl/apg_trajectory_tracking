@@ -43,6 +43,7 @@ class QuadEvaluator():
         self.max_drone_dist = max_drone_dist
         self.training_means = None
         self.render = render
+        self.treshold_divergence = 1
 
     def predict_actions(self, current_np_state, ref_states):
         """
@@ -157,13 +158,13 @@ class QuadEvaluator():
         print("Average episode length: ", np.mean(nr_stable))
         return drone_trajectory
 
-    def circle_traj(self, thresh, max_nr_steps=200):
+    def circle_traj(self, max_nr_steps=200):
         # reset drone state
         self.eval_env.reset(strength=.1)
         current_np_state = self.eval_env._state.as_np
 
         # init circle
-        circ_ref = Circle(plane=[0, 2], radius=1)
+        circ_ref = Circle(plane=[0, 1], radius=1)
         circ_ref.init_from_tangent(current_np_state[:3], current_np_state[6:9])
 
         reference_trajectory = []
@@ -190,7 +191,7 @@ class QuadEvaluator():
                 drone_on_line = circ_ref.project_helper(drone_pos)
                 reference_trajectory.append(drone_on_line)
                 div = np.linalg.norm(drone_on_line - drone_pos)
-                if div > thresh:
+                if div > self.treshold_divergence:
                     if self.render:
                         print("divregence to high", div)
                     break
@@ -201,7 +202,6 @@ class QuadEvaluator():
 
     def eval_traj_input(
         self,
-        thresh,
         nr_test_data=5,
         max_nr_steps=200,
     ):
@@ -259,7 +259,7 @@ class QuadEvaluator():
                     )
                     reference_trajectory.append(drone_on_line)
                     div = np.linalg.norm(drone_on_line - current_np_state[:3])
-                    if div > thresh:
+                    if div > self.treshold_divergence:
                         if self.render:
                             print("divregence to high", div)
                         break
@@ -269,12 +269,12 @@ class QuadEvaluator():
             traj_len_stable.append(traj_len)
             divergence.append(i)
         print(
-            "Average trajectory length: %3.2f (%3.2f)" %
+            "Straight: Average trajectory length: %3.2f (%3.2f)" %
             (np.mean(traj_len_stable), np.std(traj_len_stable))
         )
         print(
             f"Straight: Steps until divergence {round(np.mean(divergence), 2)}\
-                 ({round(np.std(divergence), 2)})"
+ ({round(np.std(divergence), 2)})"
         )
         self.eval_env.close()
         # print(initial_trajectory)
@@ -318,12 +318,10 @@ if __name__ == "__main__":
     dataset = DroneDataset(num_states=1, **param_dict)
     evaluator = QuadEvaluator(net, dataset, render=1, **param_dict)
 
-    threshold_divergence = 5 * param_dict["max_drone_dist"]
     # Straight with reference as input
     try:
         # STRAIGHT
         initial_trajectory, drone_trajectory = evaluator.eval_traj_input(
-            threshold_divergence,
             nr_test_data=1,
             max_nr_steps=300,
         )
@@ -335,7 +333,7 @@ if __name__ == "__main__":
 
         # CIRCLE
         # ref_trajectory, drone_trajectory = evaluator.circle_traj(
-        #     threshold_divergence, max_nr_steps=1000
+        #     max_nr_steps=1000
         # )
         # plot_trajectory(
         #     ref_trajectory, drone_trajectory,
@@ -348,7 +346,6 @@ if __name__ == "__main__":
         # for drone_dist in distances:
         #     evaluator.max_drone_dist = drone_dist
         #     suc_mean, suc_std = evaluator.eval_traj_input(
-        #         threshold_divergence,
         #         nr_test_data=20,
         #         max_nr_steps=200,
         #     )
