@@ -302,13 +302,6 @@ def trajectory_training_data(
         # multiply by norm to get a velocity of similar strength
         velf = sampled_vel_dir * (norm_vel * (1 + np.random.rand(1) + .1))
 
-        direction = np.random.rand(3) - 0.5
-        while np.sum(direction * vel0) < 0:
-            # if opposite direction, resample
-            direction = np.random.rand(3) - .5
-        direction = direction / np.linalg.norm(direction)
-        posf = pos0 + direction * max_drone_dist
-        velf = direction
         reference_states = get_reference(
             pos0,
             vel0,
