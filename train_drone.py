@@ -28,7 +28,7 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/ref_good_noselfplay")
+BASE_MODEL = os.path.join("trained_models/drone/ref_good_selfplay_straight")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -109,8 +109,7 @@ for epoch in range(NR_EPOCHS):
 
     print(f"Epoch {epoch} (before)")
     eval_env = QuadEvaluator(net, state_data, **param_dict)
-    suc_mean, suc_std = eval_env.eval_traj_input(nr_test_data=10)
-    _ = eval_env.circle_traj()
+    suc_mean, suc_std = eval_env.eval_ref()
 
     success_mean_list.append(suc_mean)
     success_std_list.append(suc_std)
