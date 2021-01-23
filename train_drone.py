@@ -20,7 +20,7 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.2
-THRESH_DIV = 1
+THRESH_DIV = .2
 NR_EVAL_ITERS = 5
 STATE_SIZE = 13
 NR_ACTIONS = 5
@@ -104,31 +104,34 @@ def adjust_learning_rate(optimizer, epoch, every_x=5):
 highest_success = 0  # np.inf
 for epoch in range(NR_EPOCHS):
 
-    # Generate data dynamically
-    state_data.sample_data(self_play=0.1)
-
-    print(f"Epoch {epoch} (before)")
-    eval_env = QuadEvaluator(net, state_data, **param_dict)
-    suc_mean, suc_std = eval_env.eval_ref()
-
-    success_mean_list.append(suc_mean)
-    success_std_list.append(suc_std)
-
-    # save best model
-    if epoch > 0 and suc_mean > highest_success:
-        highest_success = suc_mean
-        print("Best model")
-        torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
-
-    # self play
-    print(f"Self play data: {round(100*state_data.eval_counter/EPOCH_SIZE)}%")
-
-    print()
-
-    # Training
-    tic_epoch = time.time()
-    running_loss = 0
     try:
+        # Generate data dynamically
+        state_data.sample_data(self_play=0.1)
+
+        print(f"Epoch {epoch} (before)")
+        eval_env = QuadEvaluator(net, state_data, **param_dict)
+        suc_mean, suc_std = eval_env.eval_ref()
+
+        success_mean_list.append(suc_mean)
+        success_std_list.append(suc_std)
+
+        # save best model
+        if epoch > 0 and suc_mean > highest_success:
+            highest_success = suc_mean
+            print("Best model")
+            torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
+
+        # self play
+        print(
+            f"Self play data: {round(100*state_data.eval_counter/EPOCH_SIZE)}%"
+        )
+
+        print()
+
+        # Training
+        tic_epoch = time.time()
+        running_loss = 0
+
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
