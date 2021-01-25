@@ -17,7 +17,7 @@ class Circle:
 
     def init_from_tangent(self, pos, vel):
         # fixed axis will just stay
-        mid_point_tmp = pos
+        mid_point_tmp = pos.astype(float)
         # get 2D vel
         vel_2D = vel[self.plane]
         # get orthogonal vector pointing to middle of circle

@@ -63,7 +63,7 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 3:6])**2)
 
     angle_error = 0
-    for k in range(states.size()[1] - 1):
+    for k in range(states.size()[1] - 2):
         # approximate acceleration
         acc = (states[:, k + 1, 6:9] - states[:, k, 6:9]) / delta_t
         acc_ref = ref_states[:, k, 6:9] * delta_t
@@ -82,6 +82,7 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         print()
         print("attitude loss", (angle_factor * angle_error).item())
         print("att vel loss", (angvel_factor * ang_vel_error).item())
+        print("velocity loss", (velocity_loss * vel_factor).item())
         print("position loss", (pos_factor * position_loss).item())
     return loss
 

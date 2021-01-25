@@ -154,9 +154,7 @@ class QuadRotorEnvBase(gym.Env):
 
         self.randomize_angle(5 * strength)
         self.randomize_angular_velocity(2.0 * strength)
-        self._state.attitude.yaw = self.random_state.uniform(
-            low=-0.3 * strength, high=0.3 * strength
-        )
+        self._state.attitude.yaw = self.random_state.uniform(low=-1, high=1)
         self._state.position[:3] = np.random.rand(3) * 2 - 1
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
@@ -268,6 +266,7 @@ def trajectory_training_data(
     max_drone_dist=0.1,
     ref_length=5,
     reset_strength=1,
+    load_selfplay=None,  # "data/jan_2021.npy",
     **kwargs
 ):
     """
@@ -278,15 +277,26 @@ def trajectory_training_data(
         max_drone_dist: Maximum distance of the drone from the first state
         ref_length: Number of states sampled from reference traj
         reset_strength: How much to reset the model
+        load_selfplay: file path where data from self play is located
     Returns:
         Array of size (len_data, reference_shape) with the training data
     """
+    if load_selfplay is not None:
+        # load training data from np array
+        data = np.load(load_selfplay)
+        rand_inds = np.random.permutation(len(data))
+        ind_counter = 0
+
     env = QuadRotorEnvBase()
     drone_states, ref_states = [], []
     for _ in range(len_data):
-        env.reset(strength=reset_strength)
-        # sample a drone state
-        drone_state = env._state.as_np
+        if load_selfplay is not None and np.random.rand() < .5:
+            drone_state = data[rand_inds[ind_counter]]
+            ind_counter += 1
+        else:
+            env.reset(strength=reset_strength)
+            # sample a drone state
+            drone_state = env._state.as_np
         pos0, vel0 = (drone_state[:3], drone_state[6:9])
         acc0 = env.get_acceleration().numpy()
 

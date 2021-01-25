@@ -106,7 +106,7 @@ for epoch in range(NR_EPOCHS):
 
     try:
         # Generate data dynamically
-        state_data.sample_data(self_play=0.1)
+        state_data.sample_data(self_play=0)
 
         print(f"Epoch {epoch} (before)")
         eval_env = QuadEvaluator(net, state_data, **param_dict)

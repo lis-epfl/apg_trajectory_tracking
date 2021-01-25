@@ -196,11 +196,15 @@ class QuadEvaluator():
 
                 # project to trajectory and check divergence
                 drone_on_line = circ_ref.project_helper(drone_pos)
-                reference_trajectory.append(drone_on_line)
+                reference_trajectory.extend(trajectory[-2:, :3].tolist())
                 div = np.linalg.norm(drone_on_line - drone_pos)
                 if div > self.treshold_divergence:
                     if self.render:
-                        print("divregence to high", div)
+                        np.set_printoptions(precision=3, suppress=True)
+                        print("state")
+                        print([round(s, 2) for s in current_np_state])
+                        print("trajectory:")
+                        print(np.around(trajectory, 2))
                     break
         alpha_end = circ_ref.to_alpha(
             circ_ref.to_2D(current_np_state[:3].copy())
@@ -269,7 +273,7 @@ class QuadEvaluator():
             return traj_len, steps_until_fail
 
     def eval_ref(
-        self, nr_test_straight=1, nr_test_circle=10, max_nr_steps=200
+        self, nr_test_straight=10, nr_test_circle=10, max_nr_steps=200
     ):
         """
         Function to evaluate both on straight and on circular traj
@@ -318,6 +322,28 @@ class QuadEvaluator():
         )
         return np.mean(traj_len_stable), np.std(traj_len_stable)
 
+    def collect_training_data(self, outpath="data/jan_2021.npy"):
+        """
+        Run evaluation but collect and save states as training data
+        """
+        data = []
+        for _ in range(80):
+            _, drone_traj = self.straight_traj(max_nr_steps=100)
+            data.extend(drone_traj)
+        for _ in range(20):
+            # vary plane and radius
+            possible_planes = [[0, 1], [0, 2], [1, 2]]
+            plane = possible_planes[np.random.randint(0, 3, 1)[0]]
+            radius = np.random.rand() + .5
+            # run
+            _, drone_traj = self.circle_traj(
+                max_nr_steps=500, radius=radius, plane=plane
+            )
+            data.extend(drone_traj)
+        data = np.array(data)
+        print(data.shape)
+        np.save(outpath, data)
+
 
 if __name__ == "__main__":
     # make as args:
@@ -363,6 +389,8 @@ if __name__ == "__main__":
         #     initial_trajectory, drone_trajectory,
         #     os.path.join(model_path, "traj.png")
         # )
+
+        # evaluator.collect_training_data()
 
         # CIRCLE
         ref_trajectory, drone_trajectory = evaluator.circle_traj(
