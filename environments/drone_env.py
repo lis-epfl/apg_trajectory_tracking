@@ -68,7 +68,7 @@ class QuadRotorEnvBase(gym.Env):
         Returns bool --> if true then still stable
         """
         # only roll and pitch are constrained
-        attitude_condition = np.all(np.absolute(np_state[3:5]) < .8)
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < .4)
         return attitude_condition
 
     def get_acceleration(self):
@@ -152,7 +152,7 @@ class QuadRotorEnvBase(gym.Env):
         # # possibility 1: reset to zero
         #
 
-        self.randomize_angle(5 * strength)
+        self.randomize_angle(3 * strength)
         self.randomize_angular_velocity(2.0 * strength)
         self._state.attitude.yaw = self.random_state.uniform(low=-1, high=1)
         self._state.position[:3] = np.random.rand(3) * 2 - 1

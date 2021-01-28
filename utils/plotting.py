@@ -99,8 +99,8 @@ def plot_trajectory(knots, states, save_path, fixed_axis=2):
         label="reference"
     )
     plt.scatter(
-        knots[-1, 0],
-        knots[-1, 1],
+        knots[-1, leftover[0]],
+        knots[-1, leftover[1]],
         s=50 * normed_knot_z[-1],
         c="blue",
         label="target"

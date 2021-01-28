@@ -26,7 +26,7 @@ STATE_SIZE = 16
 NR_ACTIONS = 5
 REF_DIM = 9
 ACTION_DIM = 4
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
 BASE_MODEL = os.path.join("trained_models/drone/rotation_matrix")
 BASE_MODEL_NAME = 'model_quad'
@@ -107,14 +107,20 @@ for epoch in range(NR_EPOCHS):
 
     try:
         # Generate data dynamically
-        state_data.sample_data(self_play=0)
+        # state_data.sample_data(self_play=0)
 
         print(f"Epoch {epoch} (before)")
         eval_env = QuadEvaluator(net, state_data, **param_dict)
-        suc_mean, suc_std = eval_env.eval_ref()
+        suc_mean, suc_std = eval_env.eval_ref(nr_test_circle=10)
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
+
+        if epoch == 0 or suc_mean > 160:
+            state_data.sample_data(self_play=0.5)
+            suc_mean, suc_std = eval_env.eval_ref(nr_test_circle=30)
+            print("Sampled new data!")
+            np.save("current_data.npy", state_data.ref_body)
 
         # save best model
         if epoch > 0 and suc_mean > highest_success:

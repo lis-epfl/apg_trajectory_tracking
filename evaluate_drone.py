@@ -12,8 +12,9 @@ from utils.plotting import (
 )
 from utils.trajectory import (
     sample_points_on_straight, sample_to_input, np_project_line,
-    eval_get_straight_ref, get_reference, Circle
+    eval_get_straight_ref, get_reference
 )
+from utils.circle import Circle
 from environments.rendering import CircleObject
 from dataset import DroneDataset
 # from models.resnet_like_model import Net
@@ -216,7 +217,7 @@ class QuadEvaluator():
 
                 # project to trajectory and check divergence
                 drone_on_line = circ_ref.project_helper(drone_pos)
-                reference_trajectory.append(trajectory[-1, :3])
+                reference_trajectory.extend(trajectory[:, :3])
                 div = np.linalg.norm(drone_on_line - drone_pos)
                 if div > self.treshold_divergence:
                     if self.render:
@@ -293,7 +294,7 @@ class QuadEvaluator():
             return traj_len, steps_until_fail
 
     def eval_ref(
-        self, nr_test_straight=10, nr_test_circle=10, max_nr_steps=200
+        self, nr_test_straight=1, nr_test_circle=10, max_nr_steps=200
     ):
         """
         Function to evaluate both on straight and on circular traj
@@ -322,8 +323,8 @@ class QuadEvaluator():
         for _ in range(nr_test_circle):
             # vary plane and radius
             possible_planes = [[0, 1], [0, 2], [1, 2]]
-            plane = possible_planes[np.random.randint(0, 3, 1)[0]]
-            radius = np.random.rand() + .5  # at least .5, max 1.5
+            plane = [0, 2]  # possible_planes[np.random.randint(0, 3, 1)[0]]
+            radius = 1.5  # np.random.rand() + .5  # at least .5, max 1.5
             # run
             steps_until_div, alpha_diff = self.circle_traj(
                 max_nr_steps=max_nr_steps, plane=plane, radius=radius
@@ -340,7 +341,7 @@ class QuadEvaluator():
             "Circle: Steps until divergence: %3.2f (%3.2f)" %
             (np.mean(circle_stable), np.std(circle_stable))
         )
-        return np.mean(traj_len_stable), np.std(traj_len_stable)
+        return np.mean(circle_stable), np.std(circle_stable)
 
     def collect_training_data(self, outpath="data/jan_2021.npy"):
         """
