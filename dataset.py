@@ -126,6 +126,9 @@ class DroneDataset(torch.utils.data.Dataset):
                 torch_ref_states[:, i, :3] - unnormalized_state[:, :3]
             )
 
+        # transform acceleration
+        torch_ref_states[:, :, 6:] *= 0.02
+
         # # World to body frame - TODO: not working properly
         drone_att = unnormalized_state[:, 3:6]
         world_to_body = world_to_body_matrix(drone_att)

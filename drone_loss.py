@@ -66,7 +66,7 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     for k in range(states.size()[1] - 2):
         # approximate acceleration
         acc = (states[:, k + 1, 6:9] - states[:, k, 6:9]) / delta_t
-        acc_ref = ref_states[:, k, 6:9] * delta_t
+        acc_ref = ref_states[:, k, 6:9]
         # subtract from desired acceleration
         angle_error += torch.sum((acc_ref - acc)**2)
 

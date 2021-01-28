@@ -162,7 +162,7 @@ class QuadEvaluator():
         print("Average episode length: ", np.mean(nr_stable))
         return drone_trajectory
 
-    def circle_traj(self, max_nr_steps=200, plane=[0, 1], radius=1, thresh=.4):
+    def circle_traj(self, max_nr_steps=200, thresh=.4, **circle_args):
         """
         Follow a circle with the drone environment
         """
@@ -179,14 +179,14 @@ class QuadEvaluator():
         current_np_state = self.eval_env._state.as_np
 
         # init circle
-        circ_ref = Circle(plane=plane, radius=radius)
+        circ_ref = Circle(**circle_args)
         circ_ref.init_from_tangent(
             current_np_state[:3].copy(), current_np_state[6:9].copy()
         )
 
         if self.render:
             self.eval_env.renderer.add_object(
-                CircleObject(circ_ref.mid_point, radius)
+                CircleObject(circ_ref.mid_point, circle_args["radius"])
             )
 
         alpha_start = circ_ref.to_alpha(
@@ -409,7 +409,8 @@ if __name__ == "__main__":
 
     dataset = DroneDataset(num_states=1, **param_dict)
     evaluator = QuadEvaluator(net, dataset, render=1, **param_dict)
-
+    # evaluator.eval_ref(max_steps_circle=1000)
+    # exit()
     # Straight with reference as input
     try:
         # STRAIGHT
@@ -429,7 +430,11 @@ if __name__ == "__main__":
             plane = [0, 2]
             fixed_axis = 1
             ref_trajectory, drone_trajectory = evaluator.circle_traj(
-                max_nr_steps=3000, radius=1.5, plane=plane, thresh=1
+                max_nr_steps=1000,
+                radius=1,
+                plane=plane,
+                thresh=1,
+                direction=1
             )
             plot_trajectory(
                 ref_trajectory,

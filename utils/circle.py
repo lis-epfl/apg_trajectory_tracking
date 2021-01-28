@@ -7,7 +7,7 @@ class Circle:
     Auxiliary class to sample from a circular reference trajectory
     """
 
-    def __init__(self, mid_point=None, radius=1, plane=[0, 1]):
+    def __init__(self, mid_point=None, radius=1, plane=[0, 1], direction=1):
         """
         initialize a circle with a center and radius
         Arguments:
@@ -19,6 +19,7 @@ class Circle:
         self.plane = plane
         self.radius = radius
         self.mid_point = np.array(mid_point)
+        self.direction = direction
 
     def init_from_tangent(self, pos, vel):
         """
@@ -35,7 +36,8 @@ class Circle:
         orthogonal_vec = np.array([(-1) * vel_2D[1], vel_2D[0]])
         # compute center
         unit_vec = orthogonal_vec / np.linalg.norm(orthogonal_vec)
-        mid_point_2D = pos[self.plane] + unit_vec * self.radius
+        mid_point_2D = pos[self.plane
+                           ] + unit_vec * self.radius * self.direction
         mid_point_tmp[self.plane] = mid_point_2D
         self.mid_point = mid_point_tmp
 
@@ -67,7 +69,7 @@ class Circle:
 
     def project_point(self, point):
         point_2D = self.to_2D(point)
-        alpha = self.to_alpha(point_2D) + 0.2
+        alpha = self.to_alpha(point_2D) + 0.2 * self.direction
         projected = self.point_on_circle(alpha)
         return projected
 
@@ -93,7 +95,8 @@ class Circle:
         cos_alpha = (self.radius**2 + dist_from_center**2 -
                      dist**2) / (2 * dist_from_center * self.radius)
         alpha_between = np.arccos(cos_alpha)
-        alpha = (self.to_alpha(point_2D) + alpha_between) % (2 * np.pi)
+        alpha = (self.to_alpha(point_2D) +
+                 alpha_between * self.direction) % (2 * np.pi)
         target_point = self.point_on_circle(alpha)
         return self.to_3D(target_point)
 
@@ -103,9 +106,9 @@ class Circle:
         """
         point_2D = self.to_2D(point_3D)
         curr_alpha = self.to_alpha(point_2D)
-        next_alpha = curr_alpha + stepsize
+        next_alpha = curr_alpha + stepsize * self.direction
         next_point = self.point_on_circle(next_alpha)
-        return self.to_3D(next_point)
+        return self.to_3D(next_point) - point_3D
 
     def project_helper(self, point):
         return self.to_3D(self.project_point(point))
