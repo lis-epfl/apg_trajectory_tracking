@@ -162,7 +162,7 @@ class QuadEvaluator():
         print("Average episode length: ", np.mean(nr_stable))
         return drone_trajectory
 
-    def circle_traj(self, max_nr_steps=200, plane=[0, 1], radius=1):
+    def circle_traj(self, max_nr_steps=200, plane=[0, 1], radius=1, thresh=.4):
         """
         Follow a circle with the drone environment
         """
@@ -204,7 +204,9 @@ class QuadEvaluator():
                 )
                 # only use first action (as in mpc)
                 action = numpy_action_seq[0]
-                current_np_state, stable = self.eval_env.step(action)
+                current_np_state, stable = self.eval_env.step(
+                    action, thresh=thresh
+                )
                 if states is not None:
                     self.eval_env._state.from_np(states[i])
                     current_np_state = states[i]
@@ -414,14 +416,16 @@ if __name__ == "__main__":
         # evaluator.collect_training_data()
 
         # CIRCLE
+        plane = [0, 2]
+        fixed_axis = 1
         ref_trajectory, drone_trajectory = evaluator.circle_traj(
-            max_nr_steps=1000, radius=1.5, plane=[0, 2]
+            max_nr_steps=1000, radius=1, plane=plane, thresh=.8
         )
         plot_trajectory(
             ref_trajectory,
             drone_trajectory,
             os.path.join(model_path, "circle_traj.png"),
-            fixed_axis=1
+            fixed_axis=fixed_axis
         )
         # # print(drone_trajectory[0, :3])
         # # print(drone_trajectory[-1, :3])

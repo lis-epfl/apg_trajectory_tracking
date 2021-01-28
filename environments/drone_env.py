@@ -62,13 +62,13 @@ class QuadRotorEnvBase(gym.Env):
         self.dt = 0.02
 
     @staticmethod
-    def get_is_stable(np_state):
+    def get_is_stable(np_state, thresh=.4):
         """
         Return for a given state whether the drone is stable or failure
         Returns bool --> if true then still stable
         """
         # only roll and pitch are constrained
-        attitude_condition = np.all(np.absolute(np_state[3:5]) < .4)
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < thresh)
         return attitude_condition
 
     def get_acceleration(self):
@@ -82,7 +82,7 @@ class QuadRotorEnvBase(gym.Env):
         )
         return acceleration[0]
 
-    def step(self, action):
+    def step(self, action, thresh=.4):
         """
         Apply action to the current drone state
         Returns:
@@ -112,7 +112,9 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, self.get_is_stable(numpy_out_state)
+        return numpy_out_state, self.get_is_stable(
+            numpy_out_state, thresh=thresh
+        )
 
     def render(self, mode='human', close=False):
         if not close:

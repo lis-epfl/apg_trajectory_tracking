@@ -1,5 +1,5 @@
 import numpy as np
-from .plan_trajectory import RapidTrajectory
+from .trajectory import get_reference
 
 
 class Circle:
@@ -56,7 +56,7 @@ class Circle:
 
     def project_point(self, point):
         point_2D = self.to_2D(point)
-        alpha = self.to_alpha(point_2D)
+        alpha = self.to_alpha(point_2D) + 0.2
         projected = self.point_on_circle(alpha)
         return projected
 
