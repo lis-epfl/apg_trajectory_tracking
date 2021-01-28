@@ -199,7 +199,7 @@ def action_to_rotor(action, rotor_speed):
     # let rotor speed approach desired rotor speed and avoid negative rotation
     # gamma = 1.0 - 0.5**(dt / copter_params.rotor_speed_half_time)
     # dw = gamma * (desired_rotor_speeds - rotor_speed)
-    rotor_speed = rotor_speed + .5 * (desired_rotor_speeds - rotor_speed)
+    rotor_speed = rotor_speed + .3 * (desired_rotor_speeds - rotor_speed)
     rotor_speed = torch.maximum(rotor_speed, zero_for_rotor)
     return rotor_speed
 

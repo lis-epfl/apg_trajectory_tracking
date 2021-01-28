@@ -114,7 +114,7 @@ class DroneDataset(torch.utils.data.Dataset):
             ref_states = np.expand_dims(ref_states, 0)
 
         # Normalize
-        unnormalized_position = self.to_torch(states[:, :3])
+        unnormalized_state = self.to_torch(states)
         normed_states = (states - self.mean) / self.std
 
         # To torch tensors
@@ -122,14 +122,20 @@ class DroneDataset(torch.utils.data.Dataset):
         torch_ref_states = self.to_torch(ref_states)
         for i in range(ref_states.shape[1]):
             torch_ref_states[:, i, :3] = (
-                torch_ref_states[:, i, :3] - unnormalized_position
+                torch_ref_states[:, i, :3] - unnormalized_state[:, :3]
             )
 
         # # World to body frame - TODO: not working properly
-        # drone_att = torch_states[:, 3:6]
-        # world_to_body = world_to_body_matrix(drone_att)
-        # TODO: add vel body to drone state instead of pos?
-        # drone_vel_body = torch.matmul(world_to_body, torch_states[6:9])
+        drone_att = unnormalized_state[:, 3:6]
+        world_to_body = world_to_body_matrix(drone_att)
+        drone_vel_body = torch.matmul(
+            world_to_body, torch.unsqueeze(torch_states[:, 6:9], 2)
+        )[:, :, 0]
+        # reshape and concatenate
+        rotation_matrix = torch.reshape(world_to_body, (-1, 9))
+        drone_states = torch.hstack(
+            (torch_states, rotation_matrix, drone_vel_body)
+        )
         ref_states_body = torch_ref_states.clone()
         # ref_states_body = torch.unsqueeze(ref_states_body, 3)
         # for i in range(ref_states.shape[1]):
@@ -148,7 +154,7 @@ class DroneDataset(torch.utils.data.Dataset):
         #         world_to_body, ref_states_body[:, i, 6:9]
         #     )
         # ref_states_body = torch.squeeze(ref_states_body, dim=3)
-        return torch_states, torch_ref_states, ref_states_body
+        return drone_states, torch_ref_states, ref_states_body
 
 
 class CartpoleDataset(torch.utils.data.Dataset):

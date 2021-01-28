@@ -72,26 +72,28 @@ def plot_position(collect_data, save_path=None):
         plt.savefig(save_path)
 
 
-def plot_trajectory(knots, states, save_path):
+def plot_trajectory(knots, states, save_path, fixed_axis=2):
+    leftover = [0, 1, 2]
+    del leftover[fixed_axis]
     states = np.array(states)
     buffer = 0.5
     plt.figure(figsize=(10, 10))
-    min_z = np.min(knots[:, 2] - .5)
-    max_z = np.max(knots[:, 2] + .5)
-    normed_z = (states[:, 2] - min_z) / (max_z - min_z)
+    min_z = np.min(knots[:, fixed_axis] - .5)
+    max_z = np.max(knots[:, fixed_axis] + .5)
+    normed_z = (states[:, fixed_axis] - min_z) / (max_z - min_z)
     # scatter states
     plt.scatter(
-        states[:, 0],
-        states[:, 1],
+        states[:, leftover[0]],
+        states[:, leftover[1]],
         s=50 * normed_z,
         c="green",
         label="drone trajectory"
     )
     # scatter trajectory
-    normed_knot_z = (knots[:, 2] - min_z) / (max_z - min_z)
+    normed_knot_z = (knots[:, fixed_axis] - min_z) / (max_z - min_z)
     plt.scatter(
-        knots[:, 0],
-        knots[:, 1],
+        knots[:, leftover[0]],
+        knots[:, leftover[1]],
         s=50 * normed_knot_z,
         c="red",
         label="reference"
@@ -104,8 +106,14 @@ def plot_trajectory(knots, states, save_path):
         label="target"
     )
 
-    plt.xlim(np.min(knots[:, 0]) - buffer, np.max(knots[:, 0]) + buffer)
-    plt.ylim(np.min(knots[:, 1]) - buffer, np.max(knots[:, 1]) + buffer)
+    plt.xlim(
+        np.min(knots[:, leftover[0]]) - buffer,
+        np.max(knots[:, leftover[0]]) + buffer
+    )
+    plt.ylim(
+        np.min(knots[:, leftover[1]]) - buffer,
+        np.max(knots[:, leftover[1]]) + buffer
+    )
     # plt.xlim(-1,1)
     plt.legend()
     plt.savefig(save_path)

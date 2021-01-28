@@ -74,9 +74,11 @@ class Renderer:
     def draw_line_3d(self, start, end):
         self.draw_line_2d((start[0], start[2]), (end[0], end[2]))
 
-    def draw_circle(self, position, radius, color):  # pragma: no cover
+    def draw_circle(
+        self, position, radius, color, filled=True
+    ):  # pragma: no cover
         from gym.envs.classic_control import rendering
-        copter = rendering.make_circle(radius)
+        copter = rendering.make_circle(radius, filled=filled)
         copter.set_color(*color)
         if len(position) == 3:
             position = (position[0], position[2])
@@ -149,6 +151,28 @@ class Ground(RenderedObject):  # pragma: no cover
             renderer.draw_line_2d((pos + i, 0.0), (pos + i - 2, -2.0))
 
 
+class CircleObject(RenderedObject):
+
+    def __init__(self, mid_point, radius):
+        self.mid_point = mid_point.copy()
+        self.mid_point[2] += 1
+        self.radius = radius
+
+    def draw(self, renderer):
+        # for striaght line:
+        # start = np.array([3, 3])
+        # end = np.array([0, 0])
+        # renderer.draw_line_2d(start, end, attr={"colour": "red"})
+
+        # # for circle:
+        # p1 = 1.47736218
+        # p2 = 4.34811016
+        renderer.draw_circle(
+            tuple(self.mid_point), self.radius, (0, 1, 0), filled=False
+        )
+        # renderer.draw_circle((4, 2, 2), 0.15, (1, 0, 0))
+
+
 class QuadCopter(RenderedObject):  # pragma: no cover
 
     def __init__(self, source):
@@ -182,9 +206,6 @@ class QuadCopter(RenderedObject):  # pragma: no cover
             renderer, trafo, status.position, [0, -1, 0],
             status.rotor_speeds[3] / setup.max_rotor_speed
         )
-
-        # renderer.draw_circle((-1, 2, 4), 0.15, (0, 1, 0))
-        # renderer.draw_circle((4, 2, 2), 0.15, (1, 0, 0))
 
     @staticmethod
     def draw_propeller(

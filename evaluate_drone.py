@@ -14,6 +14,7 @@ from utils.trajectory import (
     sample_points_on_straight, sample_to_input, np_project_line,
     eval_get_straight_ref, get_reference, Circle
 )
+from environments.rendering import CircleObject
 from dataset import DroneDataset
 # from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
@@ -56,7 +57,9 @@ class QuadEvaluator():
         )
         # if self.render:
         #     self.check_ood(current_np_state, ref_world)
-
+        # print(current_np_state)
+        # print(in_state)
+        # print()
         # print([round(s, 2) for s in current_torch_state[0].numpy()])
         # print("reference", reference)
         # print("position", current_torch_state[:, 3:])
@@ -164,6 +167,14 @@ class QuadEvaluator():
         """
         # reset drone state
         self.eval_env.reset()
+
+        self.eval_env._state.set_position([0, 0, 3])
+        states = None  # np.load("id_5.npy")
+        # Option to load data
+        if states is not None:
+            self.eval_env._state.from_np(states[0])
+
+        # get current state
         current_np_state = self.eval_env._state.as_np
 
         # init circle
@@ -172,10 +183,15 @@ class QuadEvaluator():
             current_np_state[:3].copy(), current_np_state[6:9].copy()
         )
 
+        if self.render:
+            self.eval_env.renderer.add_object(
+                CircleObject(circ_ref.mid_point, radius)
+            )
+
         alpha_start = circ_ref.to_alpha(
             circ_ref.to_2D(current_np_state[:3].copy())
         )
-        reference_trajectory, drone_trajectory = [], []
+        reference_trajectory, drone_trajectory = [], [current_np_state]
         with torch.no_grad():
             for i in range(max_nr_steps):
                 acc = self.eval_env.get_acceleration()
@@ -188,15 +204,19 @@ class QuadEvaluator():
                 # only use first action (as in mpc)
                 action = numpy_action_seq[0]
                 current_np_state, stable = self.eval_env.step(action)
+                if states is not None:
+                    self.eval_env._state.from_np(states[i])
+                    current_np_state = states[i]
+                    stable = i < (len(states) - 1)
                 drone_pos = current_np_state[:3]
-                drone_trajectory.append(drone_pos)
+                drone_trajectory.append(current_np_state)
                 if not stable:
                     break
                 self.help_render(sleep=0)
 
                 # project to trajectory and check divergence
                 drone_on_line = circ_ref.project_helper(drone_pos)
-                reference_trajectory.extend(trajectory[-2:, :3].tolist())
+                reference_trajectory.append(trajectory[-1, :3])
                 div = np.linalg.norm(drone_on_line - drone_pos)
                 if div > self.treshold_divergence:
                     if self.render:
@@ -229,7 +249,7 @@ class QuadEvaluator():
         a_on_line = current_np_state[:3]
         b_on_line = a_on_line + traj_direction / np.linalg.norm(traj_direction)
 
-        drone_trajectory = []
+        drone_trajectory = [current_np_state]
         reference_trajectory = []  # drone states projected to ref
         with torch.no_grad():
             for i in range(max_nr_steps):
@@ -246,7 +266,7 @@ class QuadEvaluator():
                 action = numpy_action_seq[0]
 
                 current_np_state, stable = self.eval_env.step(action)
-                drone_trajectory.append(current_np_state[:3])
+                drone_trajectory.append(current_np_state)
                 if not stable:
                     break
 
@@ -383,7 +403,7 @@ if __name__ == "__main__":
     try:
         # STRAIGHT
         # initial_trajectory, drone_trajectory = evaluator.straight_traj(
-        #     max_nr_steps=300,
+        #     max_nr_steps=1000,
         # )
         # plot_trajectory(
         #     initial_trajectory, drone_trajectory,
@@ -394,12 +414,17 @@ if __name__ == "__main__":
 
         # CIRCLE
         ref_trajectory, drone_trajectory = evaluator.circle_traj(
-            max_nr_steps=1000, radius=1.5
+            max_nr_steps=1000, radius=1.5, plane=[0, 2]
         )
         plot_trajectory(
-            ref_trajectory, drone_trajectory,
-            os.path.join(model_path, "circle_traj.png")
+            ref_trajectory,
+            drone_trajectory,
+            os.path.join(model_path, "circle_traj.png"),
+            fixed_axis=1
         )
+        # # print(drone_trajectory[0, :3])
+        # # print(drone_trajectory[-1, :3])
+        # np.save("euler.npy", drone_trajectory)
 
         # MEASURE change by drone dist
         # success_mean_list = []

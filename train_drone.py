@@ -19,16 +19,16 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
-MAX_DRONE_DIST = 0.2
-THRESH_DIV = .2
+MAX_DRONE_DIST = 0.1
+THRESH_DIV = .4
 NR_EVAL_ITERS = 5
-STATE_SIZE = 13
+STATE_SIZE = 16
 NR_ACTIONS = 5
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/ref_good_selfplay_straight")
+BASE_MODEL = os.path.join("trained_models/drone/rotation_matrix")
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -54,7 +54,8 @@ else:
         max_drone_dist=MAX_DRONE_DIST,
         ref_length=NR_ACTIONS
     )
-    net = Net(STATE_SIZE, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
+    # +9 because adding 12 things but deleting position (3)
+    net = Net(STATE_SIZE + 9, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
     (STD, MEAN) = (state_data.std, state_data.mean)
 
 # Use cuda if available
@@ -137,7 +138,7 @@ for epoch in range(NR_EPOCHS):
             # order to correctly apply the action
             in_state, ref_world, ref_body = data
             # unnormalize TODO: maybe return from dataset simply
-            current_state = in_state * torch_std + torch_mean
+            current_state = in_state[:, :STATE_SIZE] * torch_std + torch_mean
             current_state[:, :3] = 0
 
             # TODO: Could input :3 to NN with vel (problem: normalization)
@@ -152,7 +153,7 @@ for epoch in range(NR_EPOCHS):
             # unnnormalize state
             # start_state = current_state.clone()
             intermediate_states = torch.zeros(
-                in_state.size()[0], NR_ACTIONS, STATE_SIZE + 3
+                in_state.size()[0], NR_ACTIONS, STATE_SIZE
             )
             for k in range(NR_ACTIONS):
                 # normalize loss by the start distance
@@ -178,6 +179,10 @@ for epoch in range(NR_EPOCHS):
             #     mask=mask,
             #     printout=0
             # )
+            # np.set_printoptions(precision=3, suppress=True)
+            # print(intermediate_states[0].detach().numpy())
+            # print(ref_body[0].detach().numpy())
+            # exit()
 
             # Backprop
             loss.backward()
