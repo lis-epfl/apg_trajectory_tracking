@@ -382,6 +382,9 @@ if __name__ == "__main__":
         "-e", "--epoch", type=str, default="", help="Saved epoch"
     )
     parser.add_argument(
+        "-r", "--ref", type=str, default="circle", help="which trajectory"
+    )
+    parser.add_argument(
         "-save_data",
         action="store_true",
         help="save the episode as training data"
@@ -405,28 +408,30 @@ if __name__ == "__main__":
     # Straight with reference as input
     try:
         # STRAIGHT
-        # initial_trajectory, drone_trajectory = evaluator.straight_traj(
-        #     max_nr_steps=1000,
-        # )
-        # plot_trajectory(
-        #     initial_trajectory, drone_trajectory,
-        #     os.path.join(model_path, "traj.png")
-        # )
+        if args.ref == "straight":
+            initial_trajectory, drone_trajectory = evaluator.straight_traj(
+                max_nr_steps=1000,
+            )
+            plot_trajectory(
+                initial_trajectory, drone_trajectory,
+                os.path.join(model_path, "traj.png")
+            )
 
         # evaluator.collect_training_data()
 
         # CIRCLE
-        plane = [0, 2]
-        fixed_axis = 1
-        ref_trajectory, drone_trajectory = evaluator.circle_traj(
-            max_nr_steps=1000, radius=1, plane=plane, thresh=.8
-        )
-        plot_trajectory(
-            ref_trajectory,
-            drone_trajectory,
-            os.path.join(model_path, "circle_traj.png"),
-            fixed_axis=fixed_axis
-        )
+        if args.ref == "circle":
+            plane = [0, 2]
+            fixed_axis = 1
+            ref_trajectory, drone_trajectory = evaluator.circle_traj(
+                max_nr_steps=1000, radius=1, plane=plane, thresh=.8
+            )
+            plot_trajectory(
+                ref_trajectory,
+                drone_trajectory,
+                os.path.join(model_path, "circle_traj.png"),
+                fixed_axis=fixed_axis
+            )
         # # print(drone_trajectory[0, :3])
         # # print(drone_trajectory[-1, :3])
         # np.save("euler.npy", drone_trajectory)
@@ -445,11 +450,14 @@ if __name__ == "__main__":
         # plot_suc_by_dist(distances, success_mean_list, model_path)
 
         # STABILIZE
-        # drone_trajectory = evaluator.stabilize(
-        #     nr_test_data=1,
-        #     max_nr_steps=1000,
-        # )
-        # plot_position(drone_trajectory, os.path.join(model_path, "stable.png"))
+        if args.ref == "stable":
+            drone_trajectory = evaluator.stabilize(
+                nr_test_data=1,
+                max_nr_steps=1000,
+            )
+            plot_position(
+                drone_trajectory, os.path.join(model_path, "stable.png")
+            )
 
         # evaluator.max_drone_dist = param_dict["max_drone_dist"] * 2
         # evaluator.eval_traj_input(threshold_divergence, nr_test_data=20)
