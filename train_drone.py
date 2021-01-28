@@ -19,7 +19,7 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
-MAX_DRONE_DIST = 0.1
+MAX_DRONE_DIST = 0.05
 THRESH_DIV = .4
 NR_EVAL_ITERS = 5
 STATE_SIZE = 16
@@ -111,14 +111,18 @@ for epoch in range(NR_EPOCHS):
 
         print(f"Epoch {epoch} (before)")
         eval_env = QuadEvaluator(net, state_data, **param_dict)
-        suc_mean, suc_std = eval_env.eval_ref(nr_test_circle=10)
+        suc_mean, suc_std = eval_env.eval_ref(
+            max_steps_circle=500, nr_test_circle=5
+        )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
 
-        if epoch == 0 or suc_mean > 160:
-            state_data.sample_data(self_play=0.5)
-            suc_mean, suc_std = eval_env.eval_ref(nr_test_circle=30)
+        if epoch == 0 or suc_mean > 450:
+            state_data.sample_data(self_play=0.2)
+            suc_mean, suc_std = eval_env.eval_ref(
+                max_steps_circle=600, nr_test_circle=35, nr_test_straight=10
+            )
             print("Sampled new data!")
             np.save("current_data.npy", state_data.ref_body)
 
@@ -186,8 +190,9 @@ for epoch in range(NR_EPOCHS):
             #     printout=0
             # )
             # np.set_printoptions(precision=3, suppress=True)
-            # print(intermediate_states[0].detach().numpy())
-            # print(ref_body[0].detach().numpy())
+            # print(intermediate_states[0, :, :3].detach().numpy())
+            # print(ref_body[0, :, :3].detach().numpy())
+            # print()
             # exit()
 
             # Backprop

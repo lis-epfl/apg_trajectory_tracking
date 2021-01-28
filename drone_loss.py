@@ -55,8 +55,8 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     # TODO: include attitude in reference
     angle_factor = 0.01
     angvel_factor = 2e-2
-    vel_factor = 0.5
-    pos_factor = 1
+    vel_factor = 0.05
+    pos_factor = 10
     yaw_factor = 10
 
     position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)

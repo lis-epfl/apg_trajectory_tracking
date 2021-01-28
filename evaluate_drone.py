@@ -221,6 +221,7 @@ class QuadEvaluator():
                 drone_on_line = circ_ref.project_helper(drone_pos)
                 reference_trajectory.extend(trajectory[:, :3])
                 div = np.linalg.norm(drone_on_line - drone_pos)
+                np.set_printoptions(precision=3, suppress=True)
                 if div > self.treshold_divergence:
                     if self.render:
                         np.set_printoptions(precision=3, suppress=True)
@@ -296,7 +297,11 @@ class QuadEvaluator():
             return traj_len, steps_until_fail
 
     def eval_ref(
-        self, nr_test_straight=1, nr_test_circle=10, max_nr_steps=200
+        self,
+        nr_test_straight=10,
+        nr_test_circle=10,
+        max_steps_straight=200,
+        max_steps_circle=200
     ):
         """
         Function to evaluate both on straight and on circular traj
@@ -305,7 +310,7 @@ class QuadEvaluator():
         traj_len_stable, divergence = [], []
         for _ in range(nr_test_straight):
             traj_len, steps_until_fail = self.straight_traj(
-                max_nr_steps=max_nr_steps
+                max_nr_steps=max_steps_straight
             )
             traj_len_stable.append(traj_len)
             divergence.append(steps_until_fail)
@@ -325,11 +330,11 @@ class QuadEvaluator():
         for _ in range(nr_test_circle):
             # vary plane and radius
             possible_planes = [[0, 1], [0, 2], [1, 2]]
-            plane = [0, 2]  # possible_planes[np.random.randint(0, 3, 1)[0]]
-            radius = 1.5  # np.random.rand() + .5  # at least .5, max 1.5
+            plane = possible_planes[np.random.randint(0, 3, 1)[0]]
+            radius = np.random.rand() + .5  # at least .5, max 1.5
             # run
             steps_until_div, alpha_diff = self.circle_traj(
-                max_nr_steps=max_nr_steps, plane=plane, radius=radius
+                max_nr_steps=max_steps_circle, plane=plane, radius=radius
             )
             circle_stable.append(steps_until_div)
             alphas.append(alpha_diff)
@@ -424,7 +429,7 @@ if __name__ == "__main__":
             plane = [0, 2]
             fixed_axis = 1
             ref_trajectory, drone_trajectory = evaluator.circle_traj(
-                max_nr_steps=1000, radius=1, plane=plane, thresh=.8
+                max_nr_steps=3000, radius=1.5, plane=plane, thresh=1
             )
             plot_trajectory(
                 ref_trajectory,

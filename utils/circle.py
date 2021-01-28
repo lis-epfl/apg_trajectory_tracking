@@ -9,13 +9,24 @@ class Circle:
 
     def __init__(self, mid_point=None, radius=1, plane=[0, 1]):
         """
-        axis: fixed axis, circle is in plane of this point
+        initialize a circle with a center and radius
+        Arguments:
+            mid_point: list of len 3 or None (initialised later from drone pose)
+            radius: float>0
+            plane: circle lies in a 2D plane of a 3D coordinate system. plane
+                argument is tuple of the two axes, while the third one is fixed
         """
         self.plane = plane
         self.radius = radius
         self.mid_point = np.array(mid_point)
 
     def init_from_tangent(self, pos, vel):
+        """
+        Initialize the center by the current drone position
+        Arguments:
+            pos: np array of length 3
+            vel: np array of length 3
+        """
         # fixed axis will just stay
         mid_point_tmp = pos.astype(float)
         # get 2D vel
