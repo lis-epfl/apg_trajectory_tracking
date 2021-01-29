@@ -38,7 +38,7 @@ class QuadRotorEnvBase(gym.Env):
     action_space = spaces.Box(0, 1, (4, ), dtype=np.float32)
     observation_space = spaces.Box(0, 1, (6, ), dtype=np.float32)
 
-    def __init__(self):
+    def __init__(self, dt):
 
         # set up the renderer
         self.renderer = Renderer()
@@ -59,7 +59,7 @@ class QuadRotorEnvBase(gym.Env):
         # self._attitude_reward = AttitudeReward(
         #     1.0, attitude_error_transform=np.sqrt
         # )
-        self.dt = 0.02
+        self.dt = dt
 
     @staticmethod
     def get_is_stable(np_state, thresh=.4):
@@ -224,44 +224,6 @@ def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
 # --------------------- Auxilary functions ----------------------
 
 
-def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
-    """
-    Sample states for training the model
-    Arguments:
-        num_data: How much states to sample
-        episode_length: Maximum number of states before resetting the env
-        reset_strength (float between 0.5 - 1.5): How much randomization, i.e.
-                How far from target should the states be
-    """
-    # data = np.load("data.npy")
-    # assert not np.any(np.isnan(data))
-    const_action_runs = .8
-    # return data
-    env = QuadRotorEnvBase()
-    data = []
-    is_stable_list = list()
-    while len(data) < num_data:
-        env.reset(strength=reset_strength)
-        is_stable = True
-        time_stable = 0
-        # Sample one episode
-        while is_stable and time_stable < episode_length:
-            # perform random action
-            action = np.random.rand(4) * .4 - .2 + .3
-            if len(data) > num_data * const_action_runs:
-                # add some states with very monotone actions
-                action = np.ones(4) * .5
-            new_state, is_stable = env.step(action)
-            # print(new_state[2])
-            data.append(new_state)
-            time_stable += 1
-        is_stable_list.append(time_stable)
-    data = np.array(data)
-    # np.save("data_backup/collected_data.npy", data)
-    # print("saved first data", np.mean(is_stable_list))
-    return data
-
-
 def trajectory_training_data(
     len_data,
     step_size=0,
@@ -269,6 +231,7 @@ def trajectory_training_data(
     ref_length=5,
     reset_strength=1,
     load_selfplay=None,  # "data/jan_2021.npy",
+    dt=0.02,
     **kwargs
 ):
     """
@@ -288,8 +251,7 @@ def trajectory_training_data(
         data = np.load(load_selfplay)
         rand_inds = np.random.permutation(len(data))
         ind_counter = 0
-
-    env = QuadRotorEnvBase()
+    env = QuadRotorEnvBase(dt)
     drone_states, ref_states = [], []
     for _ in range(len_data):
         if load_selfplay is not None and np.random.rand() < .5:
@@ -338,24 +300,13 @@ def trajectory_training_data(
     return drone_states, ref_states
 
 
-def get_avg_distance():
-    """
-    Get average distance of the states from the target (zero)
-    """
-    states = construct_states(10000)
-    sum_squares = np.sqrt(np.sum(states[:, :3]**2, axis=1))
-    print(sum_squares.shape, np.mean(sum_squares))
-    return np.mean(sum_squares)
-
-
 if __name__ == "__main__":
-    env = QuadRotorEnvBase()
+    env = QuadRotorEnvBase(0.02)
     env.reset()
-    # a1, a2 = trajectory_training_data(1000, step_size=0.1)
+    states, ref = trajectory_training_data(1000)
     # np.save("drone_states.npy", a1)
     # np.save("ref_states.npy", a2)
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
-    states = construct_states(100)
     # states = np.load("check_added_data.npy")
     print(np.mean(states[:, :6], axis=0))
     print(np.std(states[:, :6], axis=0))

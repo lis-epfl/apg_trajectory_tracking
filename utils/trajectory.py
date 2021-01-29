@@ -37,7 +37,8 @@ def get_reference(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
 
 
 def eval_get_straight_ref(
-    drone_state, drone_acc, a_on_line, b_on_line, max_drone_dist, ref_length
+    drone_state, drone_acc, a_on_line, b_on_line, max_drone_dist, ref_length,
+    dt
 ):
     """
     Given a straight reference between A and B, compute the next x ref states
@@ -57,34 +58,11 @@ def eval_get_straight_ref(
         drone_acc,
         goal_pos,
         direction,
-        ref_length=ref_length
+        ref_length=ref_length,
+        delta_t=dt
     )
     # TODO: direction times some factor?
     return reference
-
-
-# TODO: compute attitude velocities etc
-
-
-def positions_to_state_trajectory(drone_state, ref_positions, delta_t=0.02):
-    """
-    Compute full reference trajectory from given drone state and
-    target positions -> for testing
-    Arguments:
-        drone_state: vector of size s (state dimension),
-            full state of the drone
-        ref_positions: array of size (x,3) with the x next target
-            positions in 3D space.
-    Returns:
-        Array of size (x, s) with the x next reference states
-    """
-    # get appropriate ref state as goal
-    # project drone to ref traj
-    # get reference
-    reference = get_reference(
-        drone_state[:3],
-        drone_state[6:9],
-    )
 
 
 def sample_points_on_straight(

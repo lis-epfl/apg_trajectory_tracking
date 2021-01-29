@@ -36,16 +36,18 @@ class QuadEvaluator():
         horizon=5,
         max_drone_dist=0.1,
         render=0,
+        dt=0.02,
         **kwargs
     ):
         self.dataset = dataset
         self.net = model
-        self.eval_env = QuadRotorEnvBase()
+        self.eval_env = QuadRotorEnvBase(dt)
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist
         self.training_means = None
         self.render = render
         self.treshold_divergence = 1
+        self.dt = dt
 
     def predict_actions(self, current_np_state, ref_states):
         """
@@ -76,7 +78,7 @@ class QuadEvaluator():
     def check_ood(self, drone_state, ref_states):
         if self.training_means is None:
             _, reference_training_data = trajectory_training_data(
-                500, max_drone_dist=self.max_drone_dist
+                500, max_drone_dist=self.max_drone_dist, dt=self.dt
             )
             self.training_means = np.mean(reference_training_data, axis=0)
             self.training_std = np.std(reference_training_data, axis=0)
@@ -197,7 +199,11 @@ class QuadEvaluator():
             for i in range(max_nr_steps):
                 acc = self.eval_env.get_acceleration()
                 trajectory = circ_ref.eval_get_circle(
-                    current_np_state, acc, self.max_drone_dist, self.horizon
+                    current_np_state,
+                    acc,
+                    self.max_drone_dist,
+                    self.horizon,
+                    dt=self.dt
                 )
                 numpy_action_seq = self.predict_actions(
                     current_np_state, trajectory
@@ -260,7 +266,7 @@ class QuadEvaluator():
                 acc = self.eval_env.get_acceleration()
                 trajectory = eval_get_straight_ref(
                     current_np_state, acc, a_on_line, b_on_line,
-                    self.max_drone_dist, self.horizon
+                    self.max_drone_dist, self.horizon, self.dt
                 )
                 # ref_s = sample_to_input(current_np_state, trajectory)
                 numpy_action_seq = self.predict_actions(
@@ -290,9 +296,12 @@ class QuadEvaluator():
             return np.array(reference_trajectory), drone_trajectory
             self.eval_env.close()
         else:
-            traj_len = np.linalg.norm(
-                reference_trajectory[-1] - reference_trajectory[0]
-            )
+            if len(reference_trajectory) > 0:
+                traj_len = np.linalg.norm(
+                    reference_trajectory[-1] - reference_trajectory[0]
+                )
+            else:
+                traj_len = 0
             steps_until_fail = i
             return traj_len, steps_until_fail
 

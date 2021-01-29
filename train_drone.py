@@ -13,22 +13,22 @@ from evaluate_drone import QuadEvaluator
 from models.hutter_model import Net
 from utils.plotting import plot_loss_episode_len
 
+DELTA_T = 0.05
 EPOCH_SIZE = 5000
-USE_NEW_DATA = 0  # 250
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
-MAX_DRONE_DIST = 0.05
+MAX_DRONE_DIST = 0.25  # TODO
 THRESH_DIV = .4
 NR_EVAL_ITERS = 5
 STATE_SIZE = 16
-NR_ACTIONS = 5
+NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = os.path.join("trained_models/drone/rotation_matrix")
+BASE_MODEL = None
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -39,20 +39,13 @@ if BASE_MODEL is not None:
         param_dict = json.load(outfile)
     STD = np.array(param_dict["std"]).astype(float)
     MEAN = np.array(param_dict["mean"]).astype(float)
-    state_data = DroneDataset(
-        mean=MEAN,
-        std=STD,
-        num_states=EPOCH_SIZE,
-        reset_strength=RESET_STRENGTH,
-        max_drone_dist=MAX_DRONE_DIST,
-        ref_length=NR_ACTIONS
-    )
 else:
     state_data = DroneDataset(
         num_states=EPOCH_SIZE,
         reset_strength=RESET_STRENGTH,
         max_drone_dist=MAX_DRONE_DIST,
-        ref_length=NR_ACTIONS
+        ref_length=NR_ACTIONS,
+        dt=DELTA_T
     )
     # +9 because adding 12 things but deleting position (3)
     net = Net(STATE_SIZE + 9, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
@@ -78,30 +71,24 @@ torch_mean, torch_std = (
 # save std for normalization during test time
 param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
 # update the used parameters:
-param_dict["reset"] = RESET_STRENGTH
+param_dict["reset_strength"] = RESET_STRENGTH
 param_dict["max_drone_dist"] = MAX_DRONE_DIST
 param_dict["horizon"] = NR_ACTIONS
+param_dict["ref_length"] = NR_ACTIONS
 param_dict["treshold_divergence"] = THRESH_DIV
+param_dict["dt"] = DELTA_T
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
 
+# init dataset
+state_data = DroneDataset(num_states=EPOCH_SIZE, **param_dict)
+
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
-# target_state = torch.zeros(STATE_SIZE)
-# mask = torch.ones(STATE_SIZE)
-# mask[6:13] = 0  # rotor speeds and xyz velocity don't matter
-# loss_weights = mask.clone()
-# target_state = ((target_state - torch_mean) / torch_std) * mask
-
-
-def adjust_learning_rate(optimizer, epoch, every_x=5):
-    """Sets the learning rate to the initial LR decayed by 10 every 10 epochs"""
-    lr = LEARNING_RATE * (0.1**(epoch // every_x))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-
+take_steps = 1
+steps_per_eval = 100
+self_play = 0
 highest_success = 0  # np.inf
 for epoch in range(NR_EPOCHS):
 
@@ -112,19 +99,23 @@ for epoch in range(NR_EPOCHS):
         print(f"Epoch {epoch} (before)")
         eval_env = QuadEvaluator(net, state_data, **param_dict)
         suc_mean, suc_std = eval_env.eval_ref(
-            max_steps_circle=500, nr_test_circle=5
+            nr_test_circle=take_steps * steps_per_eval + 1
         )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
-
-        if epoch == 0 or suc_mean > 450:
-            state_data.sample_data(self_play=0.2)
-            suc_mean, suc_std = eval_env.eval_ref(
-                max_steps_circle=600, nr_test_circle=35, nr_test_straight=10
-            )
+        if suc_mean > take_steps * steps_per_eval - 20:
+            take_steps += 1
+            self_play = (take_steps - 1) * .1
+            state_data.sample_data(self_play=self_play)
+            if self_play > 0:
+                suc_mean, suc_std = eval_env.eval_ref(
+                    max_steps_circle=take_steps * steps_per_eval,
+                    nr_test_circle=20,
+                    nr_test_straight=10
+                )
             print("Sampled new data!")
-            np.save("current_data.npy", state_data.ref_body)
+            # np.save("current_data.npy", state_data.ref_body)
 
         # save best model
         if epoch > 0 and suc_mean > highest_success:
@@ -173,12 +164,16 @@ for epoch in range(NR_EPOCHS):
                 # net_input_state = (current_state - torch_mean) / torch_std
                 # action = net(net_input_state)
                 # action = torch.sigmoid(action)
-                current_state = simulate_quadrotor(action, current_state)
+                current_state = simulate_quadrotor(
+                    action, current_state, dt=DELTA_T
+                )
                 intermediate_states[:, k] = current_state  # [:, :3]
 
                 # Only compute loss after last action
                 # 1) --------- drone loss function --------------
-            loss = reference_loss(intermediate_states, ref_world, printout=0)
+            loss = reference_loss(
+                intermediate_states, ref_world, printout=0, delta_t=DELTA_T
+            )
             # ------------- VERSION 3: Trajectory loss -------------
             # drone_state = (current_state - torch_mean) / torch_std
             # loss = trajectory_loss(

@@ -114,7 +114,7 @@ class Circle:
         return self.to_3D(self.project_point(point))
 
     def eval_get_circle(
-        self, drone_state, drone_acc, max_drone_dist, ref_length
+        self, drone_state, drone_acc, max_drone_dist, ref_length, dt=0.02
     ):
         drone_pos = drone_state[:3]
         goal_pos = self.next_target(drone_pos, max_drone_dist)
@@ -125,7 +125,8 @@ class Circle:
             drone_acc,
             goal_pos,
             direction,
-            ref_length=ref_length
+            ref_length=ref_length,
+            delta_t=dt
         )
         # TODO: distance some factor?
         return reference
