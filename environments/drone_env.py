@@ -134,10 +134,12 @@ class QuadRotorEnvBase(gym.Env):
         Arguments:
             Position (in three floats)
         """
-        zero_state = np.zeros(20)
-        zero_state[9:13] = 400
-        zero_state[:3] = [position_x, position_y, position_z]
-        self._state.from_np(zero_state)
+        self.reset()
+        state_arr = self._state.as_np
+        state_arr[:3] = [position_x, position_y, position_z]
+        # set attitude and angular vel to zero
+        state_arr[3:6] = 0
+        state_arr[13:] = 0
 
     def render_reset(self, strength=.8):
         """
@@ -156,7 +158,9 @@ class QuadRotorEnvBase(gym.Env):
 
         self.randomize_angle(3 * strength)
         self.randomize_angular_velocity(2.0 * strength)
-        self._state.attitude.yaw = self.random_state.uniform(low=-1, high=1)
+        self._state.attitude.yaw = self.random_state.uniform(
+            low=-1.5, high=1.5
+        )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities

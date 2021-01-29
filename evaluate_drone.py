@@ -15,7 +15,7 @@ from utils.trajectory import (
     eval_get_straight_ref, get_reference
 )
 from utils.circle import Circle
-from environments.rendering import CircleObject
+from environments.rendering import CircleObject, StraightObject
 from dataset import DroneDataset
 # from models.resnet_like_model import Net
 from drone_loss import drone_loss_function
@@ -169,9 +169,9 @@ class QuadEvaluator():
         Follow a circle with the drone environment
         """
         # reset drone state
-        self.eval_env.reset()
+        init_state = [0, 0, 3]
+        self.eval_env.zero_reset(*tuple(init_state))
 
-        self.eval_env._state.set_position([0, 0, 3])
         states = None  # np.load("id_5.npy")
         # Option to load data
         if states is not None:
@@ -225,7 +225,7 @@ class QuadEvaluator():
 
                 # project to trajectory and check divergence
                 drone_on_line = circ_ref.project_helper(drone_pos)
-                reference_trajectory.extend(trajectory[:, :3])
+                reference_trajectory.append(trajectory[-1, :3])
                 div = np.linalg.norm(drone_on_line - drone_pos)
                 np.set_printoptions(precision=3, suppress=True)
                 if div > self.treshold_divergence:
@@ -250,14 +250,18 @@ class QuadEvaluator():
             return i, alpha_diff
 
     def straight_traj(self, max_nr_steps=200):
-        # init_state = np.random.rand(3)
-        # self.eval_env.zero_reset(*tuple(init_state))
-        self.eval_env.reset()
+        init_state = [2, 0, 3]
+        self.eval_env.zero_reset(*tuple(init_state))
 
         current_np_state = self.eval_env._state.as_np
         traj_direction = current_np_state[6:9]  # np.random.rand(3)
         a_on_line = current_np_state[:3]
         b_on_line = a_on_line + traj_direction / np.linalg.norm(traj_direction)
+
+        if self.render:
+            self.eval_env.renderer.add_object(
+                StraightObject(a_on_line, a_on_line + traj_direction * 10)
+            )
 
         drone_trajectory = [current_np_state]
         reference_trajectory = []  # drone states projected to ref

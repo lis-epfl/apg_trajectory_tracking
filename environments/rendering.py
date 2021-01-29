@@ -68,11 +68,11 @@ class Renderer:
         self.scroll_speed = 0.1
         self.objects = []
 
-    def draw_line_2d(self, start, end):
-        self.viewer.draw_line(start, end)
+    def draw_line_2d(self, start, end, color=(0, 0, 0)):
+        self.viewer.draw_line(start, end, color=color)
 
-    def draw_line_3d(self, start, end):
-        self.draw_line_2d((start[0], start[2]), (end[0], end[2]))
+    def draw_line_3d(self, start, end, color=(0, 0, 0)):
+        self.draw_line_2d((start[0], start[2]), (end[0], end[2]), color=color)
 
     def draw_circle(
         self, position, radius, color, filled=True
@@ -149,6 +149,18 @@ class Ground(RenderedObject):  # pragma: no cover
 
         for i in range(-8, 10, self._step_size):
             renderer.draw_line_2d((pos + i, 0.0), (pos + i - 2, -2.0))
+
+
+class StraightObject(RenderedObject):
+
+    def __init__(self, start, end):
+        self.start = start.copy()
+        self.start[2] += 1
+        self.end = end.copy()
+        self.end[2] += 1
+
+    def draw(self, renderer):
+        renderer.draw_line_3d(self.start, self.end, color=(1, 0, 0))
 
 
 class CircleObject(RenderedObject):
