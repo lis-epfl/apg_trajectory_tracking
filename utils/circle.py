@@ -67,9 +67,9 @@ class Circle:
              np.sin(alpha) * self.radius]
         )
 
-    def project_point(self, point):
+    def project_point(self, point, addon=0.2):
         point_2D = self.to_2D(point)
-        alpha = self.to_alpha(point_2D) + 0.2 * self.direction
+        alpha = self.to_alpha(point_2D) + addon * self.direction
         projected = self.point_on_circle(alpha)
         return projected
 
@@ -111,7 +111,7 @@ class Circle:
         return self.to_3D(next_point) - point_3D
 
     def project_helper(self, point):
-        return self.to_3D(self.project_point(point))
+        return self.to_3D(self.project_point(point, addon=0))
 
     def eval_get_circle(
         self, drone_state, drone_acc, max_drone_dist, ref_length, dt=0.02
