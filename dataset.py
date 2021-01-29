@@ -82,8 +82,9 @@ class DroneDataset(torch.utils.data.Dataset):
         to achieve self play
         """
         states, ref_world, ref_body = self.prepare_data(states, ref_states)
-        if (np.random.rand() < self.self_play
-            ) and (self.eval_counter < self.self_play * self.num_states):
+        if (np.random.rand() <
+            self.self_play) and (self.eval_counter < self.num_states):
+            # self.self_play * s
             # replace data with eval data if below max eval data thresh
             self.states[self.eval_counter] = states[0]
             self.ref_world[self.eval_counter] = ref_world[0]

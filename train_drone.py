@@ -19,7 +19,7 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
-MAX_DRONE_DIST = 0.25  # TODO
+MAX_DRONE_DIST = 0.25
 THRESH_DIV = .4
 NR_EVAL_ITERS = 5
 STATE_SIZE = 16
@@ -28,7 +28,7 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None
+BASE_MODEL = "trained_models/drone/horizon"
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -56,11 +56,6 @@ global device
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 net = net.to(device)
 
-# Initialize train loader
-trainloader = torch.utils.data.DataLoader(
-    state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
-)
-
 # define optimizer and torch normalization parameters
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
 
@@ -83,6 +78,10 @@ with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
 
 # init dataset
 state_data = DroneDataset(num_states=EPOCH_SIZE, **param_dict)
+# Init train loader
+trainloader = torch.utils.data.DataLoader(
+    state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
+)
 
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
@@ -99,12 +98,14 @@ for epoch in range(NR_EPOCHS):
         print(f"Epoch {epoch} (before)")
         eval_env = QuadEvaluator(net, state_data, **param_dict)
         suc_mean, suc_std = eval_env.eval_ref(
-            nr_test_circle=take_steps * steps_per_eval + 1
+            nr_test_circle=5,
+            max_steps_circle=take_steps * steps_per_eval + 1,
+            nr_test_straight=5
         )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
-        if suc_mean > take_steps * steps_per_eval - 20:
+        if suc_mean > take_steps * steps_per_eval - 50:
             take_steps += 1
             self_play = (take_steps - 1) * .1
             state_data.sample_data(self_play=self_play)

@@ -191,10 +191,8 @@ class QuadEvaluator():
                 CircleObject(circ_ref.mid_point, circle_args["radius"])
             )
 
-        alpha_start = circ_ref.to_alpha(
-            circ_ref.to_2D(current_np_state[:3].copy())
-        )
-        reference_trajectory, drone_trajectory = [], [current_np_state]
+        (reference_trajectory, drone_trajectory,
+         divergences) = [], [current_np_state], []
         with torch.no_grad():
             for i in range(max_nr_steps):
                 acc = self.eval_env.get_acceleration()
@@ -227,7 +225,7 @@ class QuadEvaluator():
                 drone_on_line = circ_ref.project_helper(drone_pos)
                 reference_trajectory.append(trajectory[-1, :3])
                 div = np.linalg.norm(drone_on_line - drone_pos)
-                np.set_printoptions(precision=3, suppress=True)
+                divergences.append(div)
                 if div > self.treshold_divergence:
                     if self.render:
                         np.set_printoptions(precision=3, suppress=True)
@@ -236,18 +234,13 @@ class QuadEvaluator():
                         print("trajectory:")
                         print(np.around(trajectory, 2))
                     break
-        alpha_end = circ_ref.to_alpha(
-            circ_ref.to_2D(current_np_state[:3].copy())
-        )
         if self.render:
             self.eval_env.close()
             print(f"Circle: Steps until divergence: {i}")
             return np.array(reference_trajectory), drone_trajectory
         else:
-            alpha_diff = alpha_end - alpha_start
-            if alpha_diff < 0:
-                alpha_diff = 2 * np.pi - alpha_start + alpha_end
-            return i, alpha_diff
+            avg_diff = np.mean(divergences)
+            return i, avg_diff
 
     def straight_traj(self, max_nr_steps=200):
         init_state = [2, 0, 3]
@@ -265,6 +258,7 @@ class QuadEvaluator():
 
         drone_trajectory = [current_np_state]
         reference_trajectory = []  # drone states projected to ref
+        divergences = []
         with torch.no_grad():
             for i in range(max_nr_steps):
                 acc = self.eval_env.get_acceleration()
@@ -291,6 +285,7 @@ class QuadEvaluator():
                 )
                 reference_trajectory.append(drone_on_line)
                 div = np.linalg.norm(drone_on_line - current_np_state[:3])
+                divergences.append(div)
                 if div > self.treshold_divergence:
                     if self.render:
                         print("divergence too high", div)
@@ -300,14 +295,9 @@ class QuadEvaluator():
             return np.array(reference_trajectory), drone_trajectory
             self.eval_env.close()
         else:
-            if len(reference_trajectory) > 0:
-                traj_len = np.linalg.norm(
-                    reference_trajectory[-1] - reference_trajectory[0]
-                )
-            else:
-                traj_len = 0
+            avg_div = np.mean(divergences)
             steps_until_fail = i
-            return traj_len, steps_until_fail
+            return steps_until_fail, avg_div
 
     def eval_ref(
         self,
@@ -320,42 +310,42 @@ class QuadEvaluator():
         Function to evaluate both on straight and on circular traj
         """
         # ================ Straight ========================
-        traj_len_stable, divergence = [], []
+        straight_div, straight_stable = [], []
         for _ in range(nr_test_straight):
-            traj_len, steps_until_fail = self.straight_traj(
+            steps_until_fail, avg_div = self.straight_traj(
                 max_nr_steps=max_steps_straight
             )
-            traj_len_stable.append(traj_len)
-            divergence.append(steps_until_fail)
+            straight_div.append(avg_div)
+            straight_stable.append(steps_until_fail)
 
         # Output results for straight trajectory
         print(
-            "Straight: Average trajectory length: %3.2f (%3.2f)" %
-            (np.mean(traj_len_stable), np.std(traj_len_stable))
+            "Straight: Average divergence: %3.2f (%3.2f)" %
+            (np.mean(straight_div), np.std(straight_div))
         )
         print(
             "Straight: Steps until divergence: %3.2f (%3.2f)" %
-            (np.mean(divergence), np.std(divergence))
+            (np.mean(straight_stable), np.std(straight_stable))
         )
 
         # ================= CIRCLE =======================
-        circle_stable, alphas = [], []
+        circle_div, circle_stable = [], []
         for _ in range(nr_test_circle):
             # vary plane and radius
             possible_planes = [[0, 1], [0, 2], [1, 2]]
             plane = possible_planes[np.random.randint(0, 3, 1)[0]]
             radius = np.random.rand() + .5  # at least .5, max 1.5
             # run
-            steps_until_div, alpha_diff = self.circle_traj(
+            steps_until_div, avg_diff = self.circle_traj(
                 max_nr_steps=max_steps_circle, plane=plane, radius=radius
             )
             circle_stable.append(steps_until_div)
-            alphas.append(alpha_diff)
+            circle_div.append(avg_diff)
 
         # output results for circle:
         print(
-            "Circle: Average trajectory length: %3.2f (%3.2f)" %
-            (np.mean(alphas), np.std(alphas))
+            "Circle: Average divergence: %3.2f (%3.2f)" %
+            (np.mean(circle_div), np.std(circle_div))
         )
         print(
             "Circle: Steps until divergence: %3.2f (%3.2f)" %
@@ -386,6 +376,20 @@ class QuadEvaluator():
         np.save(outpath, data)
 
 
+def load_model(model_path, epoch=""):
+    """
+    Load model and corresponding parameters
+    """
+    # load std or other parameters from json
+    with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
+        param_dict = json.load(outfile)
+
+    net = torch.load(os.path.join(model_path, "model_quad" + epoch))
+    net = net.to(device)
+    net.eval()
+    return net, param_dict
+
+
 if __name__ == "__main__":
     # make as args:
     parser = argparse.ArgumentParser("Model directory as argument")
@@ -412,13 +416,7 @@ if __name__ == "__main__":
     model_name = args.model
     model_path = os.path.join("trained_models", "drone", model_name)
 
-    # load std or other parameters from json
-    with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
-        param_dict = json.load(outfile)
-
-    net = torch.load(os.path.join(model_path, "model_quad" + args.epoch))
-    net = net.to(device)
-    net.eval()
+    net, param_dict = load_model(model_path, epoch=args.epoch)
 
     dataset = DroneDataset(num_states=1, **param_dict)
     evaluator = QuadEvaluator(net, dataset, render=1, **param_dict)
@@ -444,7 +442,7 @@ if __name__ == "__main__":
             fixed_axis = 1
             ref_trajectory, drone_trajectory = evaluator.circle_traj(
                 max_nr_steps=1000,
-                radius=1,
+                radius=2,
                 plane=plane,
                 thresh=1,
                 direction=1

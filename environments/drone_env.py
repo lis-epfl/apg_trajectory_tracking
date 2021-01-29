@@ -140,6 +140,7 @@ class QuadRotorEnvBase(gym.Env):
         # set attitude and angular vel to zero
         state_arr[3:6] = 0
         state_arr[13:] = 0
+        self._state.from_np(state_arr)
 
     def render_reset(self, strength=.8):
         """
