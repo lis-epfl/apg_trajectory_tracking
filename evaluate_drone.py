@@ -291,11 +291,11 @@ class QuadEvaluator():
                         print("divergence too high", div)
                     break
         # output dependent on render or not
-        distance = np.linalg.norm(
-            reference_trajectory[-1] - reference_trajectory[0]
-        )
-        print("Distance:", distance)
-        print("Speed:", distance / (i * self.dt))
+        # distance = np.linalg.norm(
+        #     reference_trajectory[-1] - reference_trajectory[0]
+        # )
+        # print("Distance:", distance)
+        # print("Speed:", distance / (i * self.dt))
         if self.render:
             return np.array(reference_trajectory), drone_trajectory
             self.eval_env.close()
