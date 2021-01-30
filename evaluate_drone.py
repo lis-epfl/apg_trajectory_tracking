@@ -249,13 +249,11 @@ class QuadEvaluator():
         current_np_state = self.eval_env._state.as_np
         traj_direction = current_np_state[6:9]  # np.random.rand(3)
         a_on_line = current_np_state[:3]
-        b_on_line = a_on_line + 5 * traj_direction / np.linalg.norm(
-            traj_direction
-        )
+        b_on_line = a_on_line + traj_direction / np.linalg.norm(traj_direction)
 
         if self.render:
             self.eval_env.renderer.add_object(
-                StraightObject(a_on_line, b_on_line)
+                StraightObject(a_on_line, 5 * b_on_line - 4 * a_on_line)
             )
 
         drone_trajectory = [current_np_state]
@@ -293,11 +291,11 @@ class QuadEvaluator():
                         print("divergence too high", div)
                     break
         # output dependent on render or not
-        # distance = np.linalg.norm(
-        #     reference_trajectory[-1] - reference_trajectory[0]
-        # )
-        # print("Distance:", distance)
-        # print("Speed:", distance / (i * self.dt))
+        distance = np.linalg.norm(
+            reference_trajectory[-1] - reference_trajectory[0]
+        )
+        print("Distance:", distance)
+        print("Speed:", distance / (i * self.dt))
         if self.render:
             return np.array(reference_trajectory), drone_trajectory
             self.eval_env.close()
