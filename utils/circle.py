@@ -1,5 +1,8 @@
 import numpy as np
-from .trajectory import get_reference
+from .plan_trajectory import get_reference
+import sys
+sys.path.append("..")
+from environments.rendering import CircleObject
 
 
 class Circle:
@@ -7,7 +10,18 @@ class Circle:
     Auxiliary class to sample from a circular reference trajectory
     """
 
-    def __init__(self, mid_point=None, radius=1, plane=[0, 1], direction=1):
+    def __init__(
+        self,
+        drone_state,
+        render,
+        renderer,
+        radius=1,
+        plane=[0, 1],
+        direction=1,
+        max_drone_dist=.25,
+        horizon=10,
+        dt=0.02
+    ):
         """
         initialize a circle with a center and radius
         Arguments:
@@ -18,8 +32,14 @@ class Circle:
         """
         self.plane = plane
         self.radius = radius
-        self.mid_point = np.array(mid_point)
         self.direction = direction
+        self.horizon = horizon
+        self.max_drone_dist = max_drone_dist
+        self.dt = dt
+        # init renderer
+        self.init_from_tangent(drone_state[:3], drone_state[6:9])
+        if render:
+            renderer.add_object(CircleObject(self.mid_point, radius))
 
     def init_from_tangent(self, pos, vel):
         """
@@ -110,14 +130,12 @@ class Circle:
         next_point = self.point_on_circle(next_alpha)
         return self.to_3D(next_point) - point_3D
 
-    def project_helper(self, point):
+    def project_on_ref(self, point):
         return self.to_3D(self.project_point(point, addon=0))
 
-    def eval_get_circle(
-        self, drone_state, drone_acc, max_drone_dist, ref_length, dt=0.02
-    ):
+    def get_ref_traj(self, drone_state, drone_acc):
         drone_pos = drone_state[:3]
-        goal_pos = self.next_target(drone_pos, max_drone_dist)
+        goal_pos = self.next_target(drone_pos, self.max_drone_dist)
         direction = self.get_velocity(goal_pos)
         reference = get_reference(
             drone_pos,
@@ -125,8 +143,8 @@ class Circle:
             drone_acc,
             goal_pos,
             direction,
-            ref_length=ref_length,
-            delta_t=dt
+            ref_length=self.horizon,
+            delta_t=self.dt
         )
         # TODO: distance some factor?
         return reference

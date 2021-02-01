@@ -124,6 +124,12 @@ class DroneDataset(torch.utils.data.Dataset):
 
         # 2) Normalized states
         normed_states = self.to_torch((states - self.mean) / self.std)[:, 3:]
+        # normed_states[:, 6:10] = 0  # set rotor speeds to zero # TODO
+        # first part: attitude and velocity
+        # normed_states_first = normed_states[:, 3:9]
+        # # second part: body rates
+        # normed_states_second = normed_states[:, 13:]
+
         # Add rotation matrix to normed states
         drone_att = drone_states[:, 3:6]
         world_to_body = world_to_body_matrix(drone_att)
@@ -131,7 +137,7 @@ class DroneDataset(torch.utils.data.Dataset):
             world_to_body, torch.unsqueeze(drone_states[:, 6:9], 2)
         )[:, :, 0]
         # reshape and concatenate
-        rotation_matrix = torch.reshape(world_to_body, (-1, 9))
+        rotation_matrix = torch.reshape(world_to_body, (-1, 9))  # TODO
         normed_drone_states = torch.hstack(
             (normed_states, rotation_matrix, drone_vel_body)
         )
