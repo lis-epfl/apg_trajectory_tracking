@@ -114,33 +114,33 @@ class DroneDataset(torch.utils.data.Dataset):
             states = np.expand_dims(states, 0)
             ref_states = np.expand_dims(ref_states, 0)
 
-        # Normalize
-        unnormalized_state = self.to_torch(states)
-        normed_states = (states - self.mean) / self.std
+        # 1) just output the unnormalized states, but with the position at zero
+        drone_states = self.to_torch(states)
+        drone_pos = drone_states[:, :3].clone()
+        drone_states[:, :3] = 0
 
-        # To torch tensors
-        torch_states = self.to_torch(normed_states)
-        torch_ref_states = self.to_torch(ref_states)
-        for i in range(ref_states.shape[1]):
-            torch_ref_states[:, i, :3] = (
-                torch_ref_states[:, i, :3] - unnormalized_state[:, :3]
-            )
-
-        # transform acceleration
-        torch_ref_states[:, :, 6:] *= self.kwargs["dt"]
-
-        # # World to body frame - TODO: not working properly
-        drone_att = unnormalized_state[:, 3:6]
+        # 2) Normalized states
+        normed_states = self.to_torch((states - self.mean) / self.std)[:, 3:]
+        # Add rotation matrix to normed states
+        drone_att = drone_states[:, 3:6]
         world_to_body = world_to_body_matrix(drone_att)
         drone_vel_body = torch.matmul(
-            world_to_body, torch.unsqueeze(torch_states[:, 6:9], 2)
+            world_to_body, torch.unsqueeze(drone_states[:, 6:9], 2)
         )[:, :, 0]
         # reshape and concatenate
         rotation_matrix = torch.reshape(world_to_body, (-1, 9))
-        drone_states = torch.hstack(
-            (torch_states, rotation_matrix, drone_vel_body)
+        normed_drone_states = torch.hstack(
+            (normed_states, rotation_matrix, drone_vel_body)
         )
-        ref_states_body = torch_ref_states.clone()
+
+        # 3) Reference trajectory to torch and relative to drone position
+        torch_ref_states = self.to_torch(ref_states)
+        for i in range(ref_states.shape[1]):
+            torch_ref_states[:,
+                             i, :3] = (torch_ref_states[:, i, :3] - drone_pos)
+        # transform acceleration
+        torch_ref_states[:, :, 6:] *= self.kwargs["dt"]
+
         # ref_states_body = torch.unsqueeze(ref_states_body, 3)
         # for i in range(ref_states.shape[1]):
         #     # for each time step in the reference:
@@ -158,7 +158,7 @@ class DroneDataset(torch.utils.data.Dataset):
         #         world_to_body, ref_states_body[:, i, 6:9]
         #     )
         # ref_states_body = torch.squeeze(ref_states_body, dim=3)
-        return drone_states, torch_ref_states, ref_states_body
+        return normed_drone_states, drone_states, torch_ref_states
 
 
 class CartpoleDataset(torch.utils.data.Dataset):

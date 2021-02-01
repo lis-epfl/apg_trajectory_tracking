@@ -28,7 +28,7 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/horizon"
+BASE_MODEL = None  # "trained_models/drone/horizon"
 BASE_MODEL_NAME = 'model_quad'
 
 # Load model or initialize model
@@ -116,8 +116,6 @@ for epoch in range(NR_EPOCHS):
                     nr_test_straight=10
                 )
             print("Sampled new data!")
-            # np.save("current_data.npy", state_data.ref_body)
-
         # save best model
         if epoch > 0 and suc_mean > highest_success:
             highest_success = suc_mean
@@ -138,18 +136,13 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, ref_world, ref_body = data
-            # unnormalize TODO: maybe return from dataset simply
-            current_state = in_state[:, :STATE_SIZE] * torch_std + torch_mean
-            current_state[:, :3] = 0
-
-            # TODO: Could input :3 to NN with vel (problem: normalization)
+            in_state, current_state, ref_states = data
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # ------------ VERSION 1 (x states at once)-----------------
-            actions = net(in_state[:, 3:], ref_body)
+            actions = net(in_state, ref_states)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
@@ -158,38 +151,16 @@ for epoch in range(NR_EPOCHS):
                 in_state.size()[0], NR_ACTIONS, STATE_SIZE
             )
             for k in range(NR_ACTIONS):
-                # normalize loss by the start distance
+                # extract action
                 action = action_seq[:, k]
-                # ----------- VERSION 2: predict one action at a time --------
-                # start_dist = torch.sum(current_state[:, :3]**2, axis=1)
-                # net_input_state = (current_state - torch_mean) / torch_std
-                # action = net(net_input_state)
-                # action = torch.sigmoid(action)
                 current_state = simulate_quadrotor(
                     action, current_state, dt=DELTA_T
                 )
-                intermediate_states[:, k] = current_state  # [:, :3]
+                intermediate_states[:, k] = current_state
 
-                # Only compute loss after last action
-                # 1) --------- drone loss function --------------
             loss = reference_loss(
-                intermediate_states, ref_world, printout=0, delta_t=DELTA_T
+                intermediate_states, ref_states, printout=0, delta_t=DELTA_T
             )
-            # ------------- VERSION 3: Trajectory loss -------------
-            # drone_state = (current_state - torch_mean) / torch_std
-            # loss = trajectory_loss(
-            #     inputs,
-            #     target_state,
-            #     drone_state,
-            #     loss_weights=loss_weights,
-            #     mask=mask,
-            #     printout=0
-            # )
-            # np.set_printoptions(precision=3, suppress=True)
-            # print(intermediate_states[0, :, :3].detach().numpy())
-            # print(ref_body[0, :, :3].detach().numpy())
-            # print()
-            # exit()
 
             # Backprop
             loss.backward()

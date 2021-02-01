@@ -56,7 +56,7 @@ class QuadEvaluator():
         """
         # print([round(s, 2) for s in current_np_state])
         in_state, _, ref_body = self.dataset.get_and_add_eval_data(
-            current_np_state, ref_states
+            current_np_state.copy(), ref_states
         )
         # if self.render:
         #     self.check_ood(current_np_state, ref_world)
@@ -66,7 +66,7 @@ class QuadEvaluator():
         # print([round(s, 2) for s in current_torch_state[0].numpy()])
         # print("reference", reference)
         # print("position", current_torch_state[:, 3:])
-        suggested_action = self.net(in_state[:, 3:], ref_body)
+        suggested_action = self.net(in_state, ref_body)
 
         suggested_action = torch.sigmoid(suggested_action)[0]
 
