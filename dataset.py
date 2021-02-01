@@ -56,8 +56,8 @@ class DroneDataset(torch.utils.data.Dataset):
             self.std = np.std(states, axis=0)
 
         self.kwargs = kwargs
-        (self.states, self.ref_world,
-         self.ref_body) = self.prepare_data(states, ref_states)
+        (self.normed_states, self.states,
+         self.ref_states) = self.prepare_data(states, ref_states)
 
         # count how much of the data was replaced by self play
         self.eval_counter = 0
@@ -71,9 +71,8 @@ class DroneDataset(torch.utils.data.Dataset):
         states, ref_states = trajectory_training_data(
             self.num_states, **self.kwargs
         )
-        self.states, self.ref_world, self.ref_body = self.prepare_data(
-            states, ref_states
-        )
+        (self.normed_states, self.states,
+         self.ref_states) = self.prepare_data(states, ref_states)
         self.eval_counter = 0
 
     def get_and_add_eval_data(self, states, ref_states):
@@ -81,17 +80,18 @@ class DroneDataset(torch.utils.data.Dataset):
         While evaluating, add the data to the dataset with some probability
         to achieve self play
         """
-        states, ref_world, ref_body = self.prepare_data(states, ref_states)
+        (normed_states, states,
+         ref_states) = self.prepare_data(states, ref_states)
         if (np.random.rand() < self.self_play
             ) and (self.eval_counter < self.self_play * self.num_states):
             # self.self_play * s
             # replace data with eval data if below max eval data thresh
+            self.normed_states[self.eval_counter] = normed_states[0]
             self.states[self.eval_counter] = states[0]
-            self.ref_world[self.eval_counter] = ref_world[0]
-            self.ref_body[self.eval_counter] = ref_body[0]
+            self.ref_states[self.eval_counter] = ref_states[0]
             self.eval_counter += 1
 
-        return states, ref_world, ref_body
+        return normed_states, states, ref_states
 
     def to_torch(self, states):
         return torch.from_numpy(states).float().to(device)
@@ -101,7 +101,10 @@ class DroneDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         # Select sample
-        return self.states[index], self.ref_world[index], self.ref_body[index]
+        return (
+            self.normed_states[index], self.states[index],
+            self.ref_states[index]
+        )
 
     def prepare_data(self, states, ref_states):
         """

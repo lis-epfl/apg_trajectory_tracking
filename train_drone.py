@@ -47,8 +47,9 @@ else:
         ref_length=NR_ACTIONS,
         dt=DELTA_T
     )
+    in_state_size = state_data.normed_states.size()[1]
     # +9 because adding 12 things but deleting position (3)
-    net = Net(STATE_SIZE + 9, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
+    net = Net(in_state_size, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
     (STD, MEAN) = (state_data.std, state_data.mean)
 
 # Use cuda if available
@@ -100,7 +101,7 @@ for epoch in range(NR_EPOCHS):
         suc_mean, suc_std = eval_env.eval_ref(
             nr_test_circle=5,
             max_steps_circle=take_steps * steps_per_eval + 1,
-            nr_test_straight=5
+            nr_test_straight=2
         )
 
         success_mean_list.append(suc_mean)
