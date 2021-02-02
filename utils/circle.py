@@ -1,8 +1,5 @@
 import numpy as np
 from .plan_trajectory import get_reference
-import sys
-sys.path.append("..")
-from environments.rendering import CircleObject
 
 
 class Circle:
@@ -158,3 +155,16 @@ class Circle:
             ]
         )
         plt.scatter(points[:, 0], points[:, 1])
+
+
+class CircleObject():
+
+    def __init__(self, mid_point, radius):
+        self.mid_point = mid_point.copy()
+        self.mid_point[2] += 1
+        self.radius = radius
+
+    def draw(self, renderer):
+        renderer.draw_circle(
+            tuple(self.mid_point), self.radius, (0, 1, 0), filled=False
+        )

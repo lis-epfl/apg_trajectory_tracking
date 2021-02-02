@@ -176,12 +176,12 @@ class QuadEvaluator():
                     self.eval_env._state.from_np(states[i])
                     current_np_state = states[i]
                     stable = i < (len(states) - 1)
-                drone_pos = current_np_state[:3]
-                drone_trajectory.append(current_np_state)
                 if not stable:
-                    print("unstable")
                     break
                 self.help_render(sleep=0)
+
+                drone_pos = current_np_state[:3]
+                drone_trajectory.append(current_np_state)
 
                 # project to trajectory and check divergence
                 drone_on_line = reference.project_on_ref(drone_pos)

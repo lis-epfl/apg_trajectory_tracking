@@ -71,7 +71,7 @@ class RandomReference:
         points_3d = points_2d_ext @ rot
 
         # for visibility, bring x and z in a good range
-        x_min_render, z_min_render = (-3, 0.5)
+        # x_min_render, z_min_render = (-3, 0.5)
         # x_max_render, z_max_render = (3, 7)
         points_3d = points_3d - points_3d[0] + drone_state[:3]
         # points_3d[:,0] + x_min_render - np.min(points_3d[:, 0])
@@ -84,6 +84,10 @@ class RandomReference:
         self.reference = np.vstack([start_hover, points_3d, end_hover])
         self.ref_len = len(self.reference)
         self.target_ind = 0
+
+        # draw trajectory on renderer
+        if render:
+            renderer.add_object(PolyObject(self.reference))
 
     def get_ref_traj(self, drone_state, drone_acc):
         """
@@ -131,3 +135,21 @@ class RandomReference:
         ]
         # return the closest one
         return possible_locs[np.argmin(distances)]
+
+
+class PolyObject():
+
+    def __init__(self, reference_arr):
+        self.points = np.array(
+            [
+                reference_arr[i] for i in range(len(reference_arr))
+                if i % 20 == 0
+            ]
+        )
+        self.points[:, 2] += 1
+
+    def draw(self, renderer):
+        for p in range(len(self.points) - 1):
+            renderer.draw_line_3d(
+                self.points[p], self.points[p + 1], color=(1, 0, 0)
+            )

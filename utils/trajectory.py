@@ -1,8 +1,5 @@
 import numpy as np
 from .plan_trajectory import get_reference
-import sys
-sys.path.append("..")
-from environments.rendering import StraightObject
 
 
 class Hover:
@@ -88,6 +85,18 @@ class Straight:
         Project the current state to the trajectory
         """
         return np_project_line(self.a_on_line, self.b_on_line, drone_state[:3])
+
+
+class StraightObject():
+
+    def __init__(self, start, end):
+        self.start = start.copy()
+        self.start[2] += 1
+        self.end = end.copy()
+        self.end[2] += 1
+
+    def draw(self, renderer):
+        renderer.draw_line_3d(self.start, self.end, color=(1, 0, 0))
 
 
 def sample_points_on_straight(

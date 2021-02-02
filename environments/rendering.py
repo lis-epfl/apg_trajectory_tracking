@@ -151,40 +151,6 @@ class Ground(RenderedObject):  # pragma: no cover
             renderer.draw_line_2d((pos + i, 0.0), (pos + i - 2, -2.0))
 
 
-class StraightObject(RenderedObject):
-
-    def __init__(self, start, end):
-        self.start = start.copy()
-        self.start[2] += 1
-        self.end = end.copy()
-        self.end[2] += 1
-
-    def draw(self, renderer):
-        renderer.draw_line_3d(self.start, self.end, color=(1, 0, 0))
-
-
-class CircleObject(RenderedObject):
-
-    def __init__(self, mid_point, radius):
-        self.mid_point = mid_point.copy()
-        self.mid_point[2] += 1
-        self.radius = radius
-
-    def draw(self, renderer):
-        # for striaght line:
-        # start = np.array([3, 3])
-        # end = np.array([0, 0])
-        # renderer.draw_line_2d(start, end, attr={"colour": "red"})
-
-        # # for circle:
-        # p1 = 1.47736218
-        # p2 = 4.34811016
-        renderer.draw_circle(
-            tuple(self.mid_point), self.radius, (0, 1, 0), filled=False
-        )
-        # renderer.draw_circle((4, 2, 2), 0.15, (1, 0, 0))
-
-
 class QuadCopter(RenderedObject):  # pragma: no cover
 
     def __init__(self, source):
