@@ -130,7 +130,7 @@ class QuadEvaluator():
                 poly
         """
         # reset drone state
-        init_state = [3, 0, 6]
+        init_state = [4, 0, 7]
         self.eval_env.zero_reset(*tuple(init_state))
 
         states = None  # np.load("id_5.npy")
@@ -297,6 +297,16 @@ def load_model(model_path, epoch=""):
     return net, param_dict
 
 
+def compute_speed(drone_traj, dt):
+    dist = 0
+    for j in range(len(drone_traj) - 1):
+        dist += np.linalg.norm(drone_traj[j] - drone_traj[j + 1])
+
+    time_passed = len(drone_traj) * dt
+    speed = dist / time_passed
+    return speed
+
+
 if __name__ == "__main__":
     # make as args:
     parser = argparse.ArgumentParser("Model directory as argument")
@@ -340,6 +350,10 @@ if __name__ == "__main__":
         }
         reference_traj, drone_traj = evaluator.follow_trajectory(
             args.ref, max_nr_steps=1000, **circle_args
+        )
+        print(
+            "Speed:",
+            compute_speed(drone_traj[100:-300, :3], param_dict["dt"])
         )
         plot_trajectory(
             reference_traj,

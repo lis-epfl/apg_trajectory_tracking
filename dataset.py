@@ -46,6 +46,7 @@ class DroneDataset(torch.utils.data.Dataset):
 
     def __init__(self, num_states=1000, mean=None, std=None, **kwargs):
         # First constructor: New dataset for training
+        self.self_play = 0
         self.mean = mean
         self.std = std
         self.num_states = num_states
@@ -61,7 +62,6 @@ class DroneDataset(torch.utils.data.Dataset):
 
         # count how much of the data was replaced by self play
         self.eval_counter = 0
-        self.self_play = 0
 
     def sample_data(self, self_play=0):
         """
@@ -82,7 +82,7 @@ class DroneDataset(torch.utils.data.Dataset):
         """
         (normed_states, states,
          ref_states) = self.prepare_data(states, ref_states)
-        if (np.random.rand() < self.self_play
+        if (np.random.rand() < .5 * self.self_play
             ) and (self.eval_counter < self.self_play * self.num_states):
             # self.self_play * s
             # replace data with eval data if below max eval data thresh
