@@ -58,12 +58,8 @@ class QuadEvaluator():
         )
         # if self.render:
         #     self.check_ood(current_np_state, ref_world)
+        # np.set_printoptions(suppress=True, precision=0)
         # print(current_np_state)
-        # print(in_state)
-        # print()
-        # print([round(s, 2) for s in current_torch_state[0].numpy()])
-        # print("reference", reference)
-        # print("position", current_torch_state[:, 3:])
         suggested_action = self.net(in_state, ref_body)
 
         suggested_action = torch.sigmoid(suggested_action)[0]
@@ -134,7 +130,7 @@ class QuadEvaluator():
                 poly
         """
         # reset drone state
-        init_state = [0, 0, 3]
+        init_state = [3, 0, 6]
         self.eval_env.zero_reset(*tuple(init_state))
 
         states = None  # np.load("id_5.npy")

@@ -82,6 +82,7 @@ def plot_drone_ref_coords(
     quad_pos = np.swapaxes(np.array(quad_pos), 1, 0)
     for i, data in enumerate(quad_pos):
         plt.plot(data, cols[i], label=labels[i])
+    plt.legend(fontsize=15)
     if save_path is None:
         plt.show()
     else:

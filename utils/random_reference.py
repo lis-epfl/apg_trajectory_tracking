@@ -14,7 +14,7 @@ class RandomReference:
         horizon=10,
         hover_steps=50,
         x_range=10,
-        degree=5,
+        degree=8,
         dt=0.05,
         **kwargs
     ):
@@ -32,8 +32,8 @@ class RandomReference:
         x_final = x_start + x_range
 
         # generate random data
-        x = np.linspace(x_start - 1, x_final + 1, 20)
-        y = np.random.rand(len(x)) * 3 + 5  # TODO
+        x = np.linspace(x_start - 1, x_final + 1, 10)
+        y = np.random.rand(len(x)) * 5 + 5
 
         # generate random rotation to 3D
         rot = special_ortho_group.rvs(3)
