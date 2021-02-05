@@ -1,10 +1,8 @@
 import torch
 import numpy as np
-try:
-    from .copter import copter_params
-except ImportError:
-    from copter import copter_params
+from neural_control.environments.copter import copter_params
 from types import SimpleNamespace
+
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 copter_params = SimpleNamespace(**copter_params)
 copter_params.translational_drag = torch.from_numpy(

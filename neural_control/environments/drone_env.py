@@ -13,14 +13,9 @@ from gym import spaces
 from gym.utils import seeding
 
 from neural_control.utils.trajectory import straight_training_sample, get_reference
-try:
-    from .rendering import Renderer, Ground, QuadCopter
-    from .copter import copter_params, DynamicsState, Euler
-    from .drone_dynamics import simulate_quadrotor, linear_dynamics
-except ImportError:
-    from rendering import Renderer, Ground, QuadCopter
-    from copter import copter_params, DynamicsState, Euler
-    from drone_dynamics import simulate_quadrotor, linear_dynamics
+from neural_control.environments.rendering import Renderer, Ground, QuadCopter
+from neural_control.environments.copter import copter_params, DynamicsState, Euler
+from neural_control.environments.drone_dynamics import simulate_quadrotor, linear_dynamics
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
