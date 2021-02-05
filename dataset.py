@@ -180,10 +180,10 @@ class CartpoleDataset(torch.utils.data.Dataset):
         state_arr_numpy = construct_states(num_states, **kwargs)
         # convert to normalized tensors
         self.labels = self.to_torch(state_arr_numpy)
-        self.states = self.labels.copy()
+        self.states = self.labels.clone()
 
     def to_torch(self, states):
-        return torch.from_numpy(state_arr_numpy).float().to(device)
+        return torch.from_numpy(states).float().to(device)
 
     def __len__(self):
         return len(self.states)
