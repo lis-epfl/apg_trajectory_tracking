@@ -2,7 +2,7 @@ import json
 import numpy as np
 import os
 from evaluate_drone import QuadEvaluator, load_model
-from dataset import DroneDataset
+from neural_control.dataset import DroneDataset
 import pandas as pd
 
 if __name__ == "__main__":

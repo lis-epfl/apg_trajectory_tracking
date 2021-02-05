@@ -1,5 +1,5 @@
 import torch
-from environments.drone_dynamics import simulate_quadrotor, device
+from neural_control.environments.drone_dynamics import simulate_quadrotor, device
 torch.autograd.set_detect_anomaly(True)
 zero_tensor = torch.zeros(3).to(device)
 

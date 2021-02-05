@@ -6,12 +6,12 @@ import torch.optim as optim
 import torch
 import torch.nn.functional as F
 
-from dataset import DroneDataset
-from drone_loss import drone_loss_function, trajectory_loss, reference_loss
-from environments.drone_dynamics import simulate_quadrotor
+from neural_control.dataset import DroneDataset
+from neural_control.drone_loss import drone_loss_function, trajectory_loss, reference_loss
+from neural_control.environments.drone_dynamics import simulate_quadrotor
 from evaluate_drone import QuadEvaluator
-from models.hutter_model import Net
-from utils.plotting import plot_loss_episode_len
+from neural_control.models.hutter_model import Net
+from neural_control.utils.plotting import plot_loss_episode_len
 
 DELTA_T = 0.05
 EPOCH_SIZE = 5000

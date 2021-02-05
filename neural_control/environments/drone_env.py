@@ -12,7 +12,7 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
-from utils.trajectory import straight_training_sample, get_reference
+from neural_control.utils.trajectory import straight_training_sample, get_reference
 try:
     from .rendering import Renderer, Ground, QuadCopter
     from .copter import copter_params, DynamicsState, Euler

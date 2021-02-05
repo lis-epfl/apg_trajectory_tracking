@@ -6,17 +6,17 @@ import numpy as np
 import torch
 import pickle
 
-from environments.drone_env import QuadRotorEnvBase, trajectory_training_data
-from utils.plotting import (
+from neural_control.environments.drone_env import QuadRotorEnvBase, trajectory_training_data
+from neural_control.utils.plotting import (
     plot_state_variables, plot_trajectory, plot_position, plot_suc_by_dist,
     plot_drone_ref_coords
 )
-from utils.trajectory import Hover, Straight
-from utils.circle import Circle
-from utils.random_reference import RandomReference
-from dataset import DroneDataset
-# from models.resnet_like_model import Net
-from drone_loss import drone_loss_function
+from neural_control.utils.trajectory import Hover, Straight
+from neural_control.utils.circle import Circle
+from neural_control.utils.random_reference import RandomReference
+from neural_control.dataset import DroneDataset
+# from neural_control.models.resnet_like_model import Net
+from neural_control.drone_loss import drone_loss_function
 
 ROLL_OUT = 1
 ACTION_DIM = 4
@@ -351,10 +351,10 @@ if __name__ == "__main__":
         reference_traj, drone_traj = evaluator.follow_trajectory(
             args.ref, max_nr_steps=1000, **circle_args
         )
-        print(
-            "Speed:",
-            compute_speed(drone_traj[100:-300, :3], param_dict["dt"])
-        )
+        # print(
+        #     "Speed:",
+        #     compute_speed(drone_traj[100:-300, :3], param_dict["dt"])
+        # )
         plot_trajectory(
             reference_traj,
             drone_traj,
@@ -368,4 +368,3 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         evaluator.eval_env.close()
-    # evaluator.evaluate()

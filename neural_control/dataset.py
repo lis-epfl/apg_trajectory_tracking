@@ -1,9 +1,9 @@
 import torch
 import numpy as np
 import os
-from environments.drone_env import trajectory_training_data
-from environments.cartpole_env import construct_states
-from environments.drone_dynamics import world_to_body_matrix
+from neural_control.environments.drone_env import trajectory_training_data
+from neural_control.environments.cartpole_env import construct_states
+from neural_control.environments.drone_dynamics import world_to_body_matrix
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

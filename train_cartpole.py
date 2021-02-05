@@ -4,12 +4,12 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from dataset import CartpoleDataset
-from cartpole_loss import control_loss_function
+from neural_control.dataset import CartpoleDataset
+from neural_control.cartpole_loss import control_loss_function
 from evaluate_cartpole import Evaluator
-from models.resnet_like_model import Net
-from utils.plotting import plot_loss, plot_success
-from environments.cartpole_env import construct_states
+from neural_control.models.resnet_like_model import Net
+from neural_control.utils.plotting import plot_loss, plot_success
+from neural_control.environments.cartpole_env import construct_states
 
 SAVE_PATH = "trained_models/minimize_x"
 NR_EVAL_ITERS = 10
