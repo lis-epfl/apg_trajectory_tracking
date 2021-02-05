@@ -3,7 +3,6 @@ Adapted from https://github.com/ngc92/quadgym
 """
 import math
 import time
-import pprint
 from types import SimpleNamespace
 import numpy as np
 import torch
@@ -12,10 +11,18 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
-from neural_control.utils.trajectory import straight_training_sample, get_reference
-from neural_control.environments.rendering import Renderer, Ground, QuadCopter
-from neural_control.environments.copter import copter_params, DynamicsState, Euler
-from neural_control.environments.drone_dynamics import simulate_quadrotor, linear_dynamics
+from neural_control.utils.trajectory import (
+    straight_training_sample, get_reference
+)
+from neural_control.environments.rendering import (
+    Renderer, Ground, QuadCopter
+)
+from neural_control.environments.copter import (
+    copter_params, DynamicsState, Euler
+)
+from neural_control.environments.drone_dynamics import (
+    simulate_quadrotor, linear_dynamics
+)
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -204,9 +211,9 @@ class QuadRotorEnvBase(gym.Env):
         )
 
 
-def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
+def random_angle(random_state, max_pitch_roll):
     """
-    Returns a random Euler angle where roll and pitch are limited to [-max_pitch_roll, max_pitch_roll].
+    Returns a random Euler angle
     :param random_state: The random state used to generate the random numbers.
     :param max_pitch_roll: Maximum roll/pitch angle, in degrees.
     :return Euler: A new `Euler` object with randomized angles.

@@ -6,9 +6,8 @@ permalink: https://perma.cc/C9ZM-652R
 import logging
 import math
 import numpy as np
-logger = logging.getLogger(__name__)
 import time
-import os
+logger = logging.getLogger(__name__)
 from . import cartpole_rendering as rendering
 
 

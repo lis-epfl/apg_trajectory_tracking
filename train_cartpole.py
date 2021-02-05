@@ -11,7 +11,7 @@ from neural_control.models.resnet_like_model import Net
 from neural_control.utils.plotting import plot_loss, plot_success
 from neural_control.environments.cartpole_env import construct_states
 
-SAVE_PATH = "trained_models/minimize_x"
+SAVE_PATH = "trained_models/cartpole/current_model"
 NR_EVAL_ITERS = 10
 NR_SWINGUP_ITERS = 20
 USE_NEW_DATA = 1000

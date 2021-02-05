@@ -50,8 +50,8 @@ def world_to_body_matrix(euler):
 
 def body_to_world(euler, vector):
     """
-    Transforms a direction `vector` from body to world coordinates, where the body frame
-    is given by the Euler angles `euler.
+    Transforms a direction `vector` from body to world coordinates,
+    where the body frame is given by the Euler angles `euler.
     :param euler: Euler angles of the body frame.
     :param vector: The direction vector to transform.
     :return: Direction in world frame.
@@ -162,7 +162,7 @@ class QuadCopter(RenderedObject):  # pragma: no cover
         setup = self.source.setup
 
         # transformed main axis
-        trafo = status.attitude  # type: Euler
+        trafo = status.attitude
 
         # draw current orientation
         rotated = body_to_world(trafo, [0, 0, 0.5])
