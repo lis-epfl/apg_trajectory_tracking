@@ -4,10 +4,10 @@ import argparse
 import numpy as np
 import torch
 
-from environments.cartpole_env import CartPoleEnv
-from dataset import raw_states_to_torch
-from models.resnet_like_model import Net
-from cartpole_loss import control_loss_function
+from neural_control.environments.cartpole_env import CartPoleEnv
+from neural_control.dataset import raw_states_to_torch
+from neural_control.models.resnet_like_model import Net
+from neural_control.cartpole_loss import control_loss_function
 
 APPLY_UNTIL = 3
 
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         type=str,
-        default="minimize_x",
+        default="current_model",
         help="Directory of model"
     )
     parser.add_argument(
@@ -166,7 +166,8 @@ if __name__ == "__main__":
 
     net = torch.load(
         os.path.join(
-            "trained_models", MODEL_NAME, "model_pendulum" + args.epoch
+            "trained_models", "cartpole", MODEL_NAME,
+            "model_pendulum" + args.epoch
         )
     )
     net.eval()

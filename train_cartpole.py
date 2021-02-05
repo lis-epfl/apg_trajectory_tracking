@@ -4,14 +4,14 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from dataset import Dataset
-from cartpole_loss import control_loss_function
+from neural_control.dataset import CartpoleDataset
+from neural_control.cartpole_loss import control_loss_function
 from evaluate_cartpole import Evaluator
-from models.resnet_like_model import Net
-from utils.plotting import plot_loss, plot_success
-from environments.cartpole_env import construct_states
+from neural_control.models.resnet_like_model import Net
+from neural_control.utils.plotting import plot_loss, plot_success
+from neural_control.environments.cartpole_env import construct_states
 
-SAVE_PATH = "trained_models/minimize_x"
+SAVE_PATH = "trained_models/cartpole/current_model"
 NR_EVAL_ITERS = 10
 NR_SWINGUP_ITERS = 20
 USE_NEW_DATA = 1000
@@ -68,7 +68,7 @@ for epoch in range(NR_EPOCHS):
 
     # Renew dataset dynamically
     if epoch % 3 == 0:
-        state_data = Dataset(construct_states, num_states=10000)
+        state_data = CartpoleDataset(num_states=10000)
         if epoch > 5:
             # add the data generated during evaluation
             rand_inds_include = np.random.permutation(len(new_data)

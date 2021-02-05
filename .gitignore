@@ -10,3 +10,5 @@ data_backup/
 .ipynb_checkpoints/
 *.ipynb
 *.npy
+models
+neural_control.egg-info/

@@ -3,7 +3,6 @@ Adapted from https://github.com/ngc92/quadgym
 """
 import math
 import time
-import pprint
 from types import SimpleNamespace
 import numpy as np
 import torch
@@ -12,14 +11,20 @@ import gym
 from gym import spaces
 from gym.utils import seeding
 
-try:
-    from .rendering import Renderer, Ground, QuadCopter
-    from .copter import copter_params, DynamicsState, Euler
-    from .drone_dynamics import simulate_quadrotor
-except ImportError:
-    from rendering import Renderer, Ground, QuadCopter
-    from copter import copter_params, DynamicsState
-    from drone_dynamics import simulate_quadrotor
+from neural_control.utils.trajectory import (
+    straight_training_sample, get_reference
+)
+from neural_control.environments.rendering import (
+    Renderer, Ground, QuadCopter
+)
+from neural_control.environments.copter import (
+    copter_params, DynamicsState, Euler
+)
+from neural_control.environments.drone_dynamics import (
+    simulate_quadrotor, linear_dynamics
+)
+
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class QuadRotorEnvBase(gym.Env):
@@ -35,7 +40,7 @@ class QuadRotorEnvBase(gym.Env):
     action_space = spaces.Box(0, 1, (4, ), dtype=np.float32)
     observation_space = spaces.Box(0, 1, (6, ), dtype=np.float32)
 
-    def __init__(self):
+    def __init__(self, dt):
 
         # set up the renderer
         self.renderer = Renderer()
@@ -56,18 +61,30 @@ class QuadRotorEnvBase(gym.Env):
         # self._attitude_reward = AttitudeReward(
         #     1.0, attitude_error_transform=np.sqrt
         # )
+        self.dt = dt
 
     @staticmethod
-    def get_is_stable(np_state):
+    def get_is_stable(np_state, thresh=.4):
         """
         Return for a given state whether the drone is stable or failure
         Returns bool --> if true then still stable
         """
         # only roll and pitch are constrained
-        attitude_condition = np.all(np.absolute(np_state[3:5]) < .5)
+        attitude_condition = np.all(np.absolute(np_state[3:5]) < thresh)
         return attitude_condition
 
-    def step(self, action):
+    def get_acceleration(self):
+        """
+        Compute acceleration from current state (pos, vel and att)
+        """
+        torch_state = torch.from_numpy(np.array([self._state.as_np])
+                                       ).to(device)
+        acceleration = linear_dynamics(
+            torch_state[:, 9:13], torch_state[:, 3:6], torch_state[:, 6:9]
+        )
+        return acceleration[0]
+
+    def step(self, action, thresh=.4):
         """
         Apply action to the current drone state
         Returns:
@@ -78,10 +95,13 @@ class QuadRotorEnvBase(gym.Env):
         assert action.shape == (4, ), f"action not size 4 but {action.shape}"
 
         # set the blade speeds. as F ~ w², and we want F ~ action.
-        torch_state = torch.from_numpy(np.array([self._state.as_np]))
-        torch_action = torch.from_numpy(np.array([action]))
-        new_state_arr = simulate_quadrotor(torch_action, torch_state)
-        numpy_out_state = new_state_arr.numpy()[0]
+        torch_state = torch.from_numpy(np.array([self._state.as_np])
+                                       ).to(device)
+        torch_action = torch.from_numpy(np.array([action])).to(device)
+        new_state_arr = simulate_quadrotor(
+            torch_action, torch_state, dt=self.dt
+        )
+        numpy_out_state = new_state_arr.cpu().numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)
         # attitude = self._state.attitude
@@ -94,14 +114,16 @@ class QuadRotorEnvBase(gym.Env):
         # resets the velocity after each step --> we don't want to do that
         # ensure_fixed_position(self._state, 1.0)
 
-        return numpy_out_state, self.get_is_stable(numpy_out_state)
+        return numpy_out_state, self.get_is_stable(
+            numpy_out_state, thresh=thresh
+        )
 
     def render(self, mode='human', close=False):
         if not close:
             self.renderer.setup()
 
             # update the renderer's center position
-            self.renderer.set_center(self._state.position[0])
+            self.renderer.set_center(0)  # self._state.position[0])
 
         return self.renderer.render(mode, close)
 
@@ -114,10 +136,13 @@ class QuadRotorEnvBase(gym.Env):
         Arguments:
             Position (in three floats)
         """
-        zero_state = np.zeros(20)
-        zero_state[9:13] = 400
-        zero_state[:3] = [position_x, position_y, position_z]
-        self._state.from_np(zero_state)
+        self.reset()
+        state_arr = self._state.as_np
+        state_arr[:3] = [position_x, position_y, position_z]
+        # set attitude and angular vel to zero
+        state_arr[3:6] = 0
+        state_arr[13:] = 0
+        self._state.from_np(state_arr)
 
     def render_reset(self, strength=.8):
         """
@@ -134,15 +159,16 @@ class QuadRotorEnvBase(gym.Env):
         # # possibility 1: reset to zero
         #
 
-        self.randomize_angle(5 * strength)
-        self.randomize_angular_velocity(2.0)
+        self.randomize_angle(3 * strength)
+        self.randomize_angular_velocity(2.0 * strength)
         self._state.attitude.yaw = self.random_state.uniform(
-            low=-0.3 * strength, high=0.3 * strength
+            low=-1.5, high=1.5
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
         self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
-        self._state.angular_velocity[2] *= 0.5 * strength
+        self._state.angular_velocity[2] *= 0.5  # * strength
+        self.randomize_velocity(1.3 * strength)
 
         # self.renderer.set_center(None)
 
@@ -185,9 +211,9 @@ class QuadRotorEnvBase(gym.Env):
         )
 
 
-def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
+def random_angle(random_state, max_pitch_roll):
     """
-    Returns a random Euler angle where roll and pitch are limited to [-max_pitch_roll, max_pitch_roll].
+    Returns a random Euler angle
     :param random_state: The random state used to generate the random numbers.
     :param max_pitch_roll: Maximum roll/pitch angle, in degrees.
     :return Euler: A new `Euler` object with randomized angles.
@@ -205,58 +231,89 @@ def random_angle(random_state: np.random.RandomState, max_pitch_roll: float):
 # --------------------- Auxilary functions ----------------------
 
 
-def construct_states(num_data, episode_length=10, reset_strength=1, **kwargs):
+def trajectory_training_data(
+    len_data,
+    step_size=0,
+    max_drone_dist=0.1,
+    ref_length=5,
+    reset_strength=1,
+    load_selfplay=None,  # "data/jan_2021.npy",
+    dt=0.02,
+    **kwargs
+):
     """
-    Sample states for training the model
+    Generate training dataset for trajectories as input
     Arguments:
-        num_data: How much states to sample
-        episode_length: Maximum number of states before resetting the env
-        reset_strength (float between 0.5 - 1.5): How much randomization, i.e.
-                How far from target should the states be
+        len_data: int, how much data to generate
+        step_size: Distance between two points on the trajectory
+        max_drone_dist: Maximum distance of the drone from the first state
+        ref_length: Number of states sampled from reference traj
+        reset_strength: How much to reset the model
+        load_selfplay: file path where data from self play is located
+    Returns:
+        Array of size (len_data, reference_shape) with the training data
     """
-    # data = np.load("data.npy")
-    # assert not np.any(np.isnan(data))
-    const_action_runs = .8
-    # return data
-    env = QuadRotorEnvBase()
-    data = []
-    is_stable_list = list()
-    while len(data) < num_data:
-        env.reset(strength=reset_strength)
-        is_stable = True
-        time_stable = 0
-        # Sample one episode
-        while is_stable and time_stable < episode_length:
-            # perform random action
-            action = np.random.rand(4) * .4 - .2 + .3
-            if len(data) > num_data * const_action_runs:
-                # add some states with very monotone actions
-                action = np.ones(4) * .5
-            new_state, is_stable = env.step(action)
-            # print(new_state[2])
-            data.append(new_state)
-            time_stable += 1
-        is_stable_list.append(time_stable)
-    data = np.array(data)
-    # np.save("data_backup/collected_data.npy", data)
-    # print("saved first data", np.mean(is_stable_list))
-    return data
+    if load_selfplay is not None:
+        # load training data from np array
+        data = np.load(load_selfplay)
+        rand_inds = np.random.permutation(len(data))
+        ind_counter = 0
+    env = QuadRotorEnvBase(dt)
+    drone_states, ref_states = [], []
+    for _ in range(len_data):
+        if load_selfplay is not None and np.random.rand() < .5:
+            drone_state = data[rand_inds[ind_counter]]
+            ind_counter += 1
+        else:
+            env.reset(strength=reset_strength)
+            # sample a drone state
+            drone_state = env._state.as_np
+        pos0, vel0 = (drone_state[:3], drone_state[6:9])
+        acc0 = env.get_acceleration().numpy()
 
+        # sample a direction where the next position is located
+        norm_vel = np.linalg.norm(vel0)
+        # should not diverge too much from velocity direction of drone
+        sampled_pos_dir = (
+            vel0 + (np.random.rand(3) - .5) * reset_strength * norm_vel
+        )
+        sampled_pos_dir = sampled_pos_dir / np.linalg.norm(sampled_pos_dir)
+        # sample direction where the velocity should show in the end
+        sampled_vel_dir = (
+            sampled_pos_dir + (np.random.rand(3) - .5) * reset_strength
+        )
 
-def get_avg_distance():
-    """
-    Get average distance of the states from the target (zero)
-    """
-    states = construct_states(10000)
-    sum_squares = np.sqrt(np.sum(states[:, :3]**2, axis=1))
-    print(sum_squares.shape, np.mean(sum_squares))
-    return np.mean(sum_squares)
+        # final goal state:
+        posf = pos0 + sampled_pos_dir * max_drone_dist
+        # multiply by norm to get a velocity of similar strength
+        velf = sampled_vel_dir * (norm_vel * (1 + np.random.rand(1) * .2 - .1))
+
+        reference_states = get_reference(
+            pos0,
+            vel0,
+            acc0,
+            posf,
+            velf,
+            ref_length=ref_length,
+            delta_t=env.dt
+        )
+
+        drone_states.append(drone_state)
+        ref_states.append(reference_states)
+    drone_states = np.array(drone_states)
+    ref_states = np.array(ref_states)
+    # np.save("ref_states.npy", ref_states)
+    # exit()
+    return drone_states, ref_states
 
 
 if __name__ == "__main__":
-    env = QuadRotorEnvBase()
+    env = QuadRotorEnvBase(0.02)
+    env.reset()
+    states, ref = trajectory_training_data(1000)
+    # np.save("drone_states.npy", a1)
+    # np.save("ref_states.npy", a2)
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")
-    states = construct_states(100)
     # states = np.load("check_added_data.npy")
     print(np.mean(states[:, :6], axis=0))
     print(np.std(states[:, :6], axis=0))

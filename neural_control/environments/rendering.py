@@ -50,8 +50,8 @@ def world_to_body_matrix(euler):
 
 def body_to_world(euler, vector):
     """
-    Transforms a direction `vector` from body to world coordinates, where the body frame
-    is given by the Euler angles `euler.
+    Transforms a direction `vector` from body to world coordinates,
+    where the body frame is given by the Euler angles `euler.
     :param euler: Euler angles of the body frame.
     :param vector: The direction vector to transform.
     :return: Direction in world frame.
@@ -68,15 +68,17 @@ class Renderer:
         self.scroll_speed = 0.1
         self.objects = []
 
-    def draw_line_2d(self, start, end):
-        self.viewer.draw_line(start, end)
+    def draw_line_2d(self, start, end, color=(0, 0, 0)):
+        self.viewer.draw_line(start, end, color=color)
 
-    def draw_line_3d(self, start, end):
-        self.draw_line_2d((start[0], start[2]), (end[0], end[2]))
+    def draw_line_3d(self, start, end, color=(0, 0, 0)):
+        self.draw_line_2d((start[0], start[2]), (end[0], end[2]), color=color)
 
-    def draw_circle(self, position, radius, color):  # pragma: no cover
+    def draw_circle(
+        self, position, radius, color, filled=True
+    ):  # pragma: no cover
         from gym.envs.classic_control import rendering
-        copter = rendering.make_circle(radius)
+        copter = rendering.make_circle(radius, filled=filled)
         copter.set_color(*color)
         if len(position) == 3:
             position = (position[0], position[2])
@@ -160,7 +162,7 @@ class QuadCopter(RenderedObject):  # pragma: no cover
         setup = self.source.setup
 
         # transformed main axis
-        trafo = status.attitude  # type: Euler
+        trafo = status.attitude
 
         # draw current orientation
         rotated = body_to_world(trafo, [0, 0, 0.5])
