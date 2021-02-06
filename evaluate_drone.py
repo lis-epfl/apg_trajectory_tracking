@@ -6,14 +6,16 @@ import numpy as np
 import torch
 import pickle
 
-from neural_control.environments.drone_env import QuadRotorEnvBase, trajectory_training_data
+from neural_control.environments.drone_env import (
+    QuadRotorEnvBase, trajectory_training_data
+)
 from neural_control.utils.plotting import (
     plot_state_variables, plot_trajectory, plot_position, plot_suc_by_dist,
     plot_drone_ref_coords
 )
-from neural_control.utils.trajectory import Hover, Straight
+from neural_control.utils.straight import Hover, Straight
 from neural_control.utils.circle import Circle
-from neural_control.utils.random_reference import RandomReference
+from neural_control.utils.polynomial import Polynomial
 from neural_control.dataset import DroneDataset
 # from neural_control.models.resnet_like_model import Net
 from neural_control.drone_loss import drone_loss_function
@@ -146,7 +148,7 @@ class QuadEvaluator():
             "hover": Hover,
             "straight": Straight,
             "circle": Circle,
-            "poly": RandomReference
+            "poly": Polynomial
         }
         reference = object_dict[traj_type](
             current_np_state.copy(),

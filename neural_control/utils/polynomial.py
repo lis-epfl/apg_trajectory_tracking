@@ -1,9 +1,9 @@
 import numpy as np
 from scipy.stats import special_ortho_group
-from .trajectory import get_reference
+from .plan_trajectory import get_reference
 
 
-class RandomReference:
+class Polynomial:
 
     def __init__(
         self,
