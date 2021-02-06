@@ -32,8 +32,8 @@ class Straight:
     def __init__(
         self,
         drone_state,
-        render,
-        renderer,
+        render=False,
+        renderer=None,
         max_drone_dist=0.25,
         horizon=10,
         dt=0.05,
@@ -47,6 +47,8 @@ class Straight:
         b_on_line = a_on_line + traj_direction / np.linalg.norm(traj_direction)
 
         if render:
+            if renderer is None:
+                raise ValueError("if render is true, need to input renderer")
             renderer.add_object(
                 StraightObject(a_on_line, 5 * b_on_line - 4 * a_on_line)
             )

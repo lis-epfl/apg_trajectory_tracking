@@ -10,8 +10,8 @@ class Circle:
     def __init__(
         self,
         drone_state,
-        render,
-        renderer,
+        render=False,
+        renderer=None,
         radius=1,
         plane=[0, 1],
         direction=1,
@@ -36,6 +36,8 @@ class Circle:
         # init renderer
         self.init_from_tangent(drone_state[:3], drone_state[6:9])
         if render:
+            if renderer is None:
+                raise ValueError("if render is true, need to input renderer")
             renderer.add_object(CircleObject(self.mid_point, radius))
 
     def init_from_tangent(self, pos, vel):

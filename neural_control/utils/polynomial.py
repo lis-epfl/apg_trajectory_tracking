@@ -8,8 +8,8 @@ class Polynomial:
     def __init__(
         self,
         drone_state,
-        render,
-        renderer,
+        render=False,
+        renderer=None,
         max_drone_dist=0.25,
         horizon=10,
         hover_steps=50,
@@ -27,6 +27,8 @@ class Polynomial:
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist
         self.dt = dt
+        if render and renderer is None:
+            raise ValueError("if render is true, need to input renderer")
 
         x_start = 1
         x_final = x_start + x_range
