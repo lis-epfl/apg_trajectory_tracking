@@ -8,7 +8,7 @@ Install all requirements in a virtual environment with
 
 ```
 python -m venv env
-source activate env
+source env/bin/activate
 cd weakly_supervised_flight
 pip install -e .
 ```
