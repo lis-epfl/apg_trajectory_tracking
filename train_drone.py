@@ -97,36 +97,37 @@ for epoch in range(NR_EPOCHS):
         # state_data.sample_data(self_play=0)
 
         print(f"Epoch {epoch} (before)")
-        eval_env = QuadEvaluator(net, state_data, **param_dict)
+        eval_env = QuadEvaluator(
+            net,
+            state_data,
+            self_play=self_play,
+            optimizer=optimizer,
+            **param_dict
+        )
         suc_mean, suc_std = eval_env.eval_ref(
-            nr_test_circle=5,
+            nr_test_circle=10,
             max_steps_circle=take_steps * steps_per_eval + 1,
-            nr_test_straight=2
+            nr_test_straight=10
         )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
         if suc_mean > take_steps * steps_per_eval - 50:
             take_steps += 1
-            self_play = (take_steps - 1) * .1
+            self_play = (take_steps - 1) * .2
+            state_data.num_states = int(
+                EPOCH_SIZE * max(0, 1 - .1 * take_steps)
+            )
             state_data.sample_data(self_play=self_play)
-            if self_play > 0:
-                suc_mean, suc_std = eval_env.eval_ref(
-                    max_steps_circle=take_steps * steps_per_eval,
-                    nr_test_circle=20,
-                    nr_test_straight=10
-                )
-            print("Sampled new data!")
+            print(
+                f"Sampled new data ({state_data.num_states}) \
+                - self play: {self_play}"
+            )
         # save best model
         if epoch > 0 and suc_mean > highest_success:
             highest_success = suc_mean
             print("Best model")
             torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
-
-        # self play
-        print(
-            f"Self play data: {round(100*state_data.eval_counter/EPOCH_SIZE)}%"
-        )
 
         print()
 

@@ -5,6 +5,7 @@ import json
 import numpy as np
 import torch
 import pickle
+import contextlib
 
 from neural_control.environments.drone_env import (
     QuadRotorEnvBase, trajectory_training_data
@@ -17,8 +18,8 @@ from neural_control.utils.straight import Hover, Straight
 from neural_control.utils.circle import Circle
 from neural_control.utils.polynomial import Polynomial
 from neural_control.dataset import DroneDataset
-# from neural_control.models.resnet_like_model import Net
-from neural_control.drone_loss import drone_loss_function
+from neural_control.drone_loss import reference_loss
+from neural_control.environments.drone_dynamics import simulate_quadrotor
 
 ROLL_OUT = 1
 ACTION_DIM = 4
@@ -27,16 +28,23 @@ ACTION_DIM = 4
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+@contextlib.contextmanager
+def dummy_context():
+    yield None
+
+
 class QuadEvaluator():
 
     def __init__(
         self,
         model,
         dataset,
+        optimizer=None,
         horizon=5,
         max_drone_dist=0.1,
         render=0,
         dt=0.02,
+        self_play=0,
         **kwargs
     ):
         self.dataset = dataset
@@ -48,6 +56,8 @@ class QuadEvaluator():
         self.render = render
         self.treshold_divergence = 1
         self.dt = dt
+        self.self_play = self_play
+        self.optimizer = optimizer
 
     def predict_actions(self, current_np_state, ref_states):
         """
@@ -55,19 +65,58 @@ class QuadEvaluator():
         evaluation functions
         """
         # print([round(s, 2) for s in current_np_state])
-        in_state, _, ref_body = self.dataset.get_and_add_eval_data(
+        in_state, current_state, ref = self.dataset.prepare_data(
             current_np_state.copy(), ref_states
         )
-        # if self.render:
-        #     self.check_ood(current_np_state, ref_world)
-        # np.set_printoptions(suppress=True, precision=0)
-        # print(current_np_state)
-        suggested_action = self.net(in_state, ref_body)
+        # check if we want to train on this sample
+        do_training = (
+            (self.optimizer is not None) and np.random.rand() < self.self_play
+        )
+        with dummy_context() if do_training else torch.no_grad():
+            # if self.render:
+            #     self.check_ood(current_np_state, ref_world)
+            # np.set_printoptions(suppress=True, precision=0)
+            # print(current_np_state)
+            suggested_action = self.net(in_state, ref)
 
-        suggested_action = torch.sigmoid(suggested_action)[0]
+            suggested_action = torch.sigmoid(suggested_action)[0]
 
-        suggested_action = torch.reshape(suggested_action, (-1, ACTION_DIM))
-        numpy_action_seq = suggested_action.cpu().numpy()
+            suggested_action = torch.reshape(
+                # batch size 1
+                suggested_action,
+                (1, self.horizon, ACTION_DIM)
+            )
+
+        if do_training:
+            self.optimizer.zero_grad()
+
+            action_seq = torch.reshape(
+                suggested_action, (-1, self.horizon, ACTION_DIM)
+            )
+            # unnnormalize state
+            # start_state = current_state.clone()
+            intermediate_states = torch.zeros(
+                in_state.size()[0], self.horizon,
+                current_state.size()[1]
+            )
+            for k in range(self.horizon):
+                # extract action
+                action = action_seq[:, k]
+                current_state = simulate_quadrotor(
+                    action, current_state, dt=self.dt
+                )
+                intermediate_states[:, k] = current_state
+
+            # print(intermediate_states.size(), ref.size())
+            loss = reference_loss(
+                intermediate_states, ref, printout=0, delta_t=self.dt
+            )
+
+            # Backprop
+            loss.backward()
+            self.optimizer.step()
+
+        numpy_action_seq = suggested_action[0].detach().numpy()
         # print([round(a, 2) for a in numpy_action_seq[0]])
         return numpy_action_seq
 
@@ -162,42 +211,41 @@ class QuadEvaluator():
 
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
-        with torch.no_grad():
-            for i in range(max_nr_steps):
-                acc = self.eval_env.get_acceleration()
-                trajectory = reference.get_ref_traj(current_np_state, acc)
-                numpy_action_seq = self.predict_actions(
-                    current_np_state, trajectory
-                )
-                # only use first action (as in mpc)
-                action = numpy_action_seq[0]
-                current_np_state, stable = self.eval_env.step(
-                    action, thresh=thresh
-                )
-                if states is not None:
-                    self.eval_env._state.from_np(states[i])
-                    current_np_state = states[i]
-                    stable = i < (len(states) - 1)
-                if not stable:
-                    break
-                self.help_render(sleep=0)
+        for i in range(max_nr_steps):
+            acc = self.eval_env.get_acceleration()
+            trajectory = reference.get_ref_traj(current_np_state, acc)
+            numpy_action_seq = self.predict_actions(
+                current_np_state, trajectory
+            )
+            # only use first action (as in mpc)
+            action = numpy_action_seq[0]
+            current_np_state, stable = self.eval_env.step(
+                action, thresh=thresh
+            )
+            if states is not None:
+                self.eval_env._state.from_np(states[i])
+                current_np_state = states[i]
+                stable = i < (len(states) - 1)
+            if not stable:
+                break
+            self.help_render(sleep=0)
 
-                drone_pos = current_np_state[:3]
-                drone_trajectory.append(current_np_state)
+            drone_pos = current_np_state[:3]
+            drone_trajectory.append(current_np_state)
 
-                # project to trajectory and check divergence
-                drone_on_line = reference.project_on_ref(drone_pos)
-                reference_trajectory.append(trajectory[-1, :3])
-                div = np.linalg.norm(drone_on_line - drone_pos)
-                divergences.append(div)
-                if div > self.treshold_divergence:
-                    if self.render:
-                        np.set_printoptions(precision=3, suppress=True)
-                        print("state")
-                        print([round(s, 2) for s in current_np_state])
-                        print("trajectory:")
-                        print(np.around(trajectory, 2))
-                    break
+            # project to trajectory and check divergence
+            drone_on_line = reference.project_on_ref(drone_pos)
+            reference_trajectory.append(trajectory[-1, :3])
+            div = np.linalg.norm(drone_on_line - drone_pos)
+            divergences.append(div)
+            if div > self.treshold_divergence:
+                if self.render:
+                    np.set_printoptions(precision=3, suppress=True)
+                    print("state")
+                    print([round(s, 2) for s in current_np_state])
+                    print("trajectory:")
+                    print(np.around(trajectory, 2))
+                break
         if self.render:
             self.eval_env.close()
             return np.array(reference_trajectory), np.array(drone_trajectory)

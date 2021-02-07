@@ -77,6 +77,7 @@ class DroneDataset(torch.utils.data.Dataset):
 
     def get_and_add_eval_data(self, states, ref_states):
         """
+        DEPRECATED - not used anymore
         While evaluating, add the data to the dataset with some probability
         to achieve self play
         """
