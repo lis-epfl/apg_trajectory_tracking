@@ -364,7 +364,7 @@ if __name__ == "__main__":
         "-m",
         "--model",
         type=str,
-        default="test_model",
+        default="current_model",
         help="Directory of model"
     )
     parser.add_argument(
