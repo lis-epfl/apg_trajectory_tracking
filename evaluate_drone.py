@@ -90,7 +90,7 @@ class QuadEvaluator():
 
         if do_training:
             self.optimizer.zero_grad()
-            
+
             intermediate_states = torch.zeros(
                 in_state.size()[0], self.horizon,
                 current_state.size()[1]
@@ -363,8 +363,8 @@ if __name__ == "__main__":
         # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
         **param_dict
     )
-    evaluator.eval_ref(args.ref, nr_test=2)
-    exit()
+    # evaluator.eval_ref(args.ref, nr_test=2)
+    # exit()
     # Straight with reference as input
     try:
         fixed_axis = 1
