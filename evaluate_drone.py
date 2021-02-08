@@ -4,6 +4,7 @@ import argparse
 import json
 import numpy as np
 import torch
+import torch.optim as optim
 import pickle
 import contextlib
 
@@ -89,19 +90,14 @@ class QuadEvaluator():
 
         if do_training:
             self.optimizer.zero_grad()
-
-            action_seq = torch.reshape(
-                suggested_action, (-1, self.horizon, ACTION_DIM)
-            )
-            # unnnormalize state
-            # start_state = current_state.clone()
+            
             intermediate_states = torch.zeros(
                 in_state.size()[0], self.horizon,
                 current_state.size()[1]
             )
             for k in range(self.horizon):
                 # extract action
-                action = action_seq[:, k]
+                action = suggested_action[:, k]
                 current_state = simulate_quadrotor(
                     action, current_state, dt=self.dt
                 )
@@ -359,9 +355,16 @@ if __name__ == "__main__":
     net, param_dict = load_model(model_path, epoch=args.epoch)
 
     dataset = DroneDataset(num_states=1, **param_dict)
-    evaluator = QuadEvaluator(net, dataset, render=1, **param_dict)
-    # evaluator.eval_ref()
-    # exit()
+    evaluator = QuadEvaluator(
+        net,
+        dataset,
+        render=1,
+        # self_play=1,
+        # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
+        **param_dict
+    )
+    evaluator.eval_ref(args.ref, nr_test=2)
+    exit()
     # Straight with reference as input
     try:
         fixed_axis = 1
