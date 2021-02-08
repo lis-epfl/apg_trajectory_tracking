@@ -28,8 +28,23 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # "trained_models/drone/horizon"
+BASE_MODEL = "trained_models/drone/current_model"
 BASE_MODEL_NAME = 'model_quad'
+
+eval_dict = {
+    "straight": {
+        "nr_test": 5,
+        "max_steps": 200
+    },
+    "circle": {
+        "nr_test": 5,
+        "max_steps": 100
+    },
+    "poly": {
+        "nr_test": 10,
+        "max_steps": 500
+    }
+}
 
 # Load model or initialize model
 if BASE_MODEL is not None:
@@ -104,11 +119,9 @@ for epoch in range(NR_EPOCHS):
             optimizer=optimizer,
             **param_dict
         )
-        suc_mean, suc_std = eval_env.eval_ref(
-            nr_test_circle=10,
-            max_steps_circle=take_steps * steps_per_eval + 1,
-            nr_test_straight=10
-        )
+        for reference, ref_params in eval_dict.items():
+            ref_params["max_steps"] = steps_per_eval * take_steps
+            suc_mean, suc_std = eval_env.eval_ref(reference, **ref_params)
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)

@@ -255,60 +255,33 @@ class QuadEvaluator():
 
     def eval_ref(
         self,
-        nr_test_straight=10,
-        nr_test_circle=10,
-        max_steps_straight=200,
-        max_steps_circle=200
+        reference: str,
+        nr_test: int = 10,
+        max_steps: int = 200,
     ):
         """
-        Function to evaluate both on straight and on circular traj
+        Function to evaluate a trajectory multiple times
         """
-        # ================ Straight ========================
-        straight_div, straight_stable = [], []
-        for _ in range(nr_test_straight):
+        if nr_test == 0:
+            return 0, 0
+        div, stable = [], []
+        for _ in range(nr_test):
             steps_until_fail, avg_div = self.follow_trajectory(
-                "straight", max_nr_steps=max_steps_straight
+                "straight", max_nr_steps=max_steps
             )
-            straight_div.append(avg_div)
-            straight_stable.append(steps_until_fail)
+            div.append(avg_div)
+            stable.append(steps_until_fail)
 
-        # Output results for straight trajectory
+        # Output results
         print(
-            "Straight: Average divergence: %3.2f (%3.2f)" %
-            (np.mean(straight_div), np.std(straight_div))
+            "%s: Average divergence: %3.2f (%3.2f)" %
+            (reference, np.mean(div), np.std(div))
         )
         print(
-            "Straight: Steps until divergence: %3.2f (%3.2f)" %
-            (np.mean(straight_stable), np.std(straight_stable))
+            "%s: Steps until divergence: %3.2f (%3.2f)" %
+            (reference, np.mean(stable), np.std(stable))
         )
-
-        # ================= CIRCLE =======================
-        circle_div, circle_stable = [], []
-        for _ in range(nr_test_circle):
-            # vary plane and radius
-            possible_planes = [[0, 1], [0, 2], [1, 2]]
-            plane = possible_planes[np.random.randint(0, 3, 1)[0]]
-            radius = np.random.rand() + .5  # at least .5, max 1.5
-            # run
-            steps_until_div, avg_diff = self.follow_trajectory(
-                "circle",
-                max_nr_steps=max_steps_circle,
-                plane=plane,
-                radius=radius
-            )
-            circle_stable.append(steps_until_div)
-            circle_div.append(avg_diff)
-
-        # output results for circle:
-        print(
-            "Circle: Average divergence: %3.2f (%3.2f)" %
-            (np.mean(circle_div), np.std(circle_div))
-        )
-        print(
-            "Circle: Steps until divergence: %3.2f (%3.2f)" %
-            (np.mean(circle_stable), np.std(circle_stable))
-        )
-        return np.mean(circle_stable), np.std(circle_stable)
+        return np.mean(stable), np.std(stable)
 
     def collect_training_data(self, outpath="data/jan_2021.npy"):
         """
