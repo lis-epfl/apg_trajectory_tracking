@@ -160,11 +160,11 @@ class QuadRotorEnvBase(gym.Env):
             low=-1.5, high=1.5
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
-        self.randomize_rotor_speeds(200, 500)
+        # self.randomize_rotor_speeds(200, 500)
         self.randomize_acceleration(1)  # TODO too much?
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5  # * strength
-        self.randomize_velocity(1.3 * strength)
+        self.randomize_velocity(2)
 
         # self.renderer.set_center(None)
 

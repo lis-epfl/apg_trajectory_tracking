@@ -12,8 +12,13 @@ copter_params.gravity = torch.from_numpy(copter_params.gravity).to(device)
 copter_params.rotational_drag = torch.from_numpy(
     copter_params.rotational_drag
 ).to(device)
-copter_params.frame_inertia = torch.from_numpy(copter_params.frame_inertia
-                                               ).float().to(device)
+# estimate intertia as in flightmare
+copter_params.frame_inertia = (
+    copter_params.mass / 12.0 * copter_params.arm_length**2 *
+    torch.tensor([4.5, 4.5, 7])
+).float().to(device)
+# torch.from_numpy(copter_params.frame_inertia
+#                                              ).float().to(device)
 
 
 def world_to_body_matrix(attitude):

@@ -117,7 +117,7 @@ class QuadEvaluator():
             self.optimizer.step()
 
         numpy_action_seq = suggested_action[0].detach().numpy()
-        print([round(a, 2) for a in numpy_action_seq[0]])
+        # print([round(a, 2) for a in numpy_action_seq[0]])
         # keep track of actions
         self.action_counter += 1
         return numpy_action_seq
@@ -398,9 +398,9 @@ if __name__ == "__main__":
             "thresh": 1
         }
         reference_traj, drone_traj, _ = evaluator.follow_trajectory(
-            args.ref, max_nr_steps=1000, **circle_args
+            args.ref, max_nr_steps=500, **circle_args
         )
-        # print("Speed:", evaluator.compute_speed(drone_traj[100:-100, :3]))
+        print("Speed:", evaluator.compute_speed(drone_traj[100:300, :3]))
         plot_trajectory(
             reference_traj,
             drone_traj,
