@@ -22,7 +22,7 @@ eval_dict = {
 thresh_divergence = 1
 
 if __name__ == "__main__":
-    model_name = "stable_poly_speed4"
+    model_name = "body_rate_faster"
     epoch = ""
 
     df = pd.DataFrame(
@@ -50,13 +50,15 @@ if __name__ == "__main__":
         )
 
         for reference, ref_params in eval_dict.items():
-            # define circle specifications
-            if reference == "circle":
-                circle_args = evaluator.sample_circle()
-            else:
-                circle_args = {"plane": 0, "radius": 0, "direction": 0}
             # run x times
             for _ in range(ref_params["nr_test"]):
+                # define circle specifications
+                if reference == "circle":
+                    circle_args = evaluator.sample_circle()
+                else:
+                    circle_args = {"plane": 0, "radius": 0, "direction": 0}
+
+                # run trajectory tracking
                 _, drone_ref, divergence = evaluator.follow_trajectory(
                     reference,
                     max_nr_steps=ref_params["max_steps"],
@@ -67,7 +69,7 @@ if __name__ == "__main__":
                 avg_divergence = np.mean(divergence)
                 steps_until_fail = len(drone_ref)
                 if reference == "poly" and len(drone_ref) > 500:
-                    drone_ref = drone_ref[100:-300]
+                    drone_ref = drone_ref[100:-500]
                 speed = evaluator.compute_speed(drone_ref)
 
                 # log
