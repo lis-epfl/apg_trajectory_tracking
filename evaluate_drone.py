@@ -224,7 +224,7 @@ class QuadEvaluator():
                 stable = i < (len(states) - 1)
             if not stable:
                 break
-            self.help_render(sleep=0)
+            self.help_render(sleep=0.1)
 
             drone_pos = current_np_state[:3]
             drone_trajectory.append(current_np_state)
@@ -234,7 +234,7 @@ class QuadEvaluator():
             reference_trajectory.append(trajectory[-1, :3])
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
-            if False: # div > self.treshold_divergence:
+            if div > self.treshold_divergence:
                 if self.render:
                     np.set_printoptions(precision=3, suppress=True)
                     print("state")

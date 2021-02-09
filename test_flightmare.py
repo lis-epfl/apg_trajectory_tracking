@@ -30,9 +30,19 @@ class FlightmareWrapper(QuadRotorEnvBase):
         def obs_to_np_state(self, obs):
                 # obs is position, euler, velocity, and body rates (w)
                 transformed_state = np.zeros(16)
-                # add pos, att, vel
-                transformed_state[:9] = obs[0, :9].copy()
-                transformed_state[3:6] *=.1
+                # add pos
+                transformed_state[:3] = obs[0, :3].copy()
+                # add vel
+                transformed_state[6:9] = obs[0, 6:9].copy()
+                # attitude --> zyx to xyz
+                # print(obs[0, 3:6])
+                transformed_state[3] = np.sign(obs[0, 5]) * min([abs(obs[0, 5]), (3.14 - abs(obs[0, 5]))])
+                # np.sign(obs[0, 5]) * (3.14 - abs(obs[0, 5]))
+                transformed_state[4] = np.sign(obs[0, 4]) * min([abs(obs[0, 4]), (3.14 - abs(obs[0, 4]))])
+                # transformed_state[4] = obs[0, 4]
+                # np.sign(obs[0, 4]) * (3.14 - abs(obs[0, 4]))
+                transformed_state[5] = obs[0, 3]
+                # print(transformed_state[3:6])
                 # add rotor speeds
                 transformed_state[9:13] = self._state.rotor_speeds
                 # add body rates
@@ -64,12 +74,10 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 Interface to flightmare reset
                 """ 
                 super().reset()
-                print(self._state.as_np[:6])
                 obs = self.env.reset()
-                print(obs[:6])
+                self.raw_obs = obs
                 # convert obs from flightmare to state here
                 state = self.obs_to_np_state(obs)
-                print(state)
                 # set own state (current_np_state)
                 self._state.from_np(state)
                 return self._state
@@ -81,27 +89,34 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 """
                 return self.reset()
 
-        def step(self, action, thresh=.4):
+        def step(self, action, thresh=.8):
                 """
                 Overwrite step methods of drone_env
                 Use dynamics model implementde in flightmare instead
                 """
                 # TODO: convert action from model to flightmare input
                 np.set_printoptions(suppress=True, precision=2)
-                # print("state before", self._state.as_np)
+                print("state before", self._state.as_np)
+                print("obs before", self.raw_obs)
                 # print("raw action", action)
                 action = self.action_to_fm(action)
+                # print("action to fm", action)
+                # action = np.random.rand(*action.shape).astype(np.float32)
+                # action = np.ones(action.shape).astype(np.float32) * 2.5 + action
+                # print(action)
+                # np.zeros(action.shape).astype(np.float32) # TODO
                 # TODO: how to input dt into fm env?--> sim_dt_ variable
                 obs, rew, done, infos = self.env.step(action)
-                # print("obs", obs)
+                self.raw_obs = obs
+                print("obs after", obs)
                 # print("rew", rew) # TODO: how is reward computed?
                 # TODO: convert obs to numpy state as in my mode
                 state = self.obs_to_np_state(obs)
                 self._state.from_np(state)
-                # print(self._state.as_np)
-
+                print("state after", self._state.as_np)
+                print()
                 # check whether it is still stable
-                stable = True # np.all(np.absolute(state[3:5]) < thresh)
+                stable = np.all(np.absolute(state[3:5]) < thresh)
                 return state, stable
 
 if __name__=="__main__":
