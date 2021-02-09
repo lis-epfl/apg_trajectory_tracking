@@ -53,7 +53,7 @@ def world_to_body_matrix(attitude):
     return matrix
 
 
-def linear_dynamics(rotor_speed, attitude, velocity):
+def linear_dynamics(squared_rotor_speed, attitude, velocity):
     """
     Calculates the linear acceleration of a quadcopter with parameters
     `copter_params` that is currently in the dynamics state composed of:
@@ -69,12 +69,11 @@ def linear_dynamics(rotor_speed, attitude, velocity):
     world_to_body = world_to_body_matrix(attitude)
     body_to_world = torch.transpose(world_to_body, 1, 2)
 
-    squared_speed = torch.sum(rotor_speed**2, axis=1)
     constant_vec = torch.zeros(3).to(device)
     constant_vec[2] = 1
 
     thrust = b / m * torch.mul(
-        torch.matmul(body_to_world, constant_vec).t(), squared_speed
+        torch.matmul(body_to_world, constant_vec).t(), squared_rotor_speed
     ).t()
     Ktw = torch.matmul(
         body_to_world, torch.matmul(torch.diag(Kt).float(), world_to_body)
