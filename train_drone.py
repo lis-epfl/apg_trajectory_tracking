@@ -14,7 +14,8 @@ from neural_control.models.hutter_model import Net
 from neural_control.utils.plotting import plot_loss_episode_len
 
 DELTA_T = 0.05
-EPOCH_SIZE = 5000
+EPOCH_SIZE = 3000
+SELF_PLAY = 0.5
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -28,21 +29,21 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/current_model"
+BASE_MODEL = None  # "trained_models/drone/current_model"
 BASE_MODEL_NAME = 'model_quad'
 
 eval_dict = {
     "straight": {
-        "nr_test": 5,
+        "nr_test": 10,
         "max_steps": 200
     },
     "circle": {
-        "nr_test": 5,
-        "max_steps": 100
+        "nr_test": 10,
+        "max_steps": 200
     },
     "poly": {
         "nr_test": 10,
-        "max_steps": 500
+        "max_steps": 200
     }
 }
 
@@ -56,7 +57,8 @@ if BASE_MODEL is not None:
     MEAN = np.array(param_dict["mean"]).astype(float)
 else:
     state_data = DroneDataset(
-        num_states=EPOCH_SIZE,
+        EPOCH_SIZE,
+        SELF_PLAY,
         reset_strength=RESET_STRENGTH,
         max_drone_dist=MAX_DRONE_DIST,
         ref_length=NR_ACTIONS,
@@ -93,7 +95,7 @@ with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
 
 # init dataset
-state_data = DroneDataset(num_states=EPOCH_SIZE, **param_dict)
+state_data = DroneDataset(EPOCH_SIZE, SELF_PLAY, **param_dict)
 # Init train loader
 trainloader = torch.utils.data.DataLoader(
     state_data, batch_size=BATCH_SIZE, shuffle=True, num_workers=0
@@ -102,21 +104,19 @@ trainloader = torch.utils.data.DataLoader(
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
 take_steps = 1
+take_every_x = 10
 steps_per_eval = 100
-self_play = 0
 highest_success = 0  # np.inf
 for epoch in range(NR_EPOCHS):
 
     try:
-        # Generate data dynamically
-        # state_data.sample_data(self_play=0)
-
+        # EVALUATE
         print(f"Epoch {epoch} (before)")
         eval_env = QuadEvaluator(
             net,
             state_data,
-            self_play=self_play,
-            optimizer=optimizer,
+            take_every_x=take_every_x,
+            optimizer=None,
             **param_dict
         )
         for reference, ref_params in eval_dict.items():
@@ -126,16 +126,15 @@ for epoch in range(NR_EPOCHS):
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
         if suc_mean > take_steps * steps_per_eval - 50:
+            # evaluate for more steps
             take_steps += 1
-            self_play = (take_steps - 1) * .2
-            state_data.num_states = int(
-                EPOCH_SIZE * max(0, 1 - .1 * take_steps)
-            )
-            state_data.sample_data(self_play=self_play)
+            # renew the sampled data
+            state_data.resample_data()
             print(
-                f"Sampled new data ({state_data.num_states}) \
-                - self play: {self_play}"
+                f"Sampled new data ({state_data.num_sampled_states}) \
+                - self play counter: {state_data.get_eval_index()}"
             )
+
         # save best model
         if epoch > 0 and suc_mean > highest_success:
             highest_success = suc_mean

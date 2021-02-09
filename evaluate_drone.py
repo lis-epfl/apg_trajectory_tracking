@@ -45,7 +45,7 @@ class QuadEvaluator():
         max_drone_dist=0.1,
         render=0,
         dt=0.02,
-        self_play=0,
+        take_every_x=1000,
         **kwargs
     ):
         self.dataset = dataset
@@ -57,21 +57,25 @@ class QuadEvaluator():
         self.render = render
         self.treshold_divergence = 1
         self.dt = dt
-        self.self_play = self_play
         self.optimizer = optimizer
+        self.take_every_x = take_every_x
+        self.action_counter = 0
 
     def predict_actions(self, current_np_state, ref_states):
         """
         Predict an action for the current state. This function is used by all
         evaluation functions
         """
-        # print([round(s, 2) for s in current_np_state])
-        in_state, current_state, ref = self.dataset.prepare_data(
-            current_np_state.copy(), ref_states
+        # determine whether we also add the sample to our train data
+        add_to_dataset = (self.action_counter + 1) % self.take_every_x == 0
+        # preprocess state
+        in_state, current_state, ref = self.dataset.get_and_add_eval_data(
+            current_np_state.copy(), ref_states, add_to_dataset=add_to_dataset
         )
         # check if we want to train on this sample
         do_training = (
-            (self.optimizer is not None) and np.random.rand() < self.self_play
+            (self.optimizer is not None)
+            and np.random.rand() < 1 / self.take_every_x
         )
         with dummy_context() if do_training else torch.no_grad():
             # if self.render:
@@ -114,6 +118,8 @@ class QuadEvaluator():
 
         numpy_action_seq = suggested_action[0].detach().numpy()
         # print([round(a, 2) for a in numpy_action_seq[0]])
+        # keep track of actions
+        self.action_counter += 1
         return numpy_action_seq
 
     def check_ood(self, drone_state, ref_states):
@@ -176,6 +182,9 @@ class QuadEvaluator():
                 hover
                 poly
         """
+        # reset action counter for new trajectory
+        self.action_counter = 0
+
         # reset drone state
         init_state = [4, 0, 7]
         self.eval_env.zero_reset(*tuple(init_state))
@@ -368,12 +377,12 @@ if __name__ == "__main__":
     net, param_dict = load_model(model_path, epoch=args.epoch)
 
     # param_dict["max_drone_dist"] = .6
-    dataset = DroneDataset(num_states=1, **param_dict)
+    dataset = DroneDataset(1, 1, **param_dict)
     evaluator = QuadEvaluator(
         net,
         dataset,
         render=1,
-        # self_play=1,
+        take_every_x=5000,
         # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
         **param_dict
     )
@@ -391,7 +400,7 @@ if __name__ == "__main__":
         reference_traj, drone_traj, _ = evaluator.follow_trajectory(
             args.ref, max_nr_steps=1000, **circle_args
         )
-        print("Speed:", evaluator.compute_speed(drone_traj[100:-100, :3]))
+        # print("Speed:", evaluator.compute_speed(drone_traj[100:-100, :3]))
         plot_trajectory(
             reference_traj,
             drone_traj,

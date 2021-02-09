@@ -27,9 +27,9 @@ if __name__ == "__main__":
 
     df = pd.DataFrame(
         columns=[
-            "Horizon", "Trajectory", "Circle plane", "Circle radius",
-            "Circle direction", "Number of stable steps", "Tracking error",
-            "Speed"
+            "Model", "max_drone_dist", "Trajectory", "Circle plane",
+            "Circle radius", "Circle direction", "Stable steps",
+            "Tracking error", "Speed"
         ]
     )
 
@@ -74,9 +74,10 @@ if __name__ == "__main__":
                     "speed", speed
                 )
                 df.loc[len(df)] = [
-                    horizon, reference, circle_args["plane"],
-                    circle_args["radius"], circle_args["direction"],
-                    steps_until_fail, avg_divergence, speed
+                    model_name, max_drone_dist, reference,
+                    circle_args["plane"], circle_args["radius"],
+                    circle_args["direction"], steps_until_fail, avg_divergence,
+                    speed
                 ]
 
     print(df)
