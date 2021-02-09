@@ -117,7 +117,7 @@ class QuadEvaluator():
             self.optimizer.step()
 
         numpy_action_seq = suggested_action[0].detach().numpy()
-        # print([round(a, 2) for a in numpy_action_seq[0]])
+        print([round(a, 2) for a in numpy_action_seq[0]])
         # keep track of actions
         self.action_counter += 1
         return numpy_action_seq
