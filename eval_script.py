@@ -44,8 +44,10 @@ if __name__ == "__main__":
         param_dict["max_drone_dist"] = max_drone_dist
         horizon = 10
 
-        dataset = DroneDataset(num_states=1, **param_dict)
-        evaluator = QuadEvaluator(net, dataset, render=0, **param_dict)
+        dataset = DroneDataset(1, 1, **param_dict)
+        evaluator = QuadEvaluator(
+            net, dataset, take_every_x=5000, render=0, **param_dict
+        )
 
         for reference, ref_params in eval_dict.items():
             # define circle specifications
