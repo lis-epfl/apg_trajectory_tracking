@@ -70,8 +70,8 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         # subtract from desired acceleration
         angle_error += torch.sum((acc_ref - acc)**2)
 
-    ang_vel_error = torch.sum(states[:, :, 12:14]**2
-                              ) + yaw_factor * torch.sum(states[:, :, 14]**2)
+    ang_vel_error = torch.sum(states[:, :, 9:11]**2
+                              ) + yaw_factor * torch.sum(states[:, :, 11]**2)
 
     loss = (
         angle_factor * angle_error + angvel_factor * ang_vel_error +
