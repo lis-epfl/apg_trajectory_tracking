@@ -76,8 +76,7 @@ class DynamicsState(object):
         return np.array(
             (
                 list(self._position) + list(self._attitude._euler) +
-                list(self._velocity) + list(self._last_acceleration) +
-                list(self._angular_velocity)
+                list(self._velocity) + list(self._angular_velocity)
             ),
             dtype=np.float32
         )
@@ -89,8 +88,7 @@ class DynamicsState(object):
         self._position = state_array[:3]
         self._attitude = Euler(*tuple(state_array[3:6]))
         self._velocity = state_array[6:9]
-        self._last_acceleration = state_array[9:12]
-        self._angular_velocity = state_array[12:]
+        self._angular_velocity = state_array[9:]
 
 
 class Euler(object):

@@ -140,7 +140,7 @@ def simulate_quadrotor(action, state, dt=0.02):
     position = state[:, :3]
     attitude = state[:, 3:6]
     velocity = state[:, 6:9]
-    angular_velocity = state[:, 12:]
+    angular_velocity = state[:, 9:]
 
     # action is normalized between 0 and 1 --> rescale
     total_thrust = action[:, 0] * 10 - 5 + 7
@@ -156,7 +156,5 @@ def simulate_quadrotor(action, state, dt=0.02):
     angular_velocity = angular_velocity + dt * angular_acc
     attitude = attitude + dt * euler_rate(attitude, angular_velocity)
     # set final state
-    state = torch.hstack(
-        (position, attitude, velocity, acceleration, angular_velocity)
-    )
+    state = torch.hstack((position, attitude, velocity, angular_velocity))
     return state.float()
