@@ -27,6 +27,8 @@ class Polynomial:
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist
         self.dt = dt
+        # make variable whether we are already finished with the trajectory
+        self.finished = False
         if render and renderer is None:
             raise ValueError("if render is true, need to input renderer")
 
@@ -107,6 +109,8 @@ class Polynomial:
             )
             if dist_from_next < self.max_drone_dist:
                 self.target_ind += 1
+        else:
+            self.finished = True
         goal_pos = self.reference[self.target_ind]
 
         # TODO: is the velocity simply the two subtracted? or times dt or so?
