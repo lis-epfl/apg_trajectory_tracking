@@ -21,7 +21,7 @@ def drone_loss_function(current_state, start_state=None, printout=0):
 
     # attittude and att velocity loss
     angle_error = torch.sum(current_state[:, 3:6]**2, axis=1)
-    ang_vel_error = torch.sum(current_state[:, 13:16]**2, axis=1)
+    ang_vel_error = torch.sum(current_state[:, 12:]**2, axis=1)
 
     # position loss
     div, prog = pos_traj_loss(start_state[:, :3], current_state[:, :3])
@@ -70,8 +70,8 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         # subtract from desired acceleration
         angle_error += torch.sum((acc_ref - acc)**2)
 
-    ang_vel_error = torch.sum(states[:, :, 13:15]**2
-                              ) + yaw_factor * torch.sum(states[:, :, 15]**2)
+    ang_vel_error = torch.sum(states[:, :, 12:14]**2
+                              ) + yaw_factor * torch.sum(states[:, :, 14]**2)
 
     loss = (
         angle_factor * angle_error + angvel_factor * ang_vel_error +

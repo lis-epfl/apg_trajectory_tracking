@@ -77,12 +77,7 @@ class QuadRotorEnvBase(gym.Env):
         """
         Compute acceleration from current state (pos, vel and att)
         """
-        torch_state = torch.from_numpy(np.array([self._state.as_np])
-                                       ).to(device)
-        acceleration = linear_dynamics(
-            torch_state[:, 9:13], torch_state[:, 3:6], torch_state[:, 6:9]
-        )
-        return acceleration[0]
+        return self._state.last_acceleration
 
     def step(self, action, thresh=.4):
         """
@@ -141,7 +136,7 @@ class QuadRotorEnvBase(gym.Env):
         state_arr[:3] = [position_x, position_y, position_z]
         # set attitude and angular vel to zero
         state_arr[3:6] = 0
-        state_arr[13:] = 0
+        state_arr[9:] = 0
         self._state.from_np(state_arr)
 
     def render_reset(self, strength=.8):
@@ -165,10 +160,11 @@ class QuadRotorEnvBase(gym.Env):
             low=-1.5, high=1.5
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
-        self.randomize_rotor_speeds(200, 500)
+        # self.randomize_rotor_speeds(200, 500)
+        self.randomize_acceleration(1)  # TODO too much?
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5  # * strength
-        self.randomize_velocity(1.3 * strength)
+        self.randomize_velocity(2)
 
         # self.renderer.set_center(None)
 
@@ -193,6 +189,11 @@ class QuadRotorEnvBase(gym.Env):
     def randomize_velocity(self, max_speed: float):
         self._state.velocity[:] = self.random_state.uniform(
             low=-max_speed, high=max_speed, size=(3, )
+        )
+
+    def randomize_acceleration(self, max_acc: float):
+        self._state.last_acceleration[:] = self.random_state.uniform(
+            low=-max_acc, high=max_acc, size=(3, )
         )
 
     def randomize_rotor_speeds(self, min_speed: float, max_speed: float):
@@ -269,7 +270,7 @@ def trajectory_training_data(
             # sample a drone state
             drone_state = env._state.as_np
         pos0, vel0 = (drone_state[:3], drone_state[6:9])
-        acc0 = env.get_acceleration().numpy()
+        acc0 = env.get_acceleration()
 
         # sample a direction where the next position is located
         norm_vel = np.linalg.norm(vel0)

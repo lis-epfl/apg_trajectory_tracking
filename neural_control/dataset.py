@@ -44,13 +44,18 @@ def raw_states_to_torch(
 
 class DroneDataset(torch.utils.data.Dataset):
 
-    def __init__(self, num_states=1000, mean=None, std=None, **kwargs):
+    def __init__(self, num_states, self_play, mean=None, std=None, **kwargs):
         # First constructor: New dataset for training
         self.self_play = 0
         self.mean = mean
         self.std = std
-        self.num_states = num_states
-        states, ref_states = trajectory_training_data(num_states, **kwargs)
+        self.num_sampled_states = num_states
+        self.num_self_play = int(self_play * num_states)
+        self.total_dataset_size = self.num_sampled_states + self.num_self_play
+
+        states, ref_states = trajectory_training_data(
+            self.total_dataset_size, **kwargs
+        )
         if mean is None:
             # sample states
             self.mean = np.mean(states, axis=0)
@@ -60,22 +65,37 @@ class DroneDataset(torch.utils.data.Dataset):
         (self.normed_states, self.states,
          self.ref_states) = self.prepare_data(states, ref_states)
 
-        # count how much of the data was replaced by self play
+        # count where to add new evaluation data
         self.eval_counter = 0
 
-    def sample_data(self, self_play=0):
+    def get_eval_index(self):
+        """
+        compute current index where to add new data
+        """
+        return (
+            self.eval_counter % self.num_self_play
+        ) + self.num_sampled_states
+
+    def set_num_sampled_states(self, num_sampled_states):
+        self.num_sampled_states = num_sampled_states
+
+    def resample_data(self):
         """
         Sample new training data and replace dataset with it
         """
-        self.self_play = self_play
         states, ref_states = trajectory_training_data(
-            self.num_states, **self.kwargs
+            self.num_sampled_states, **self.kwargs
         )
-        (self.normed_states, self.states,
-         self.ref_states) = self.prepare_data(states, ref_states)
-        self.eval_counter = 0
+        (prep_normed_states, prep_states,
+         prep_ref_states) = self.prepare_data(states, ref_states)
 
-    def get_and_add_eval_data(self, states, ref_states):
+        # add to first (the sampled) part of dataset
+        num = self.num_sampled_states
+        self.normed_states[:num] = prep_normed_states
+        self.states[:num] = prep_states
+        self.ref_states[:num] = prep_ref_states
+
+    def get_and_add_eval_data(self, states, ref_states, add_to_dataset=False):
         """
         DEPRECATED - not used anymore
         While evaluating, add the data to the dataset with some probability
@@ -83,13 +103,12 @@ class DroneDataset(torch.utils.data.Dataset):
         """
         (normed_states, states,
          ref_states) = self.prepare_data(states, ref_states)
-        if (np.random.rand() < .5 * self.self_play
-            ) and (self.eval_counter < self.self_play * self.num_states):
-            # self.self_play * s
-            # replace data with eval data if below max eval data thresh
-            self.normed_states[self.eval_counter] = normed_states[0]
-            self.states[self.eval_counter] = states[0]
-            self.ref_states[self.eval_counter] = ref_states[0]
+        if add_to_dataset:
+            # replace previous eval data with new eval data
+            counter = self.get_eval_index()
+            self.normed_states[counter] = normed_states[0]
+            self.states[counter] = states[0]
+            self.ref_states[counter] = ref_states[0]
             self.eval_counter += 1
 
         return normed_states, states, ref_states

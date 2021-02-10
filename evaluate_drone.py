@@ -45,7 +45,7 @@ class QuadEvaluator():
         max_drone_dist=0.1,
         render=0,
         dt=0.02,
-        self_play=0,
+        take_every_x=1000,
         **kwargs
     ):
         self.dataset = dataset
@@ -57,21 +57,25 @@ class QuadEvaluator():
         self.render = render
         self.treshold_divergence = 1
         self.dt = dt
-        self.self_play = self_play
         self.optimizer = optimizer
+        self.take_every_x = take_every_x
+        self.action_counter = 0
 
     def predict_actions(self, current_np_state, ref_states):
         """
         Predict an action for the current state. This function is used by all
         evaluation functions
         """
-        # print([round(s, 2) for s in current_np_state])
-        in_state, current_state, ref = self.dataset.prepare_data(
-            current_np_state.copy(), ref_states
+        # determine whether we also add the sample to our train data
+        add_to_dataset = (self.action_counter + 1) % self.take_every_x == 0
+        # preprocess state
+        in_state, current_state, ref = self.dataset.get_and_add_eval_data(
+            current_np_state.copy(), ref_states, add_to_dataset=add_to_dataset
         )
         # check if we want to train on this sample
         do_training = (
-            (self.optimizer is not None) and np.random.rand() < self.self_play
+            (self.optimizer is not None)
+            and np.random.rand() < 1 / self.take_every_x
         )
         with dummy_context() if do_training else torch.no_grad():
             # if self.render:
@@ -114,6 +118,8 @@ class QuadEvaluator():
 
         numpy_action_seq = suggested_action[0].detach().numpy()
         # print([round(a, 2) for a in numpy_action_seq[0]])
+        # keep track of actions
+        self.action_counter += 1
         return numpy_action_seq
 
     def check_ood(self, drone_state, ref_states):
@@ -176,6 +182,9 @@ class QuadEvaluator():
                 hover
                 poly
         """
+        # reset action counter for new trajectory
+        self.action_counter = 0
+
         # reset drone state
         init_state = [4, 0, 7]
         self.eval_env.zero_reset(*tuple(init_state))
@@ -244,16 +253,35 @@ class QuadEvaluator():
                 break
         if self.render:
             self.eval_env.close()
-            return np.array(reference_trajectory), np.array(drone_trajectory)
-        else:
-            avg_div = np.mean(divergences)
-            return i, avg_div
+        # return trajectorie and divergences
+        return (
+            np.array(reference_trajectory), np.array(drone_trajectory),
+            divergences
+        )
+
+    def compute_speed(self, drone_traj):
+        dist = 0
+        for j in range(len(drone_traj) - 1):
+            dist += np.linalg.norm(drone_traj[j, :3] - drone_traj[j + 1, :3])
+
+        time_passed = len(drone_traj) * self.dt
+        speed = dist / time_passed
+        return speed
+
+    def sample_circle(self):
+        possible_planes = [[0, 1], [0, 2], [1, 2]]
+        plane = possible_planes[np.random.randint(0, 3, 1)[0]]
+        radius = np.random.rand() * 2 + 1
+        direct = np.random.choice([-1, 1])
+        circle_args = {"plane": plane, "radius": radius, "direction": direct}
+        return circle_args
 
     def eval_ref(
         self,
         reference: str,
         nr_test: int = 10,
         max_steps: int = 200,
+        thresh=1
     ):
         """
         Function to evaluate a trajectory multiple times
@@ -262,11 +290,15 @@ class QuadEvaluator():
             return 0, 0
         div, stable = [], []
         for _ in range(nr_test):
-            steps_until_fail, avg_div = self.follow_trajectory(
-                "straight", max_nr_steps=max_steps
+            circle_args = self.sample_circle()
+            _, drone_traj, divergences = self.follow_trajectory(
+                reference,
+                max_nr_steps=max_steps,
+                thresh=thresh,
+                **circle_args
             )
-            div.append(avg_div)
-            stable.append(steps_until_fail)
+            div.append(np.mean(divergences))
+            stable.append(len(drone_traj))
 
         # Output results
         print(
@@ -316,16 +348,6 @@ def load_model(model_path, epoch=""):
     return net, param_dict
 
 
-def compute_speed(drone_traj, dt):
-    dist = 0
-    for j in range(len(drone_traj) - 1):
-        dist += np.linalg.norm(drone_traj[j] - drone_traj[j + 1])
-
-    time_passed = len(drone_traj) * dt
-    speed = dist / time_passed
-    return speed
-
-
 if __name__ == "__main__":
     # make as args:
     parser = argparse.ArgumentParser("Model directory as argument")
@@ -354,12 +376,13 @@ if __name__ == "__main__":
 
     net, param_dict = load_model(model_path, epoch=args.epoch)
 
-    dataset = DroneDataset(num_states=1, **param_dict)
+    # param_dict["max_drone_dist"] = .6
+    dataset = DroneDataset(1, 1, **param_dict)
     evaluator = QuadEvaluator(
         net,
         dataset,
         render=1,
-        # self_play=1,
+        take_every_x=5000,
         # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
         **param_dict
     )
@@ -371,16 +394,13 @@ if __name__ == "__main__":
         circle_args = {
             "plane": [0, 2],
             "radius": 2,
-            "direction": -1,
+            "direction": 1,
             "thresh": 1
         }
-        reference_traj, drone_traj = evaluator.follow_trajectory(
-            args.ref, max_nr_steps=1000, **circle_args
+        reference_traj, drone_traj, _ = evaluator.follow_trajectory(
+            args.ref, max_nr_steps=500, **circle_args
         )
-        # print(
-        #     "Speed:",
-        #     compute_speed(drone_traj[100:-300, :3], param_dict["dt"])
-        # )
+        print("Speed:", evaluator.compute_speed(drone_traj[100:300, :3]))
         plot_trajectory(
             reference_traj,
             drone_traj,
