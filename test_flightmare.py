@@ -4,13 +4,14 @@ warnings.filterwarnings("ignore", message=r"Passing", category=FutureWarning)
 import os
 import numpy as np
 import torch
+import argparse
 
 from flightgym import QuadrotorEnv_v1
 from rpg_baselines.envs import vec_env_wrapper as wrapper
 
 from evaluate_drone import load_model, QuadEvaluator
 from neural_control.environments.drone_env import QuadRotorEnvBase
-from neural_control.environments.drone_dynamics import action_to_rotor
+# from neural_control.environments.drone_dynamics import action_to_rotor
 from neural_control.dataset import DroneDataset
 from neural_control.utils.plotting import (
     plot_state_variables, plot_trajectory, plot_position, plot_suc_by_dist,
@@ -29,7 +30,7 @@ class FlightmareWrapper(QuadRotorEnvBase):
 
         def obs_to_np_state(self, obs):
                 # obs is position, euler, velocity, and body rates (w)
-                transformed_state = np.zeros(16)
+                transformed_state = np.zeros(12)
                 # add pos
                 transformed_state[:3] = obs[0, :3].copy()
                 # add vel
@@ -42,11 +43,8 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 # transformed_state[4] = obs[0, 4]
                 # np.sign(obs[0, 4]) * (3.14 - abs(obs[0, 4]))
                 transformed_state[5] = obs[0, 3]
-                # print(transformed_state[3:6])
-                # add rotor speeds
-                transformed_state[9:13] = self._state.rotor_speeds
                 # add body rates
-                transformed_state[13:] = obs[0, 9:]
+                transformed_state[9:] = obs[0, 9:]
                 return transformed_state
 
         def rotor_to_force(self, rotor):
@@ -55,7 +53,7 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 c = -1.7689986848125325
                 return a * rotor**2 + b * rotor + c
 
-        def action_to_fm(self, action):
+        def action_to_fm_ROTOR(self, action):
                 """
                 Map from action in my model to an input to flighmare model
                 """
@@ -68,6 +66,15 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 # transform rotor speeds to force
                 force = self.rotor_to_force(rotor_speeds)
                 return force.astype(np.float32)
+
+        def action_to_fm(self, action):
+                # action is normalized between 0 and 1 --> rescale
+                act_fm = action.copy()
+                # total_thrust
+                act_fm[0] = action[0] * 10 - 5 + 7
+                # ang momentum
+                act_fm[1:] = action[1:] - .5
+                return np.expand_dims(act_fm, 0).astype(np.float32)
 
         def reset(self, strength=.8):
                 """
@@ -96,11 +103,11 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 """
                 # TODO: convert action from model to flightmare input
                 np.set_printoptions(suppress=True, precision=2)
-                print("state before", self._state.as_np)
-                print("obs before", self.raw_obs)
+                # print("state before", self._state.as_np)
+                # print("obs before", self.raw_obs)
                 # print("raw action", action)
                 action = self.action_to_fm(action)
-                # print("action to fm", action)
+                # print("action", action)
                 # action = np.random.rand(*action.shape).astype(np.float32)
                 # action = np.ones(action.shape).astype(np.float32) * 2.5 + action
                 # print(action)
@@ -108,19 +115,42 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 # TODO: how to input dt into fm env?--> sim_dt_ variable
                 obs, rew, done, infos = self.env.step(action)
                 self.raw_obs = obs
-                print("obs after", obs)
+                # print("obs after", obs)
                 # print("rew", rew) # TODO: how is reward computed?
                 # TODO: convert obs to numpy state as in my mode
                 state = self.obs_to_np_state(obs)
                 self._state.from_np(state)
-                print("state after", self._state.as_np)
-                print()
+                # if state[8]>2:
+                #         print("action", action)
+                #         print("state", self._state.as_np)
+                        # exit()
                 # check whether it is still stable
                 stable = np.all(np.absolute(state[3:5]) < thresh)
                 return state, stable
 
 if __name__=="__main__":
-        model_name = "current_model"
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+                "-m",
+                "--model",
+                type=str,
+                default="current_model",
+                help="Directory of model"
+        )
+        parser.add_argument(
+                "-u",
+                "--unity",
+                type=int,
+                default=0,
+                help="1 if unity rendering"
+        )
+        args = parser.parse_args()
+
+        render = 1
+        if args.unity:
+                render = 0
+
+        model_name = args.model
         epoch = ""
 
         # load model
@@ -132,23 +162,31 @@ if __name__=="__main__":
                         "/flightlib/configs/vec_env.yaml", 'r'))
         # print(dump(cfg, Dumper=RoundTripDumper))
         cfg["env"]["num_envs"] = 1
+        if args.unity:
+                cfg["env"]["render"] = "yes"
 
         # initialize dataset
-        dataset = DroneDataset(num_states=1, **param_dict)
+        dataset = DroneDataset(1, 1, **param_dict)
 
         # make evaluator
-        evaluator = QuadEvaluator(net, dataset, render=1, **param_dict)
+        evaluator = QuadEvaluator(net, dataset, render=render, **param_dict)
         evaluator.eval_env = FlightmareWrapper(
                 param_dict["dt"],
                 wrapper.FlightEnvVec(QuadrotorEnv_v1(
                 dump(cfg, Dumper=RoundTripDumper), False))
         )
 
+        if args.unity:
+                evaluator.eval_env.env.connectUnity()
+
         # print(evaluator.eval_env.rotor_to_force(np.zeros(4)+400))
         # exit()
-        reference_traj, drone_traj = evaluator.follow_trajectory(
+        reference_traj, drone_traj, div = evaluator.follow_trajectory(
             'straight', max_nr_steps=100
         )
+        if args.unity:
+                evaluator.eval_env.env.disconnectUnity()
+
         print(len(reference_traj))
         plot_drone_ref_coords(
             drone_traj[1:, :3], reference_traj,
@@ -164,31 +202,3 @@ if __name__=="__main__":
         # obs, rew, done, infos = env.step(act)
         # print("obs", obs)
 
-# class FlightmareEvaluator(QuadEvaluator):
-#         def __init__(
-#                 self,
-#                 cfg,
-#                 model,
-#                 dataset,
-#                 horizon=5,
-#                 max_drone_dist=0.1,
-#                 render=0,
-#                 dt=0.02,
-#                 **kwargs
-#         ):
-#                 super(self).__init__(self,
-#                         model,
-#                         dataset,
-#                         horizon=5,
-#                         max_drone_dist=0.1,
-#                         render=0,
-#                         dt=0.02,
-#                         **kwargs
-#                 )
-#                 # initialize flighmare environment
-#                 self.eval_env = wrapper.FlightEnvVec(QuadrotorEnv_v1(
-#                         dump(cfg, Dumper=RoundTripDumper), False))
-#                 self.render = 0
-
-        # def predict_actions(self, current_np_state, ref_states)
-        # probably don't even need to overwrite this

@@ -37,7 +37,7 @@ def plot_state_variables(collect_data, save_path=None):
     """
     Plot a collection of state by plotting position and velocities over time
     """
-    collect_data = np.delete(np.array(collect_data), [9, 10, 11, 12], axis=1)
+    # collect_data = np.delete(np.array(collect_data), [9, 10, 11, 12], axis=1)
     # collect_data[:, 2] = collect_data[:, 2] - 2
     print(collect_data.shape)
     labels = [
