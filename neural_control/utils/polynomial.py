@@ -22,7 +22,7 @@ class Polynomial:
         Create random trajectory
         """
         dist_points = max_drone_dist / horizon
-        self.hover_steps = 50
+        self.hover_steps = hover_steps
         self.dist_points = dist_points
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist

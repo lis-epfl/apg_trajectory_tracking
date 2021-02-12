@@ -13,12 +13,14 @@ copter_params.rotational_drag = torch.from_numpy(
     copter_params.rotational_drag
 ).to(device)
 # estimate intertia as in flightmare
-copter_params.frame_inertia = (
+inertia_vector = (
     copter_params.mass / 12.0 * copter_params.arm_length**2 *
     torch.tensor([4.5, 4.5, 7])
 ).float().to(device)
+copter_params.frame_inertia = torch.diag(inertia_vector)
 # torch.from_numpy(copter_params.frame_inertia
 #                                              ).float().to(device)
+kinv_ang_vel_tau = torch.diag(torch.tensor([16.6, 16.6, 5.0]).float())
 
 
 def world_to_body_matrix(attitude):
@@ -83,8 +85,8 @@ def linear_dynamics(squared_rotor_speed, attitude, velocity):
     Ktw = torch.matmul(
         body_to_world, torch.matmul(torch.diag(Kt).float(), world_to_body)
     )
-    drag = torch.squeeze(torch.matmul(Ktw, torch.unsqueeze(velocity, 2)) / m)
-    thrust_minus_drag = thrust - drag + copter_params.gravity
+    # drag = torch.squeeze(torch.matmul(Ktw, torch.unsqueeze(velocity, 2)) / m)
+    thrust_minus_drag = thrust + copter_params.gravity
     # version for batch size 1 (working version)
     # summed = torch.add(
     #     torch.transpose(drag * (-1), 0, 1), thrust
@@ -124,6 +126,27 @@ def euler_rate(attitude, angular_velocity):
     return torch.squeeze(together)
 
 
+def action_to_body_torques(av, body_rates):
+    """
+    omega is current angular velocity
+    thrust, body_rates: current command
+    """
+    # constants
+    omega_change = torch.unsqueeze(body_rates - av, 2)
+    kinv_times_change = torch.matmul(kinv_ang_vel_tau, omega_change)
+    first_part = torch.matmul(copter_params.frame_inertia, kinv_times_change)
+    # print("first_part", first_part.size())
+    inertia_av = torch.matmul(
+        copter_params.frame_inertia, torch.unsqueeze(av, 2)
+    )[:, :, 0]
+    # print(inertia_av.size())
+    second_part = torch.cross(av, inertia_av, dim=1)
+    # print("second_part", second_part.size())
+    body_torque_des = first_part[:, :, 0] + second_part
+    # print("body_torque_des", body_torque_des.size())
+    return body_torque_des
+
+
 def simulate_quadrotor(action, state, dt=0.02):
     """
     Simulate the dynamics of the quadrotor for the timestep given
@@ -144,12 +167,13 @@ def simulate_quadrotor(action, state, dt=0.02):
 
     # action is normalized between 0 and 1 --> rescale
     total_thrust = action[:, 0] * 10 - 5 + 7
-    ang_momentum = action[:, 1:] - .5
+    body_rates = action[:, 1:] - .5
 
     acceleration = linear_dynamics(total_thrust, attitude, velocity)
 
+    ang_momentum = action_to_body_torques(angular_velocity, body_rates)
     # angular_momentum_body_frame(rotor_speed, angular_velocity)
-    angular_acc = ang_momentum / copter_params.frame_inertia
+    angular_acc = ang_momentum / inertia_vector
     # update state variables
     position = position + 0.5 * dt * dt * acceleration + 0.5 * dt * velocity
     velocity = velocity + dt * acceleration
