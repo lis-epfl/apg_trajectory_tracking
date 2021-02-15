@@ -54,6 +54,8 @@ class Straight:
             )
         self.a_on_line = a_on_line
         self.b_on_line = b_on_line
+        self.direction = self.b_on_line - self.a_on_line
+        self.direction = self.direction / np.linalg.norm(self.direction)
         self.dt = dt
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist
@@ -65,18 +67,18 @@ class Straight:
         """
         drone_pos = drone_state[:3]
         projected = np_project_line(self.a_on_line, self.b_on_line, drone_pos)
-        direction = self.b_on_line - self.a_on_line
         # norm squared is a^2
         dist1 = np.sum((projected - drone_pos)**2)
         # a^2 + b^2 = max_drone_dist^2
         dist_on_line = np.sqrt(max([self.max_drone_dist**2 - dist1, 0]))
-        goal_pos = projected + direction * dist_on_line
+        goal_pos = projected + self.direction * dist_on_line
+        goal_vel = (goal_pos - drone_pos) / self.horizon
         reference = get_reference(
             drone_pos,
             drone_state[6:9],
             drone_acc,
             goal_pos,
-            direction,
+            goal_vel,
             ref_length=self.horizon,
             delta_t=self.dt
         )

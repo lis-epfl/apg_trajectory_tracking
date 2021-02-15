@@ -251,7 +251,7 @@ class QuadEvaluator():
 
             # project to trajectory and check divergence
             drone_on_line = reference.project_on_ref(drone_pos)
-            reference_trajectory.append(trajectory[-1, :3])
+            reference_trajectory.append(drone_on_line)
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
             if div > thresh_div:
