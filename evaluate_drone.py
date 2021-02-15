@@ -55,7 +55,7 @@ class QuadEvaluator():
         self.max_drone_dist = max_drone_dist
         self.training_means = None
         self.render = render
-        self.treshold_divergence = 1
+        self.treshold_divergence = 3
         self.dt = dt
         self.optimizer = optimizer
         self.take_every_x = take_every_x
@@ -214,6 +214,9 @@ class QuadEvaluator():
             **circle_args
         )
 
+        self.help_render()
+        # start = input("start")
+
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
@@ -232,15 +235,19 @@ class QuadEvaluator():
                 current_np_state = states[i]
                 stable = i < (len(states) - 1)
             if not stable:
+                if self.render:
+                    np.set_printoptions(precision=3, suppress=True)
+                    print("unstable")
+                    # print(self.eval_env._state.as_np)
                 break
-            self.help_render(sleep=0.1)
+            self.help_render(sleep=0)
 
             drone_pos = current_np_state[:3]
             drone_trajectory.append(current_np_state)
 
             # project to trajectory and check divergence
             drone_on_line = reference.project_on_ref(drone_pos)
-            reference_trajectory.append(trajectory[-1, :3])
+            reference_trajectory.append(drone_on_line)
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
             if div > self.treshold_divergence:

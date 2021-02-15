@@ -28,6 +28,13 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 super().__init__(dt)
                 self.env = flightmare_env
 
+        def transform_borders(self, x, switch_sign=0):
+                new = np.sign(x) * min([abs(x), (3.14 - abs(x))])
+                if new!=x and switch_sign:
+                        new = -1 * new
+                return new
+
+
         def obs_to_np_state(self, obs):
                 # obs is position, euler, velocity, and body rates (w)
                 transformed_state = np.zeros(12)
@@ -35,14 +42,10 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 transformed_state[:3] = obs[0, :3].copy()
                 # add vel
                 transformed_state[6:9] = obs[0, 6:9].copy()
-                # attitude --> zyx to xyz
-                # print(obs[0, 3:6])
-                transformed_state[3] = np.sign(obs[0, 5]) * min([abs(obs[0, 5]), (3.14 - abs(obs[0, 5]))])
-                # np.sign(obs[0, 5]) * (3.14 - abs(obs[0, 5]))
-                transformed_state[4] = np.sign(obs[0, 4]) * min([abs(obs[0, 4]), (3.14 - abs(obs[0, 4]))])
-                # transformed_state[4] = obs[0, 4]
-                # np.sign(obs[0, 4]) * (3.14 - abs(obs[0, 4]))
-                transformed_state[5] = obs[0, 3]
+                # attitude --> zyx to xyz and remove discontinouities
+                transformed_state[3] = self.transform_borders(obs[0, 5], switch_sign=1)
+                transformed_state[4] = self.transform_borders(obs[0,4])
+                transformed_state[5] = self.transform_borders(obs[0, 3])
                 # add body rates
                 transformed_state[9:] = obs[0, 9:]
                 return transformed_state
@@ -107,6 +110,7 @@ class FlightmareWrapper(QuadRotorEnvBase):
                 # print("obs before", self.raw_obs)
                 # print("raw action", action)
                 action = self.action_to_fm(action)
+                action[0, 1:]*=1.5
                 # print("action", action)
                 # action = np.random.rand(*action.shape).astype(np.float32)
                 # action = np.ones(action.shape).astype(np.float32) * 2.5 + action
@@ -126,6 +130,11 @@ class FlightmareWrapper(QuadRotorEnvBase):
                         # exit()
                 # check whether it is still stable
                 stable = np.all(np.absolute(state[3:5]) < thresh)
+                if not stable:
+                        np.set_printoptions(precision=3, suppress=True)
+                        print("unstable!")
+                        print("obs", obs)
+                        print("state", state)
                 return state, stable
 
 if __name__=="__main__":
@@ -138,11 +147,25 @@ if __name__=="__main__":
                 help="Directory of model"
         )
         parser.add_argument(
+                "-e",
+                "--epoch",
+                type=str,
+                default="",
+                help="Which epoch of the model"
+        )
+        parser.add_argument(
                 "-u",
                 "--unity",
                 type=int,
                 default=0,
                 help="1 if unity rendering"
+        )
+        parser.add_argument(
+                "-r",
+                "--ref",
+                default="straight",
+                type=str,
+                help="reference trajectory type"
         )
         args = parser.parse_args()
 
@@ -151,7 +174,7 @@ if __name__=="__main__":
                 render = 0
 
         model_name = args.model
-        epoch = ""
+        epoch = args.epoch
 
         # load model
         model_path = os.path.join("trained_models", "drone", model_name)
@@ -182,7 +205,7 @@ if __name__=="__main__":
         # print(evaluator.eval_env.rotor_to_force(np.zeros(4)+400))
         # exit()
         reference_traj, drone_traj, div = evaluator.follow_trajectory(
-            'straight', max_nr_steps=100
+            args.ref, max_nr_steps=1000, radius=3, plane=[0,1], thresh=.9
         )
         if args.unity:
                 evaluator.eval_env.env.disconnectUnity()
