@@ -22,8 +22,9 @@ eval_dict = {
 thresh_divergence = 1
 
 if __name__ == "__main__":
-    model_name = "body_rate_faster"
+    model_name = "current_model"
     epoch = ""
+    out_path = "../presentations/eval_script_outputs/"
 
     df = pd.DataFrame(
         columns=[
@@ -70,7 +71,10 @@ if __name__ == "__main__":
                 steps_until_fail = len(drone_ref)
                 if reference == "poly" and len(drone_ref) > 500:
                     drone_ref = drone_ref[100:-500]
-                speed = evaluator.compute_speed(drone_ref)
+                try:
+                    speed = evaluator.compute_speed(drone_ref)
+                except ZeroDivisionError:
+                    speed = np.nan
 
                 # log
                 print(
@@ -85,4 +89,4 @@ if __name__ == "__main__":
                 ]
 
     print(df)
-    df.to_csv(f"../presentations/evaluate_{model_name}.csv")
+    df.to_csv(os.path.join(out_path, f"evaluate_{model_name}.csv"))
