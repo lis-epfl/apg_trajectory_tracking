@@ -42,20 +42,21 @@ class Straight:
         """
         Make trajectory from velocity
         """
-        traj_direction = drone_state[6:9].copy()
-        a_on_line = drone_state[:3].copy()
-        b_on_line = a_on_line + traj_direction / np.linalg.norm(traj_direction)
+        self.a_on_line = drone_state[:3].copy()
+        # go to random direction
+        traj_direction = np.random.rand(3) - .5
+        traj_direction = traj_direction / np.linalg.norm(traj_direction)
+        self.b_on_line = self.a_on_line + traj_direction
 
         if render:
             if renderer is None:
                 raise ValueError("if render is true, need to input renderer")
             renderer.add_object(
-                StraightObject(a_on_line, 5 * b_on_line - 4 * a_on_line)
+                StraightObject(
+                    self.a_on_line, self.a_on_line + 5 * traj_direction
+                )
             )
-        self.a_on_line = a_on_line
-        self.b_on_line = b_on_line
-        self.direction = self.b_on_line - self.a_on_line
-        self.direction = self.direction / np.linalg.norm(self.direction)
+        self.direction = traj_direction
         self.dt = dt
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist
@@ -66,7 +67,7 @@ class Straight:
         b_on_line - a_on_line must be a unit vector!
         """
         drone_pos = drone_state[:3]
-        projected = np_project_line(self.a_on_line, self.b_on_line, drone_pos)
+        projected = self.project_on_ref(drone_pos)
         # norm squared is a^2
         dist1 = np.sum((projected - drone_pos)**2)
         # a^2 + b^2 = max_drone_dist^2
@@ -88,7 +89,18 @@ class Straight:
         """
         Project the current state to the trajectory
         """
-        return np_project_line(self.a_on_line, self.b_on_line, drone_state[:3])
+        # define points a and b on the line and p as the current position
+        a = self.a_on_line
+        b = self.b_on_line
+        p = drone_state[:3]
+        if np.all(a == b):
+            return a
+        ap = p - a
+        ab = np.expand_dims(b - a, 1)
+        dot = np.dot(ab, ab.T)
+        norm = np.sum(ab**2)
+        result = a + np.dot(dot, ap) / norm
+        return result
 
 
 class StraightObject():
@@ -122,20 +134,6 @@ def sample_points_on_straight(
     for i in range(ref_length):
         reference_states[i] = current_ref_point + (i) * step_dir
     return reference_states
-
-
-def np_project_line(a, b, p):
-    """
-    Project point p on line spanned by a and b
-    """
-    if np.all(a == b):
-        return a
-    ap = p - a
-    ab = np.expand_dims(b - a, 1)
-    dot = np.dot(ab, ab.T)
-    norm = np.sum(ab**2)
-    result = a + np.dot(dot, ap) / norm
-    return result
 
 
 def straight_training_sample(step_size=0.2, max_drone_dist=0.1, ref_length=5):
