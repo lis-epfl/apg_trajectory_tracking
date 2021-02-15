@@ -86,7 +86,7 @@ class Circle:
              np.sin(alpha) * self.radius]
         )
 
-    def project_point(self, point, addon=0.2):
+    def project_point(self, point, addon=0):
         point_2D = self.to_2D(point)
         alpha = self.to_alpha(point_2D) + addon * self.direction
         projected = self.point_on_circle(alpha)
