@@ -51,6 +51,8 @@ class Circle:
         mid_point_tmp = pos.astype(float)
         # get 2D vel
         vel_2D = vel[self.plane]
+        if np.all(np.isclose(vel_2D, 0)):
+            vel_2D = np.random.rand(2) - .5
         # get orthogonal vector pointing to middle of circle
         orthogonal_vec = np.array([(-1) * vel_2D[1], vel_2D[0]])
         # compute center
