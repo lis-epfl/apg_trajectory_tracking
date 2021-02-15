@@ -130,11 +130,6 @@ class FlightmareWrapper(QuadRotorEnvBase):
                         # exit()
                 # check whether it is still stable
                 stable = np.all(np.absolute(state[3:5]) < thresh)
-                if not stable:
-                        np.set_printoptions(precision=3, suppress=True)
-                        print("unstable!")
-                        print("obs", obs)
-                        print("state", state)
                 return state, stable
 
 if __name__=="__main__":
@@ -205,7 +200,7 @@ if __name__=="__main__":
         # print(evaluator.eval_env.rotor_to_force(np.zeros(4)+400))
         # exit()
         reference_traj, drone_traj, div = evaluator.follow_trajectory(
-            args.ref, max_nr_steps=1000, radius=3, plane=[0,1], thresh=.9
+            args.ref, max_nr_steps=1000, radius=3, plane=[0,2], thresh_stable=.9, thresh_div=3
         )
         if args.unity:
                 evaluator.eval_env.env.disconnectUnity()
@@ -216,12 +211,5 @@ if __name__=="__main__":
             os.path.join(model_path, "fm_coords.png")
         )
         plot_state_variables(drone_traj,
-            os.path.join(model_path, "fm_all.png") )
-        # # From previous flightmare tests:
-        # obs, done, ep_len = (env.reset(), False, 0)
-        # print(env._extraInfoNames)
-        # print("obs prev:", obs)
-        # act = np.random.rand(1,4).astype(np.float32)
-        # obs, rew, done, infos = env.step(act)
-        # print("obs", obs)
-
+            os.path.join(model_path, "fm_all.png")
+        )
