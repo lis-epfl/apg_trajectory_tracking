@@ -41,6 +41,10 @@ eval_dict = {
         "nr_test": 10,
         "max_steps": 200
     },
+    "hover": {
+        "nr_test": 0,
+        "max_steps": 200
+    },
     "poly": {
         "nr_test": 10,
         "max_steps": 200
@@ -125,15 +129,18 @@ for epoch in range(NR_EPOCHS):
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
-        if suc_mean > take_steps * steps_per_eval - 50:
-            # evaluate for more steps
-            take_steps += 1
+
+        if (epoch + 1) % 2 == 0:
             # renew the sampled data
             state_data.resample_data()
             print(
                 f"Sampled new data ({state_data.num_sampled_states}) \
                 - self play counter: {state_data.get_eval_index()}"
             )
+
+        if suc_mean > take_steps * steps_per_eval - 50:
+            # evaluate for more steps
+            take_steps += 1
 
         # save best model
         if epoch > 0 and suc_mean > highest_success:
