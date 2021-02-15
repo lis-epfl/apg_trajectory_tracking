@@ -55,7 +55,6 @@ class QuadEvaluator():
         self.max_drone_dist = max_drone_dist
         self.training_means = None
         self.render = render
-        self.treshold_divergence = 1
         self.dt = dt
         self.optimizer = optimizer
         self.take_every_x = take_every_x
@@ -172,7 +171,7 @@ class QuadEvaluator():
             time.sleep(sleep)
 
     def follow_trajectory(
-        self, traj_type, max_nr_steps=200, thresh=.4, **circle_args
+        self, traj_type, max_nr_steps=200, thresh_stable=.4, thresh_div=3,**circle_args
     ):
         """
         Follow a trajectory with the drone environment
@@ -214,6 +213,9 @@ class QuadEvaluator():
             **circle_args
         )
 
+        self.help_render()
+        # start = input("start")
+
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
@@ -225,13 +227,17 @@ class QuadEvaluator():
             # only use first action (as in mpc)
             action = numpy_action_seq[0]
             current_np_state, stable = self.eval_env.step(
-                action, thresh=thresh
+                action, thresh=thresh_stable
             )
             if states is not None:
                 self.eval_env._state.from_np(states[i])
                 current_np_state = states[i]
                 stable = i < (len(states) - 1)
             if not stable:
+                if self.render:
+                    np.set_printoptions(precision=3, suppress=True)
+                    print("unstable")
+                    # print(self.eval_env._state.as_np)
                 break
             self.help_render(sleep=0)
 
@@ -243,7 +249,7 @@ class QuadEvaluator():
             reference_trajectory.append(trajectory[-1, :3])
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
-            if div > self.treshold_divergence:
+            if div > thresh_div:
                 if self.render:
                     np.set_printoptions(precision=3, suppress=True)
                     print("state")
