@@ -292,7 +292,8 @@ class QuadEvaluator():
         reference: str,
         nr_test: int = 10,
         max_steps: int = 200,
-        thresh=1
+        thresh_div=1,
+        thresh_stable=1
     ):
         """
         Function to evaluate a trajectory multiple times
@@ -305,7 +306,8 @@ class QuadEvaluator():
             _, drone_traj, divergences = self.follow_trajectory(
                 reference,
                 max_nr_steps=max_steps,
-                thresh=thresh,
+                thresh_div=thresh_div,
+                thresh_stable=thresh_stable,
                 **circle_args
             )
             div.append(np.mean(divergences))

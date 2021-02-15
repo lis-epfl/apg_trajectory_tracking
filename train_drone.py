@@ -125,7 +125,9 @@ for epoch in range(NR_EPOCHS):
         )
         for reference, ref_params in eval_dict.items():
             ref_params["max_steps"] = steps_per_eval * take_steps
-            suc_mean, suc_std = eval_env.eval_ref(reference, **ref_params)
+            suc_mean, suc_std = eval_env.eval_ref(
+                reference, thresh_div=THRESH_DIV, **ref_params
+            )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
