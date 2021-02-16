@@ -21,6 +21,10 @@ from neural_control.utils.polynomial import Polynomial
 from neural_control.dataset import DroneDataset
 from neural_control.drone_loss import reference_loss
 from neural_control.environments.drone_dynamics import simulate_quadrotor
+try:
+    from neural_control.flightmare import FlightmareWrapper
+except ModuleNotFoundError:
+    pass
 
 ROLL_OUT = 1
 ACTION_DIM = 4
@@ -190,7 +194,7 @@ class QuadEvaluator():
         self.action_counter = 0
 
         # reset drone state
-        init_state = [4, 0, 7]
+        init_state = [0, 0, 6]
         self.eval_env.zero_reset(*tuple(init_state))
 
         states = None  # np.load("id_5.npy")
@@ -282,7 +286,7 @@ class QuadEvaluator():
     def sample_circle(self):
         possible_planes = [[0, 1], [0, 2], [1, 2]]
         plane = possible_planes[np.random.randint(0, 3, 1)[0]]
-        radius = np.random.rand() * 2 + 1
+        radius = np.random.rand() * 3 + 2
         direct = np.random.choice([-1, 1])
         circle_args = {"plane": plane, "radius": radius, "direction": direct}
         return circle_args
@@ -378,53 +382,85 @@ if __name__ == "__main__":
         "-r", "--ref", type=str, default="circle", help="which trajectory"
     )
     parser.add_argument(
+        '-p', '--points', action='store_true', help="use poly reference"
+    )
+    parser.add_argument(
+        "-u", "--unity", action='store_true', help="unity rendering"
+    )
+    parser.add_argument(
+        "-f", "--flightmare", action='store_true', help="Flightmare"
+    )
+    parser.add_argument(
         "-save_data",
         action="store_true",
         help="save the episode as training data"
     )
     args = parser.parse_args()
 
+    # rendering
+    render = 1
+    if args.unity:
+        render = 0
+
+    # load model
     model_name = args.model
     model_path = os.path.join("trained_models", "drone", model_name)
-
     net, param_dict = load_model(model_path, epoch=args.epoch)
 
+    # optinally change drone speed
     # param_dict["max_drone_dist"] = .6
+    # define evaluation environment
     dataset = DroneDataset(1, 1, **param_dict)
     evaluator = QuadEvaluator(
         net,
         dataset,
-        render=1,
+        render=render,
         take_every_x=5000,
         # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
         **param_dict
     )
-    # evaluator.eval_ref(args.ref, nr_test=2)
-    # exit()
-    # Straight with reference as input
-    try:
-        fixed_axis = 1
-        circle_args = {
-            "plane": [0, 2],
-            "radius": 2,
-            "direction": 1,
-            "thresh_div": 3,
-            "thresh_stable": 1
-        }
-        reference_traj, drone_traj, _ = evaluator.follow_trajectory(
-            args.ref, max_nr_steps=500, **circle_args
-        )
-        print("Speed:", evaluator.compute_speed(drone_traj[100:300, :3]))
-        plot_trajectory(
-            reference_traj,
-            drone_traj,
-            os.path.join(model_path, args.ref + "_traj.png"),
-            fixed_axis=fixed_axis
-        )
-        plot_drone_ref_coords(
-            drone_traj[1:, :3], reference_traj,
-            os.path.join(model_path, args.ref + "_coords.png")
+
+    # FLIGHTMARE
+    if args.flightmare:
+        evaluator.eval_env = FlightmareWrapper(param_dict["dt"], args.unity)
+
+    # Specify arguments for the trajectory
+    fixed_axis = 1
+    traj_args = {
+        "plane": [0, 2],
+        "radius": 2,
+        "direction": 1,
+        "thresh_div": 3,
+        "thresh_stable": 1
+    }
+    if args.points:
+        traj_args["points_to_traverse"] = np.array(
+            [
+                [-1.5, 0, 2], [-1, 1, 1], [-.5, -1, 2], [0, -3, 3], [1, -2, 5],
+                [2, -1, 4], [3, 1, 3]
+            ]
         )
 
-    except KeyboardInterrupt:
-        evaluator.eval_env.close()
+    # RUN
+    if args.unity:
+        evaluator.eval_env.env.connectUnity()
+
+    reference_traj, drone_traj, _ = evaluator.follow_trajectory(
+        args.ref, max_nr_steps=500, **traj_args
+    )
+
+    if args.unity:
+        evaluator.eval_env.env.disconnectUnity()
+
+    # EVAL
+    print("Speed:", evaluator.compute_speed(drone_traj[100:300, :3]))
+    plot_trajectory(
+        reference_traj,
+        drone_traj,
+        os.path.join(model_path, args.ref + "_traj.png"),
+        fixed_axis=fixed_axis
+    )
+    plot_drone_ref_coords(
+        drone_traj[1:, :3], reference_traj,
+        os.path.join(model_path, args.ref + "_coords.png")
+    )
