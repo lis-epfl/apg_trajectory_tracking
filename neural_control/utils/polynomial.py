@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.stats import special_ortho_group
 from .plan_trajectory import get_reference
+from scipy.interpolate import CubicSpline
 
 
 class Polynomial:
@@ -10,6 +11,7 @@ class Polynomial:
         drone_state,
         render=False,
         renderer=None,
+        points_to_traverse=None,
         max_drone_dist=0.25,
         horizon=10,
         hover_steps=50,
@@ -32,6 +34,54 @@ class Polynomial:
         if render and renderer is None:
             raise ValueError("if render is true, need to input renderer")
 
+        if points_to_traverse is None:
+            points_3d = self.random_polynomial(x_range, degree)
+        else:
+            points_3d = self.cubic_fit(points_to_traverse)
+
+        # subtract current position to start there
+        points_3d = points_3d - points_3d[0] + drone_state[:3]
+
+        start_hover = np.array([points_3d[0] for _ in range(hover_steps)])
+        end_hover = np.array([points_3d[-1] for _ in range(hover_steps)])
+
+        self.reference = np.vstack([start_hover, points_3d, end_hover])
+        self.ref_len = len(self.reference)
+        self.target_ind = 0
+
+        # draw trajectory on renderer
+        if render:
+            renderer.add_object(PolyObject(self.reference))
+
+    def cubic_fit(self, points_to_traverse):
+        dists = [0] + [
+            np.linalg.norm(points_to_traverse[i] - points_to_traverse[i + 1])
+            for i in range(len(points_to_traverse) - 1)
+        ]
+        cum_dists = np.cumsum(dists)
+
+        # add one dummy point to prevent fast speed in the beginning
+        rand_vec = np.random.rand(3) * 2 - 1
+        add_point_bef = points_to_traverse[0] - rand_vec
+        rand_vec_2 = np.random.rand(3) * 2 - 1
+        add_point_aft = points_to_traverse[-1] - rand_vec_2
+        x = np.array(
+            [-1 * np.linalg.norm(rand_vec)] + cum_dists.tolist() +
+            [cum_dists[-1] + np.linalg.norm(add_point_aft)]
+        )
+        fit_points = np.vstack(
+            (add_point_bef, points_to_traverse, add_point_aft)
+        )
+
+        # fit cubic spline
+        func = CubicSpline(x, fit_points)
+
+        # sample in steps dependent on max_drone_dist
+        x_sample = np.arange(0, cum_dists[-1], self.dist_points)
+        points_sample = np.array([func(x_s) for x_s in x_sample])
+        return points_sample
+
+    def random_polynomial(self, x_range, degree):
         x_start = 1
         x_final = x_start + x_range
 
@@ -59,7 +109,7 @@ class Polynomial:
             grad = get_gradient(x_start)
             vec = np.array([1, grad])
             normed_vec = vec / np.linalg.norm(vec)
-            x_end = x_start + (normed_vec * dist_points)[0]
+            x_end = x_start + (normed_vec * self.dist_points)[0]
             points_2d.append([x_end, poly(x_end)])
             x_start = x_end
             # print([x_end, poly(x_end)])
@@ -73,25 +123,7 @@ class Polynomial:
 
         # transform to 3D
         points_3d = points_2d_ext @ rot
-
-        # for visibility, bring x and z in a good range
-        # x_min_render, z_min_render = (-3, 0.5)
-        # x_max_render, z_max_render = (3, 7)
-        points_3d = points_3d - points_3d[0] + drone_state[:3]
-        # points_3d[:,0] + x_min_render - np.min(points_3d[:, 0])
-        # points_3d[:,2] = points_3d[:,
-        #                          2] + z_min_render - np.min(points_3d[:, 2])
-
-        start_hover = np.array([points_3d[0] for _ in range(hover_steps)])
-        end_hover = np.array([points_3d[-1] for _ in range(hover_steps)])
-
-        self.reference = np.vstack([start_hover, points_3d, end_hover])
-        self.ref_len = len(self.reference)
-        self.target_ind = 0
-
-        # draw trajectory on renderer
-        if render:
-            renderer.add_object(PolyObject(self.reference))
+        return points_3d
 
     def get_ref_traj(self, drone_state, drone_acc):
         """
