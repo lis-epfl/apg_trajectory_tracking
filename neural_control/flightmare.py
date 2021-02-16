@@ -96,7 +96,7 @@ class FlightmareWrapper(QuadRotorEnvBase):
         # print("obs before", self.raw_obs)
         # print("raw action", action)
         action = self.action_to_fm(action)
-        action[0, 1:] *= 1.5
+        action[0, 1:] *= 3
         # print("action", action)
         # action = np.random.rand(*action.shape).astype(np.float32)
         # action = np.ones(action.shape).astype(np.float32) * 2.5 + action

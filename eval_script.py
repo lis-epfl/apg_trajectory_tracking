@@ -11,7 +11,7 @@ from evaluate_drone import QuadEvaluator, load_model
 from neural_control.dataset import DroneDataset
 from flightgym import QuadrotorEnv_v1
 from rpg_baselines.envs import vec_env_wrapper as wrapper
-from test_flightmare import FlightmareWrapper
+from neural_control.flightmare import FlightmareWrapper
 
 eval_dict = {
     "straight": {
@@ -34,6 +34,7 @@ if __name__ == "__main__":
     model_name = "current_model"
     epoch = ""
     out_path = "outputs"
+    save_model_name = "flightmare"
     use_flightmare = True
 
     df = pd.DataFrame(
@@ -48,14 +49,11 @@ if __name__ == "__main__":
 
     net, param_dict = load_model(model_path, epoch=epoch)
 
-    if use_flightmare:
-         # load config
-        cfg = YAML().load(open(os.environ["FLIGHTMARE_PATH"] +
-                        "/flightlib/configs/vec_env.yaml", 'r'))
-        cfg["env"]["num_envs"] = 1
+
+    model_name = save_model_name
 
     dt = 0.05
-    for max_drone_dist in [0.25, 0.5]:
+    for max_drone_dist in [0.5, 0.75]:
         print("---------------------------------")
         param_dict["dt"] = dt
         param_dict["max_drone_dist"] = max_drone_dist
@@ -71,9 +69,7 @@ if __name__ == "__main__":
         )
         if use_flightmare:
             evaluator.eval_env = FlightmareWrapper(
-                    param_dict["dt"],
-                    wrapper.FlightEnvVec(QuadrotorEnv_v1(
-                    dump(cfg, Dumper=RoundTripDumper), False))
+                    param_dict["dt"], False
             )
 
         for reference, ref_params in eval_dict.items():
@@ -121,4 +117,4 @@ if __name__ == "__main__":
                 ]
 
     print(df)
-    df.to_csv(os.path.join(out_path, f"evaluate_flightmare_{model_name}.csv"))
+    df.to_csv(os.path.join(out_path, f"eval_{model_name}.csv"))
