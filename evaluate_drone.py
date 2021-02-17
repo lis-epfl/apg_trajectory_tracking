@@ -180,7 +180,7 @@ class QuadEvaluator():
         max_nr_steps=200,
         thresh_stable=.4,
         thresh_div=3,
-        **circle_args
+        **traj_args
     ):
         """
         Follow a trajectory with the drone environment
@@ -219,7 +219,7 @@ class QuadEvaluator():
             max_drone_dist=self.max_drone_dist,
             horizon=self.horizon,
             dt=self.dt,
-            **circle_args
+            **traj_args
         )
 
         self.help_render()
