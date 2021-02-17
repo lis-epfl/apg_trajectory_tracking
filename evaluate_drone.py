@@ -194,7 +194,7 @@ class QuadEvaluator():
         self.action_counter = 0
 
         # reset drone state
-        init_state = [0, 0, 6]
+        init_state = [0, 0, 3]
         self.eval_env.zero_reset(*tuple(init_state))
 
         states = None  # np.load("id_5.npy")
@@ -382,7 +382,7 @@ if __name__ == "__main__":
         "-r", "--ref", type=str, default="circle", help="which trajectory"
     )
     parser.add_argument(
-        '-p', '--points', action='store_true', help="use poly reference"
+        '-p', '--points', type=str, default=None, help="use predefined reference"
     )
     parser.add_argument(
         "-u", "--unity", action='store_true', help="unity rendering"
@@ -433,13 +433,9 @@ if __name__ == "__main__":
         "thresh_div": 3,
         "thresh_stable": 1
     }
-    if args.points:
-        traj_args["points_to_traverse"] = np.array(
-            [
-                [-1.5, 0, 2], [-1, 1, 1], [-.5, -1, 2], [0, -3, 3], [1, -2, 5],
-                [2, -1, 4], [3, 1, 3]
-            ]
-        )
+    if args.points is not None:
+        from neural_control.utils.predefined_trajectories import collected_trajectories
+        traj_args["points_to_traverse"] = collected_trajectories[args.points]
 
     # RUN
     if args.unity:
