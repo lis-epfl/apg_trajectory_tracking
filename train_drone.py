@@ -23,7 +23,7 @@ RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
 THRESH_DIV = .4
 NR_EVAL_ITERS = 5
-STATE_SIZE = 16
+STATE_SIZE = 12
 NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
@@ -39,6 +39,10 @@ eval_dict = {
     },
     "circle": {
         "nr_test": 10,
+        "max_steps": 200
+    },
+    "hover": {
+        "nr_test": 0,
         "max_steps": 200
     },
     "poly": {
@@ -121,19 +125,24 @@ for epoch in range(NR_EPOCHS):
         )
         for reference, ref_params in eval_dict.items():
             ref_params["max_steps"] = steps_per_eval * take_steps
-            suc_mean, suc_std = eval_env.eval_ref(reference, **ref_params)
+            suc_mean, suc_std = eval_env.eval_ref(
+                reference, thresh_div=THRESH_DIV, **ref_params
+            )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
-        if suc_mean > take_steps * steps_per_eval - 50:
-            # evaluate for more steps
-            take_steps += 1
+
+        if (epoch + 1) % 2 == 0:
             # renew the sampled data
             state_data.resample_data()
             print(
                 f"Sampled new data ({state_data.num_sampled_states}) \
                 - self play counter: {state_data.get_eval_index()}"
             )
+
+        if suc_mean > take_steps * steps_per_eval - 50:
+            # evaluate for more steps
+            take_steps += 1
 
         # save best model
         if epoch > 0 and suc_mean > highest_success:

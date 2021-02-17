@@ -21,6 +21,10 @@ from neural_control.utils.polynomial import Polynomial
 from neural_control.dataset import DroneDataset
 from neural_control.drone_loss import reference_loss
 from neural_control.environments.drone_dynamics import simulate_quadrotor
+try:
+    from neural_control.flightmare import FlightmareWrapper
+except ModuleNotFoundError:
+    pass
 
 ROLL_OUT = 1
 ACTION_DIM = 4
@@ -55,7 +59,6 @@ class QuadEvaluator():
         self.max_drone_dist = max_drone_dist
         self.training_means = None
         self.render = render
-        self.treshold_divergence = 1
         self.dt = dt
         self.optimizer = optimizer
         self.take_every_x = take_every_x
@@ -172,7 +175,12 @@ class QuadEvaluator():
             time.sleep(sleep)
 
     def follow_trajectory(
-        self, traj_type, max_nr_steps=200, thresh=.4, **circle_args
+        self,
+        traj_type,
+        max_nr_steps=200,
+        thresh_stable=.4,
+        thresh_div=3,
+        **traj_args
     ):
         """
         Follow a trajectory with the drone environment
@@ -186,7 +194,7 @@ class QuadEvaluator():
         self.action_counter = 0
 
         # reset drone state
-        init_state = [4, 0, 7]
+        init_state = [0, 0, 3]
         self.eval_env.zero_reset(*tuple(init_state))
 
         states = None  # np.load("id_5.npy")
@@ -211,8 +219,11 @@ class QuadEvaluator():
             max_drone_dist=self.max_drone_dist,
             horizon=self.horizon,
             dt=self.dt,
-            **circle_args
+            **traj_args
         )
+
+        self.help_render()
+        # start = input("start")
 
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
@@ -225,13 +236,17 @@ class QuadEvaluator():
             # only use first action (as in mpc)
             action = numpy_action_seq[0]
             current_np_state, stable = self.eval_env.step(
-                action, thresh=thresh
+                action, thresh=thresh_stable
             )
             if states is not None:
                 self.eval_env._state.from_np(states[i])
                 current_np_state = states[i]
                 stable = i < (len(states) - 1)
             if not stable:
+                if self.render:
+                    np.set_printoptions(precision=3, suppress=True)
+                    print("unstable")
+                    # print(self.eval_env._state.as_np)
                 break
             self.help_render(sleep=0)
 
@@ -240,10 +255,10 @@ class QuadEvaluator():
 
             # project to trajectory and check divergence
             drone_on_line = reference.project_on_ref(drone_pos)
-            reference_trajectory.append(trajectory[-1, :3])
+            reference_trajectory.append(drone_on_line)
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
-            if div > self.treshold_divergence:
+            if div > thresh_div:
                 if self.render:
                     np.set_printoptions(precision=3, suppress=True)
                     print("state")
@@ -271,7 +286,7 @@ class QuadEvaluator():
     def sample_circle(self):
         possible_planes = [[0, 1], [0, 2], [1, 2]]
         plane = possible_planes[np.random.randint(0, 3, 1)[0]]
-        radius = np.random.rand() * 2 + 1
+        radius = np.random.rand() * 3 + 2
         direct = np.random.choice([-1, 1])
         circle_args = {"plane": plane, "radius": radius, "direction": direct}
         return circle_args
@@ -281,7 +296,8 @@ class QuadEvaluator():
         reference: str,
         nr_test: int = 10,
         max_steps: int = 200,
-        thresh=1
+        thresh_div=1,
+        thresh_stable=1
     ):
         """
         Function to evaluate a trajectory multiple times
@@ -294,7 +310,8 @@ class QuadEvaluator():
             _, drone_traj, divergences = self.follow_trajectory(
                 reference,
                 max_nr_steps=max_steps,
-                thresh=thresh,
+                thresh_div=thresh_div,
+                thresh_stable=thresh_stable,
                 **circle_args
             )
             div.append(np.mean(divergences))
@@ -365,52 +382,81 @@ if __name__ == "__main__":
         "-r", "--ref", type=str, default="circle", help="which trajectory"
     )
     parser.add_argument(
+        '-p', '--points', type=str, default=None, help="use predefined reference"
+    )
+    parser.add_argument(
+        "-u", "--unity", action='store_true', help="unity rendering"
+    )
+    parser.add_argument(
+        "-f", "--flightmare", action='store_true', help="Flightmare"
+    )
+    parser.add_argument(
         "-save_data",
         action="store_true",
         help="save the episode as training data"
     )
     args = parser.parse_args()
 
+    # rendering
+    render = 1
+    if args.unity:
+        render = 0
+
+    # load model
     model_name = args.model
     model_path = os.path.join("trained_models", "drone", model_name)
-
     net, param_dict = load_model(model_path, epoch=args.epoch)
 
+    # optinally change drone speed
     # param_dict["max_drone_dist"] = .6
+    # define evaluation environment
     dataset = DroneDataset(1, 1, **param_dict)
     evaluator = QuadEvaluator(
         net,
         dataset,
-        render=1,
+        render=render,
         take_every_x=5000,
         # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
         **param_dict
     )
-    # evaluator.eval_ref(args.ref, nr_test=2)
-    # exit()
-    # Straight with reference as input
-    try:
-        fixed_axis = 1
-        circle_args = {
-            "plane": [0, 2],
-            "radius": 2,
-            "direction": 1,
-            "thresh": 1
-        }
-        reference_traj, drone_traj, _ = evaluator.follow_trajectory(
-            args.ref, max_nr_steps=1000, **circle_args
-        )
-        # print("Speed:", evaluator.compute_speed(drone_traj[100:-100, :3]))
-        plot_trajectory(
-            reference_traj,
-            drone_traj,
-            os.path.join(model_path, args.ref + "_traj.png"),
-            fixed_axis=fixed_axis
-        )
-        plot_drone_ref_coords(
-            drone_traj[1:, :3], reference_traj,
-            os.path.join(model_path, args.ref + "_coords.png")
-        )
 
-    except KeyboardInterrupt:
-        evaluator.eval_env.close()
+    # FLIGHTMARE
+    if args.flightmare:
+        evaluator.eval_env = FlightmareWrapper(param_dict["dt"], args.unity)
+
+    # Specify arguments for the trajectory
+    fixed_axis = 1
+    traj_args = {
+        "plane": [0, 2],
+        "radius": 2,
+        "direction": 1,
+        "thresh_div": 3,
+        "thresh_stable": 1
+    }
+    if args.points is not None:
+        from neural_control.utils.predefined_trajectories import collected_trajectories
+        traj_args["points_to_traverse"] = collected_trajectories[args.points]
+
+    # RUN
+    if args.unity:
+        evaluator.eval_env.env.connectUnity()
+
+    reference_traj, drone_traj, _ = evaluator.follow_trajectory(
+        args.ref, max_nr_steps=500, **traj_args
+    )
+
+    if args.unity:
+        evaluator.eval_env.env.disconnectUnity()
+
+    # EVAL
+    print("Speed:", evaluator.compute_speed(drone_traj[100:300, :3]))
+    plot_trajectory(
+        reference_traj,
+        drone_traj,
+        os.path.join(model_path, args.ref + "_traj.png"),
+        fixed_axis=fixed_axis
+    )
+    plot_drone_ref_coords(
+        drone_traj[1:, :3], reference_traj,
+        os.path.join(model_path, args.ref + "_coords.png")
+    )

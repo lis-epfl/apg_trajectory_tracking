@@ -157,7 +157,11 @@ class DroneDataset(torch.utils.data.Dataset):
             world_to_body, torch.unsqueeze(drone_states[:, 6:9], 2)
         )[:, :, 0]
         # reshape and concatenate
-        rotation_matrix = torch.reshape(world_to_body, (-1, 9))  # TODO
+        rotation_matrix = torch.reshape(
+            # first two columns
+            world_to_body[:, :, :2],
+            (-1, 6)
+        )
         normed_drone_states = torch.hstack(
             (normed_states, rotation_matrix, drone_vel_body)
         )

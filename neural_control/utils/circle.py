@@ -51,6 +51,8 @@ class Circle:
         mid_point_tmp = pos.astype(float)
         # get 2D vel
         vel_2D = vel[self.plane]
+        if np.all(np.isclose(vel_2D, 0)):
+            vel_2D = np.random.rand(2) - .5
         # get orthogonal vector pointing to middle of circle
         orthogonal_vec = np.array([(-1) * vel_2D[1], vel_2D[0]])
         # compute center
@@ -86,7 +88,7 @@ class Circle:
              np.sin(alpha) * self.radius]
         )
 
-    def project_point(self, point, addon=0.2):
+    def project_point(self, point, addon=0):
         point_2D = self.to_2D(point)
         alpha = self.to_alpha(point_2D) + addon * self.direction
         projected = self.point_on_circle(alpha)
