@@ -2,16 +2,13 @@ import json
 import numpy as np
 import os
 import pandas as pd
-from ruamel.yaml import YAML, dump, RoundTripDumper
-import warnings
-warnings.filterwarnings("ignore", message=r"Passing", category=FutureWarning)
-
 
 from evaluate_drone import QuadEvaluator, load_model
 from neural_control.dataset import DroneDataset
-from flightgym import QuadrotorEnv_v1
-from rpg_baselines.envs import vec_env_wrapper as wrapper
-from neural_control.flightmare import FlightmareWrapper
+try:
+    from neural_control.flightmare import FlightmareWrapper
+except ModuleNotFoundError:
+    pass
 
 eval_dict = {
     "straight": {
