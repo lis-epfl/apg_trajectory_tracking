@@ -27,4 +27,4 @@ for i in range(int(t_end/dt)):
 
 np.set_printoptions(suppress=True, precision=4)
 print(state_buff)
-plot_wing_pos(state_buff, "test.jpg")
+plot_wing_pos(state_buff, "outputs/test_def.jpg")
