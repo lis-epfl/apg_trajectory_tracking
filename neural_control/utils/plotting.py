@@ -67,6 +67,17 @@ def plot_position(collect_data, save_path=None):
     else:
         plt.savefig(save_path)
 
+def plot_wing_pos(states, save_path=None):
+    plt.figure(figsize=(10,10))
+    plt.plot(states[:,0], states[:,1], label="altitude")
+    plt.plot(states[:,0], states[:, 4], label="theta")
+    plt.xlabel("x position")
+    plt.ylabel("y position")
+    plt.legend()
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
 
 def plot_drone_ref_coords(
     drone_trajectory, reference_trajectory, save_path=None
