@@ -23,7 +23,7 @@ class DynamicsState(object):
         self._attitude = Euler(0.0, 0.0, 0.0)
         self._velocity = np.zeros(3)
         self._rotorspeeds = np.zeros(4)
-        self._last_acceleration = np.zeros(3)
+        self._last_velocity = np.zeros(3)
         self._angular_velocity = np.zeros(3)
 
     def set_position(self, pos):
@@ -46,8 +46,8 @@ class DynamicsState(object):
         return self._rotorspeeds
 
     @property
-    def last_acceleration(self):
-        return self._last_acceleration
+    def last_velocity(self):
+        return self._last_velocity
 
     @property
     def angular_velocity(self):
@@ -85,6 +85,9 @@ class DynamicsState(object):
         """
         Convert np array to dynamic state
         """
+        # set last velocity
+        self._last_velocity = self._velocity.copy()
+        # other normal things
         self._position = state_array[:3]
         self._attitude = Euler(*tuple(state_array[3:6]))
         self._velocity = state_array[6:9]

@@ -382,7 +382,11 @@ if __name__ == "__main__":
         "-r", "--ref", type=str, default="circle", help="which trajectory"
     )
     parser.add_argument(
-        '-p', '--points', type=str, default=None, help="use predefined reference"
+        '-p',
+        '--points',
+        type=str,
+        default=None,
+        help="use predefined reference"
     )
     parser.add_argument(
         "-u", "--unity", action='store_true', help="unity rendering"
