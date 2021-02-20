@@ -39,8 +39,8 @@ class SimpleWingEnv(gym.Env):
         """
         thrust, del_e = action
 
-        thrust_scaled = 10 + thrust * 4 - 1
-        del_e_scaled = del_e * 10 - 5
+        thrust_scaled = 1.3 + thrust * .4 - .2
+        del_e_scaled = np.deg2rad(del_e * 10 - 5)
 
         action_torch = torch.tensor([[thrust_scaled, del_e_scaled]]).float()
         state_torch = torch.tensor([self._state.tolist()]).float()
