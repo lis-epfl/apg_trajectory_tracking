@@ -77,7 +77,8 @@ class QuadRotorEnvBase(gym.Env):
         """
         Compute acceleration from current state (pos, vel and att)
         """
-        return self._state.last_acceleration
+        acc = (self._state.velocity - self._state._last_velocity) / self.dt
+        return acc
 
     def step(self, action, thresh=.4):
         """
@@ -136,6 +137,7 @@ class QuadRotorEnvBase(gym.Env):
         state_arr[:3] = [position_x, position_y, position_z]
         # set attitude and angular vel to zero
         state_arr[3:] = 0
+        self._state._velocity = np.zeros(3)
         self._state.from_np(state_arr)
 
     def render_reset(self, strength=.8):
@@ -160,7 +162,6 @@ class QuadRotorEnvBase(gym.Env):
         )
         self._state.position[:3] = np.random.rand(3) * 2 - 1
         # self.randomize_rotor_speeds(200, 500)
-        self.randomize_acceleration(1)  # TODO too much?
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5  # * strength
         self.randomize_velocity(2)
@@ -189,11 +190,7 @@ class QuadRotorEnvBase(gym.Env):
         self._state.velocity[:] = self.random_state.uniform(
             low=-max_speed, high=max_speed, size=(3, )
         )
-
-    def randomize_acceleration(self, max_acc: float):
-        self._state.last_acceleration[:] = self.random_state.uniform(
-            low=-max_acc, high=max_acc, size=(3, )
-        )
+        self._state._last_velocity = self._state.velocity.copy()
 
     def randomize_rotor_speeds(self, min_speed: float, max_speed: float):
         self._state.rotor_speeds[:] = self.random_state.uniform(
@@ -269,7 +266,7 @@ def trajectory_training_data(
             # sample a drone state
             drone_state = env._state.as_np
         pos0, vel0 = (drone_state[:3], drone_state[6:9])
-        acc0 = env.get_acceleration()
+        acc0 = np.random.rand(3) * 2 - 1
 
         # sample a direction where the next position is located
         norm_vel = np.linalg.norm(vel0)
