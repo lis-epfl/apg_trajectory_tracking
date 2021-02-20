@@ -72,9 +72,10 @@ class DroneDataset(torch.utils.data.Dataset):
         """
         compute current index where to add new data
         """
-        return (
-            self.eval_counter % self.num_self_play
-        ) + self.num_sampled_states
+        if self.num_self_play > 0:
+            return (
+                self.eval_counter % self.num_self_play
+            ) + self.num_sampled_states
 
     def set_num_sampled_states(self, num_sampled_states):
         self.num_sampled_states = num_sampled_states
@@ -103,7 +104,7 @@ class DroneDataset(torch.utils.data.Dataset):
         """
         (normed_states, states,
          ref_states) = self.prepare_data(states, ref_states)
-        if add_to_dataset:
+        if add_to_dataset and self.num_self_play > 0:
             # replace previous eval data with new eval data
             counter = self.get_eval_index()
             self.normed_states[counter] = normed_states[0]
