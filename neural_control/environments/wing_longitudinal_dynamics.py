@@ -23,6 +23,9 @@ Cm_alpha = -1.4037
 Cm_q = -0.1324
 Cm_del_e = -0.4236
 
+# lower and upper bounds:
+alpha_bound = float(5 / 180 * np.pi)
+
 
 def long_dynamics(state, action, dt):
     # extract variables
@@ -42,6 +45,7 @@ def long_dynamics(state, action, dt):
     # (see beard & mclain, 2012, p. 44 ff)
     V = torch.sqrt(u**2 + w**2)  # velocity norm
     alpha = torch.arctan(w / u)  # angle of attack
+    alpha = torch.clamp(alpha, -alpha_bound, alpha_bound)
 
     # NOTE: usually all of Cl, Cd, Cm,... depend on alpha, q, delta_e
     # lift coefficient
