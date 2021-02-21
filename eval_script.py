@@ -55,12 +55,9 @@ if __name__ == "__main__":
 
             net, param_dict = load_model(model_path, epoch=epoch)
 
-
-            dt = 0.05
-            for max_drone_dist in [0.25, 0.5]:
-                param_dict["dt"] = dt
+            for speed in [0.5, 1]:
+                max_drone_dist = speed * param_dict["dt"] * param_dict["horizon"]
                 param_dict["max_drone_dist"] = max_drone_dist
-                horizon = 10
 
                 dataset = DroneDataset(1, 1, **param_dict)
                 evaluator = QuadEvaluator(
