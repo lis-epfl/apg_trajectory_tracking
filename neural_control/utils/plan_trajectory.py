@@ -707,7 +707,9 @@ def get_reference(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
 
     # output reference of pos, vel, and acc
     ref_states = np.zeros((ref_length, 9))
-    for j, timepoint in enumerate(np.arange(0, ref_length * delta_t, delta_t)):
+    for j, timepoint in enumerate(
+        np.arange(0, ref_length * delta_t - .001, delta_t)
+    ):
         # print(t, traj.get_velocity(t))
         ref_states[j] = np.concatenate(
             (

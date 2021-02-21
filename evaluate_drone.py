@@ -318,6 +318,7 @@ class QuadEvaluator():
             stable.append(len(drone_traj))
 
         # Output results
+        print("Speed (last):", self.compute_speed(drone_traj))
         print(
             "%s: Average divergence: %3.2f (%3.2f)" %
             (reference, np.mean(div), np.std(div))
