@@ -351,7 +351,7 @@ class QuadEvaluator():
         np.save(outpath, data)
 
 
-def load_model(model_path, epoch=""):
+def load_model(model_path, epoch="", name="model_quad"):
     """
     Load model and corresponding parameters
     """
@@ -359,7 +359,7 @@ def load_model(model_path, epoch=""):
     with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
         param_dict = json.load(outfile)
 
-    net = torch.load(os.path.join(model_path, "model_quad" + epoch))
+    net = torch.load(os.path.join(model_path, name + epoch))
     net = net.to(device)
     net.eval()
     return net, param_dict

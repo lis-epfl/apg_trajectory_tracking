@@ -10,6 +10,7 @@ from neural_control.dataset import WingDataset
 from neural_control.drone_loss import trajectory_loss
 from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
 from neural_control.models.hutter_model import Net
+from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.utils.plotting import plot_loss_episode_len
 
 DELTA_T = 0.01
@@ -68,27 +69,17 @@ trainloader = torch.utils.data.DataLoader(
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
 take_steps = 1
-highest_success = 0  # np.inf
+highest_success = np.inf
 for epoch in range(NR_EPOCHS):
 
     try:
         # EVALUATE
         print(f"Epoch {epoch} (before)")
-        # eval_env = QuadEvaluator(
-        #     net,
-        #     state_data,
-        #     take_every_x=take_every_x,
-        #     optimizer=None,
-        #     **param_dict
-        # )
-        # for reference, ref_params in eval_dict.items():
-        #     ref_params["max_steps"] = steps_per_eval * take_steps
-        #     suc_mean, suc_std = eval_env.eval_ref(
-        #         reference, thresh_div=THRESH_DIV, **ref_params
-        #     )
-        suc_mean = 0
+        eval_env = FixedWingEvaluator(net, state_data, **param_dict)
+
+        suc_mean, suc_std = eval_env.run_eval(nr_test=10)
         success_mean_list.append(suc_mean)
-        # success_std_list.append(suc_std)
+        success_std_list.append(suc_std)
 
         if (epoch + 1) % 4 == 0:
             # renew the sampled data
@@ -96,10 +87,10 @@ for epoch in range(NR_EPOCHS):
             print(f"Sampled new data ({state_data.num_sampled_states})")
 
         # save best model
-        if epoch > 0 and suc_mean > highest_success:
+        if epoch > 0 and suc_mean < highest_success:
             highest_success = suc_mean
             print("Best model")
-            torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
+            torch.save(net, os.path.join(SAVE, "model_wing" + str(epoch)))
 
         print()
 
