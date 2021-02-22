@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import os
 from neural_control.environments.drone_env import trajectory_training_data
+from neural_control.environments.wing_env import sample_training_data
 from neural_control.environments.cartpole_env import construct_states
 from neural_control.environments.drone_dynamics import world_to_body_matrix
 
@@ -236,3 +237,116 @@ class CartpoleDataset(torch.utils.data.Dataset):
         if len(states.shape) == 1:
             states = np.expand_dims(states, 0)
         return self.to_torch(states)
+
+
+class WingDataset(torch.utils.data.Dataset):
+
+    def __init__(
+        self,
+        num_states,
+        mean=None,
+        std=None,
+        ref_mean=None,
+        ref_std=None,
+        **kwargs
+    ):
+        # First constructor: New dataset for training
+        self.num_sampled_states = num_states
+        states, ref_states = sample_training_data(
+            self.num_sampled_states, **kwargs
+        )
+        if mean is None:
+            # sample states
+            mean = np.mean(states, axis=0)
+            std = np.std(states, axis=0)
+            pos_diff = ref_states[:, :2] - states[:, :2]
+            ref_mean = np.mean(pos_diff, axis=0)
+            ref_std = np.std(pos_diff, axis=0)
+
+        self.mean = torch.tensor(mean).float()
+        self.std = torch.tensor(std).float()
+        self.ref_mean = torch.tensor(ref_mean).float()
+        self.ref_std = torch.tensor(ref_std).float()
+
+        self.kwargs = kwargs
+        (
+            self.normed_states, self.states, self.normed_ref_states,
+            self.ref_states
+        ) = self.prepare_data(states, ref_states)
+
+        # count where to add new evaluation data
+        self.eval_counter = 0
+
+    def get_means_stds(self, param_dict):
+        param_dict["mean"] = self.mean.tolist()
+        param_dict["std"] = self.std.tolist()
+        param_dict["ref_mean"] = self.ref_mean.tolist()
+        param_dict["ref_std"] = self.ref_std.tolist()
+        return param_dict
+
+    def resample_data(self):
+        """
+        Sample new training data and replace dataset with it
+        """
+        states, ref_states = sample_training_data(
+            self.num_sampled_states, **self.kwargs
+        )
+        (
+            self.normed_states, self.states, self.normed_ref_states,
+            self.ref_states
+        ) = self.prepare_data(states, ref_states)
+
+    def get_and_add_eval_data(self, states, ref_states, add_to_dataset=False):
+        """
+        While evaluating, add the data to the dataset with some probability
+        to achieve self play
+        """
+        (normed_states, states, normed_ref_states,
+         ref_states) = self.prepare_data(states, ref_states)
+        if add_to_dataset and self.num_self_play > 0:
+            # replace previous eval data with new eval data
+            counter = self.get_eval_index()
+            self.normed_states[counter] = normed_states[0]
+            self.states[counter] = states[0]
+            self.ref_states[counter] = ref_states[0]
+            self.eval_counter += 1
+
+        return normed_states, states, normed_ref_states, ref_states
+
+    def to_torch(self, states):
+        return torch.from_numpy(states).float().to(device)
+
+    def prepare_data(self, states, ref_states):
+        """
+        Prepare numpy data for input in ANN:
+        - expand dims
+        - normalize
+        - world to body
+        """
+        if len(states.shape) == 1:
+            states = np.expand_dims(states, 0)
+            ref_states = np.expand_dims(ref_states, 0)
+
+        # 1) Normalized state and remove position
+        states = self.to_torch(states)
+        normed_states = ((states - self.mean) / self.std)[:, 2:]
+
+        # TODO: transorm euler angle?
+
+        # 3) Reference trajectory to torch and relative to drone position
+        ref_states = self.to_torch(ref_states)
+        normed_ref_states = (
+            (ref_states - states[:, :2]) - self.ref_mean
+        ) / self.ref_std
+
+        return normed_states, states, normed_ref_states, ref_states
+
+    def __len__(self):
+        return len(self.states)
+
+    def __getitem__(self, index):
+        # Select sample
+        return (
+            self.normed_states[index], self.states[index],
+            self.normed_ref_states[index], self.ref_states[index]
+        )

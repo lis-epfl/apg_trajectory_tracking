@@ -26,11 +26,11 @@ class SimpleWingEnv(gym.Env):
         # randomize around 10
         vel = np.random.rand(1) - .5 + 10
         vel_up = np.random.rand(1) - .5
-        pitch_angle = np.deg2rad(np.random.rand(4) - 2)
+        pitch_angle = np.deg2rad(np.random.rand(1) * 4 - 2)
         pitch_rate = np.random.rand(1) * 0.01 - 0.005
 
         self._state = np.array(
-            [x_pos, z_pos, vel, vel_up, pitch_angle, pitch_rate]
+            [x_pos, z_pos, vel[0], vel_up[0], pitch_angle[0], pitch_rate[0]]
         )
 
     def step(self, action):
@@ -50,3 +50,60 @@ class SimpleWingEnv(gym.Env):
 
         is_stable = True  # TODO
         return self._state, is_stable
+
+
+def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):
+    sampled_trajectories = []
+    for i in range(num_traj):
+        env = SimpleWingEnv(dt)
+        env.zero_reset()
+        sampled_states = []
+        T_signals = np.random.rand(traj_len)
+        del_e_signals = np.random.rand(traj_len)
+        for j in range(traj_len):
+            T = T_signals[j]
+            del_e = del_e_signals[j]
+            # 10 + np.random.rand(1) * 4 - 1
+            # del_e = np.random.rand(1) * 10 - 5
+            new_state, _ = env.step((T, del_e))
+            sampled_states.append(new_state)
+        sampled_trajectories.append(np.array(sampled_states))
+    return np.array(sampled_trajectories)
+
+
+def sample_training_data(
+    num_samples, num_points_per_traj=50, len_per_trajectory=1000, **kwargs
+):
+    # training data: only a state and a position --> one that is reachable
+    start_way, end_way = (500, 800)
+    start_state, end_state = (0, 400)
+
+    # compute number of trajectories required given the above
+    num_flights = int(num_samples / num_points_per_traj)
+
+    sampled_trajectories = run_wing_flight(
+        num_traj=num_flights, traj_len=len_per_trajectory, **kwargs
+    )
+
+    training_states = []
+    training_refs = []
+    for i in range(len(sampled_trajectories)):
+        current_flight = sampled_trajectories[i]
+        # for each trajectory, sample x states
+        rand_perm = np.random.permutation(np.arange(start_state, end_state, 1))
+        take_states = rand_perm[:num_points_per_traj]
+        # for each trajectory, sample x reference points
+        rand_perm = np.random.permutation(np.arange(start_way, end_way, 1))
+        take_way = rand_perm[:num_points_per_traj]
+        # print(take_states, take_way)
+        # print(current_flight[take_states].shape)
+        training_states.extend(current_flight[take_states].tolist())
+        training_refs.extend(current_flight[take_way, :2].tolist())
+    training_states = np.array(training_states)
+    training_refs = np.array(training_refs)
+    return training_states, training_refs
+
+
+if __name__ == "__main__":
+    states, refs = sample_training_data(100)
+    print(states.shape, refs.shape)
