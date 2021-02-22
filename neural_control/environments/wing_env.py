@@ -58,11 +58,11 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):
         env = SimpleWingEnv(dt)
         env.zero_reset()
         sampled_states = []
-        T_signals = np.random.rand(traj_len)
-        del_e_signals = np.random.rand(traj_len)
         for j in range(traj_len):
-            T = T_signals[j]
-            del_e = del_e_signals[j]
+            if j % 100 == 0:
+                # always keep same action for 10 steps
+                T = np.random.rand(1)[0]
+                del_e = np.random.rand(1)[0]
             # 10 + np.random.rand(1) * 4 - 1
             # del_e = np.random.rand(1) * 10 - 5
             new_state, _ = env.step((T, del_e))
@@ -72,11 +72,11 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):
 
 
 def sample_training_data(
-    num_samples, num_points_per_traj=50, len_per_trajectory=1000, **kwargs
+    num_samples, num_points_per_traj=20, len_per_trajectory=350, **kwargs
 ):
     # training data: only a state and a position --> one that is reachable
-    start_way, end_way = (500, 800)
-    start_state, end_state = (0, 400)
+    start_way, end_way = (200, 350)
+    start_state, end_state = (0, 150)
 
     # compute number of trajectories required given the above
     num_flights = int(num_samples / num_points_per_traj)

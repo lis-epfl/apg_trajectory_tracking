@@ -143,7 +143,7 @@ def trajectory_loss(state, target_state, drone_state, printout=0):
     """
     div_weight = 1000
     pro_weight = .1
-    av_weight = 1
+    av_weight = 0
 
     drone_pos = drone_state[:, :2]
     start_pos = state[:, :2]
