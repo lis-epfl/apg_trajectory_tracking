@@ -23,6 +23,7 @@ class FixedWingEvaluator:
         self.dt = dt
         self.dataset = dataset
         self.horizon = horizon
+        self.render = render
         self.eval_env = SimpleWingEnv(dt)
 
     def predict_actions(self, state, ref_state):
@@ -40,6 +41,8 @@ class FixedWingEvaluator:
 
     def fly_to_point(self, target_point):
         self.eval_env.zero_reset()
+        if self.render:
+            self.eval_env.drone_render_object.set_target(target_point)
 
         state = self.eval_env._state
         stable = True
@@ -49,6 +52,8 @@ class FixedWingEvaluator:
             # np.random.rand(2)
             # self.predict_actions(state, target_point)
             state, stable = self.eval_env.step(tuple(action))
+            if self.render:
+                self.eval_env.render()
             drone_traj.append(state)
 
         return np.array(drone_traj)

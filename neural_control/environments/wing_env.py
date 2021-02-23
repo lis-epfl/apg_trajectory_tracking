@@ -5,6 +5,9 @@ import numpy as np
 from neural_control.environments.wing_longitudinal_dynamics import (
     long_dynamics
 )
+from neural_control.environments.rendering import (
+    Renderer, Ground, RenderedObject, FixedWingDrone
+)
 
 
 class SimpleWingEnv(gym.Env):
@@ -15,6 +18,10 @@ class SimpleWingEnv(gym.Env):
     def __init__(self, dt):
         self.dt = dt
         self.reset()
+        self.renderer = Renderer()
+        self.renderer.add_object(Ground())
+        self.drone_render_object = FixedWingDrone(self)
+        self.renderer.add_object(self.drone_render_object)
 
     def zero_reset(self):
         self._state = np.array([0, 0, 10, 0, 0, 0])
@@ -50,6 +57,18 @@ class SimpleWingEnv(gym.Env):
 
         is_stable = True  # TODO
         return self._state, is_stable
+
+    def render(self, mode='human', close=False):
+        if not close:
+            self.renderer.setup()
+
+            # update the renderer's center position
+            self.renderer.set_center(0)
+
+        return self.renderer.render(mode, close)
+
+    def close(self):
+        self.renderer.close()
 
 
 def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):

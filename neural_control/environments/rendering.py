@@ -1,4 +1,5 @@
 import numpy as np
+from neural_control.environments.copter import Euler
 
 
 def body_to_world_matrix(euler):
@@ -184,6 +185,55 @@ class QuadCopter(RenderedObject):  # pragma: no cover
             renderer, trafo, status.position, [0, -1, 0],
             status.rotor_speeds[3] / setup.max_rotor_speed
         )
+
+    @staticmethod
+    def draw_propeller(
+        renderer, euler, position, propeller_position, rotor_speed
+    ):
+        structure_line = body_to_world(euler, propeller_position)
+        renderer.draw_line_3d(position, position + structure_line)
+        renderer.draw_circle(position + structure_line, 0.1, (0, 0, 0))
+        thrust_line = body_to_world(euler, [0, 0, -0.5 * rotor_speed**2])
+        renderer.draw_line_3d(
+            position + structure_line, position + structure_line + thrust_line
+        )
+
+
+class FixedWingDrone(RenderedObject):
+
+    def __init__(self, source):
+        self.source = source
+        self._show_thrust = True
+        self.target = [100, 0]
+
+    def set_target(self, target):
+        self.target = target
+        self.x_normalize = 14 / self.target[0]
+
+    def draw(self, renderer):
+        status = self.source._state.copy()
+        max_rotor_speed = 1000
+
+        # transformed main axis
+        trafo = Euler(0, status[4], 0)
+
+        # normalize x to have drone between left and right bound
+        # and set z to other way round
+        position = [-7 + status[0] * self.x_normalize, 0, status[1] * (-1)]
+
+        # draw current orientation
+        rotated = body_to_world(trafo, [0, 0, 0.5])
+        renderer.draw_line_3d(position, position + rotated)
+
+        # draw target point
+        renderer.draw_circle(
+            (7, self.target[1] * (-1)), .2, (0, 1, 0), filled=True
+        )
+
+        self.draw_propeller(renderer, trafo, position, [1, 0, 0], .5)
+        self.draw_propeller(renderer, trafo, position, [0, 1, 0], .5)
+        self.draw_propeller(renderer, trafo, position, [-1, 0, 0], .5)
+        self.draw_propeller(renderer, trafo, position, [0, -1, 0], .5)
 
     @staticmethod
     def draw_propeller(
