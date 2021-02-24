@@ -38,8 +38,8 @@ def long_dynamics(state, action, dt):
     q = state[:, 5]  # pitch rate
 
     # input states
-    T = action[:, 0]  # thrust
-    del_e = action[:, 1]  # angle of elevator
+    T = 1.3 + action[:, 0] * .4 - .2
+    del_e = torch.deg2rad(action[:, 1] * 10 - 5)
 
     ## aerodynamic forces calculations
     # (see beard & mclain, 2012, p. 44 ff)
@@ -77,43 +77,13 @@ def long_dynamics(state, action, dt):
         L * torch.cos(alpha) - D * torch.sin(alpha) - m * g * torch.cos(theta)
     )
 
-    ## Change in pitch attitude
-    theta_dot = q
-
     ## Pitch acceleration
     q_dot = M / I_xx
 
     ## State propagation through time
     # for now: time linearized model x_{k+1} = x_k + xdot_k * dt
-    state_dot = torch.vstack((x_dot, h_dot, u_dot, w_dot, theta_dot, q_dot)
-                             ).t()
+    state_dot = torch.vstack((x_dot, h_dot, u_dot, w_dot, q, q_dot)).t()
     # state_dot = torch.tensor([x_dot, h_dot, u_dot, w_dot, theta_dot, q_dot])
     # simple integration over time
     next_state = state + dt * state_dot
     return next_state
-
-
-# # constants
-# dummy = constants[0]
-# m        = constants[1] # mass
-# I_xx     = constants[2] # moment of inertia around x
-# rho      = constants[3] # air pressure [kg/m**3]
-# S        = constants[4] # wing surface
-# c        = constants[5] # chord length
-# g        = constants[6] # gravity
-# # aerodynamic parameters vehicles (see beard & mclain, 2012, p. 44 ff)
-# # lift coefficients
-# Cl0      = constants[7]
-# Cl_alpha = constants[8]
-# Cl_q     = constants[9]
-# Cl_del_e = constants[10]
-# # drag coefficients
-# Cd0      = constants[11]
-# Cd_alpha = constants[12]
-# Cd_q     = constants[13]
-# Cd_del_e = constants[14]
-# # moment coefficients
-# Cm0      = constants[15]
-# Cm_alpha = constants[16]
-# Cm_q     = constants[17]
-# Cm_del_e = constants[18]
