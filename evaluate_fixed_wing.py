@@ -72,7 +72,7 @@ class FixedWingEvaluator:
             min_dists.append(np.min(last_x_dists))
         mean_err = np.mean(min_dists)
         std_err = np.std(min_dists)
-        print(f"Average error: {mean_err} (std: {std_err})")
+        print("Average error: %3.2f (%3.2f)" % (mean_err, std_err))
         return mean_err, std_err
 
 

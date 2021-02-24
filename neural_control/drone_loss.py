@@ -142,7 +142,7 @@ def trajectory_loss(state, target_state, drone_state, printout=0):
     Input states must be normalized!
     """
     div_weight = 1000
-    pro_weight = .1
+    pro_weight = 0
     av_weight = 0
 
     drone_pos = drone_state[:, :2]
@@ -150,26 +150,31 @@ def trajectory_loss(state, target_state, drone_state, printout=0):
     target_pos = target_state[:, :2]
 
     # normalize by distance between states
-    total_distance = (start_pos - target_pos)**2
-
+    # total_distance = (start_pos - target_pos)**2
     projected_pos = project_to_line(start_pos, target_pos, drone_pos)
 
     # divergence from the desired route
     divergence_loss_all = (projected_pos - drone_pos)**2
-    divergence_loss = torch.sum(divergence_loss_all)
+    divergence_loss = torch.sum(divergence_loss_all) * 10000
 
     # minimize remaining distance to target (normalized on total distance)
-    progress_loss_all = (projected_pos - target_pos)**2
-    progress_loss = torch.sum(progress_loss_all / total_distance)
+    # progress_loss_all = (projected_pos - target_pos)**2
+    # progress_loss = torch.sum(progress_loss_all / total_distance)
 
-    # penalize angular velocity
-    av_loss = torch.sum(drone_state[:, 5]**2)
+    # # penalize angular velocity
+    # av_loss = torch.sum(drone_state[:, 5]**2)
 
     if printout:
         print(
             total_distance.size(), progress_loss_all.size(),
             progress_loss.size()
         )
+        print("start pos", start_pos[0])
+        print("drone pos", drone_pos[0])
+        print("target pos", target_pos[0])
+        print("drone on line", projected_pos[0])
+        print()
+        print("----------------")
         print("state", state[0])
         print("target", target_state[0])
         print("drone", drone_state[0])
@@ -182,7 +187,10 @@ def trajectory_loss(state, target_state, drone_state, printout=0):
             "final", pro_weight * progress_loss + div_weight * divergence_loss
         )
         exit()
-    return (
-        pro_weight * progress_loss + div_weight * divergence_loss +
-        av_weight * av_loss
-    )
+    return divergence_loss
+    # (
+    #     10 * (
+    #         pro_weight * progress_loss + div_weight * divergence_loss +
+    #         av_weight * av_loss
+    #     )
+    # )

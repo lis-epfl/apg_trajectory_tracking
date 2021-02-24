@@ -14,15 +14,15 @@ from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.utils.plotting import plot_loss_episode_len
 
 DELTA_T = 0.01
-EPOCH_SIZE = 2000
+EPOCH_SIZE = 3000
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 STATE_SIZE = 6
-NR_ACTIONS = 1
+NR_ACTIONS = 5
 REF_DIM = 2
 ACTION_DIM = 2
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/wing/test_model")
 BASE_MODEL = None  # "trained_models/drone/current_model"
 BASE_MODEL_NAME = 'model_wing'
@@ -39,11 +39,7 @@ if BASE_MODEL is not None:
 else:
     param_dict = {"dt": DELTA_T, "horizon": NR_ACTIONS}
     net = Net(
-        STATE_SIZE - REF_DIM,
-        NR_ACTIONS,
-        REF_DIM,
-        ACTION_DIM * NR_ACTIONS,
-        conv=False
+        STATE_SIZE - REF_DIM, 1, REF_DIM, ACTION_DIM * NR_ACTIONS, conv=False
     )
 
 # Use cuda if available
@@ -77,7 +73,8 @@ for epoch in range(NR_EPOCHS):
         print(f"Epoch {epoch} (before)")
         eval_env = FixedWingEvaluator(net, state_data, **param_dict)
 
-        suc_mean, suc_std = eval_env.run_eval(nr_test=10)
+        nr_test = 40 if epoch == 0 else 10
+        suc_mean, suc_std = eval_env.run_eval(nr_test=nr_test)
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
 
@@ -115,10 +112,11 @@ for epoch in range(NR_EPOCHS):
             # intermediate_states = torch.zeros(
             #     in_state.size()[0], NR_ACTIONS, STATE_SIZE
             # )
-            # for k in range(NR_ACTIONS):
-            # extract action
-            action = action_seq[:, 0]
-            drone_state = long_dynamics(current_state, action, dt=DELTA_T)
+            drone_state = current_state
+            for k in range(NR_ACTIONS):
+                # extract action
+                action = action_seq[:, k]
+                drone_state = long_dynamics(drone_state, action, dt=DELTA_T)
             # intermediate_states[:, k] = current_state
 
             loss = trajectory_loss(
@@ -127,6 +125,7 @@ for epoch in range(NR_EPOCHS):
 
             # Backprop
             loss.backward()
+            # print(net.fc_out.weight.grad.size(), net.fc_out.weight.grad)
             optimizer.step()
 
             running_loss += loss.item()
