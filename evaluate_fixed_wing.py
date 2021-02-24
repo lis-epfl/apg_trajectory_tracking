@@ -109,6 +109,11 @@ if __name__ == "__main__":
         net, dataset=dataset, render=render, **param_dict
     )
 
+    # only run evaluation without render
+    # evaluator.render = 0
+    # evaluator.run_eval(nr_test=50)
+    # exit()
+
     test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=param_dict["dt"])
     target_point = test_traj[0, 300, :2]
     print("target_point", target_point)

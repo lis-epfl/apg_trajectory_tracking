@@ -227,7 +227,7 @@ class FixedWingDrone(RenderedObject):
 
         # draw target point
         renderer.draw_circle(
-            (7, self.target[1] * (-1)), .2, (0, 1, 0), filled=True
+            (6.8, self.target[1] * (-1)), .2, (0, 1, 0), filled=True
         )
 
         self.draw_propeller(renderer, trafo, position, [1, 0, 0], .5)
