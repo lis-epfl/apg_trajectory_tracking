@@ -47,7 +47,7 @@ class FixedWingEvaluator:
         state = self.eval_env._state
         stable = True
         drone_traj = []
-        while stable and state[0] < target_point[0] + 1:
+        while stable and state[0] < target_point[0] + .5:
             action = self.predict_actions(state, target_point)
             # np.random.rand(2)
             # self.predict_actions(state, target_point)
@@ -58,14 +58,14 @@ class FixedWingEvaluator:
 
         return np.array(drone_traj)
 
-    def run_eval(self, nr_test):
+    def run_eval(self, nr_test, return_dists=False):
         min_dists = []
         for i in range(nr_test):
             test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=self.dt)
             where_to_sample = int(250 + np.random.rand(1) * 100)
             target_point = test_traj[0, where_to_sample, :2]
             drone_traj = self.fly_to_point(target_point)
-            last_x_points = drone_traj[-5:, :2]
+            last_x_points = drone_traj[-20:, :2]
             last_x_dists = [
                 np.linalg.norm(target_point - p) for p in last_x_points
             ]
@@ -73,6 +73,8 @@ class FixedWingEvaluator:
         mean_err = np.mean(min_dists)
         std_err = np.std(min_dists)
         print("Average error: %3.2f (%3.2f)" % (mean_err, std_err))
+        if return_dists:
+            return np.array(min_dists)
         return mean_err, std_err
 
 
@@ -110,8 +112,10 @@ if __name__ == "__main__":
     )
 
     # only run evaluation without render
+    # out_path = "../presentations/intel_meeting_26_02"
     # evaluator.render = 0
-    # evaluator.run_eval(nr_test=50)
+    # dists_from_target = evaluator.run_eval(nr_test=100, return_dists=True)
+    # np.save(os.path.join(out_path, "dists_target.npy"), dists_from_target)
     # exit()
 
     test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=param_dict["dt"])
