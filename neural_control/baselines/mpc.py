@@ -5,8 +5,28 @@ import casadi as ca
 import numpy as np
 import time
 from os import system
-#
-from high_mpc.common.quad_index import *
+
+from neural_control.environments.copter import copter_params
+from types import SimpleNamespace
+
+device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
+copter_params = SimpleNamespace(**copter_params)
+copter_params.translational_drag = torch.from_numpy(
+    copter_params.translational_drag
+).to(device)
+copter_params.gravity = torch.from_numpy(copter_params.gravity).to(device)
+copter_params.rotational_drag = torch.from_numpy(
+    copter_params.rotational_drag
+).to(device)
+# estimate intertia as in flightmare
+inertia_vector = (
+    copter_params.mass / 12.0 * copter_params.arm_length**2 *
+    torch.tensor([4.5, 4.5, 7])
+).float().to(device)
+copter_params.frame_inertia = torch.diag(inertia_vector)
+# torch.from_numpy(copter_params.frame_inertia
+#                                              ).float().to(device)
+kinv_ang_vel_tau = torch.diag(torch.tensor([16.6, 16.6, 5.0]).float())
 
 
 #
@@ -31,13 +51,14 @@ class MPC(object):
         # Gravity
         self._gz = 9.81
 
-        # Quadrotor constant
-        self._w_max_yaw = 6.0
-        self._w_max_xy = 6.0
-        self._thrust_min = 2.0
-        self._thrust_max = 20.0
-
         if self.dynamics_model == "high_mpc":
+            # Quadrotor constant
+            self._w_max_yaw = 6.0
+            self._w_min_yaw = -6.0
+            self._w_max_xy = 6.0
+            self._w_min_xy = -6.0
+            self._thrust_min = 2.0
+            self._thrust_max = 20.0
             # state dimension (px, py, pz,           # quadrotor position
             #                  qw, qx, qy, qz,       # quadrotor quaternion
             #                  vx, vy, vz,           # quadrotor linear velocity
@@ -45,6 +66,13 @@ class MPC(object):
             # action dimensions (c_thrust, wx, wy, wz)
             self._u_dim = 4
         elif self.dynamics_model == "simple_quad":
+            # Quadrotor constant
+            self._w_max_yaw = 1
+            self._w_min_yaw = 0
+            self._w_max_xy = 1
+            self._w_min_xy = 0
+            self._thrust_min = 0
+            self._thrust_max = 1
             self._s_dim = 12
             self._u_dim = 4
         elif self.dynamics_model == "fixed_wing":
@@ -98,7 +126,10 @@ class MPC(object):
         # # # # # # # # # # # # # # # # # # #
 
         # # Fold
-        F = self.drone_dynamics_high_mpc(self._dt)
+        if self.dynamics_model == "high_mpc":
+            F = self.drone_dynamics_high_mpc(self._dt)
+        elif self.dynamics_model == "simple_quad":
+            F = self.drone_dynamics_simple(self.dt)
         fMap = F.map(self._N, "openmp")  # parallel
 
         # # # # # # # # # # # # # # #
@@ -135,8 +166,7 @@ class MPC(object):
         self.ubg = []  # upper bound of constrait functions, g < ubg
 
         u_min = [
-            self._thrust_min, -self._w_max_xy, -self._w_max_xy,
-            -self._w_max_yaw
+            self._thrust_min, self._w_min_xy, self._w_min_xy, self._w_min_yaw
         ]
         u_max = [
             self._thrust_max, self._w_max_xy, self._w_max_xy, self._w_max_yaw
@@ -217,23 +247,6 @@ class MPC(object):
         }
 
         # # # # # # # # # # # # # # # # # # #
-        # -- qpoases
-        # # # # # # # # # # # # # # # # # # #
-        # nlp_options ={
-        #     'verbose': False, \
-        #     "qpsol": "qpoases", \
-        #     "hessian_approximation": "gauss-newton", \
-        #     "max_iter": 100,
-        #     "tol_du": 1e-2,
-        #     "tol_pr": 1e-2,
-        #     "qpsol_options": {"sparse":True, "hessian_type": "posdef", "numRefinementSteps":1}
-        # }
-        # self.solver = ca.nlpsol("solver", "sqpmethod", nlp_dict, nlp_options)
-        # cname = self.solver.generate_dependencies("mpc_v1.c")
-        # system('gcc -fPIC -shared ' + cname + ' -o ' + self.so_path)
-        # self.solver = ca.nlpsol("solver", "sqpmethod", self.so_path, nlp_options)
-
-        # # # # # # # # # # # # # # # # # # #
         # -- ipopt
         # # # # # # # # # # # # # # # # # # #
         ipopt_options = {
@@ -247,14 +260,6 @@ class MPC(object):
         }
 
         self.solver = ca.nlpsol("solver", "ipopt", nlp_dict, ipopt_options)
-        # # jit (just-in-time compilation)
-        # print("Generating shared library........")
-        # cname = self.solver.generate_dependencies("mpc_v1.c")
-        # system('gcc -fPIC -shared -O3 ' + cname + ' -o ' + self.so_path) # -O3
-
-        # # reload compiled mpc
-        # print(self.so_path)
-        # self.solver = ca.nlpsol("solver", "ipopt", self.so_path, ipopt_options)
 
     def solve(self, ref_states):
         # # # # # # # # # # # # # # # #
@@ -362,3 +367,67 @@ class MPC(object):
             'f', [self._x, self._u], [x_dot], ['x', 'u'], ['ode']
         )
         return func
+
+    def drone_dynamics_simple(self, dt):
+
+        # # # # # # # # # # # # # # # # # # #
+        # --------- State ------------
+        # # # # # # # # # # # # # # # # # # #
+
+        # position
+        px, py, pz = ca.SX.sym('px'), ca.SX.sym('py'), ca.SX.sym('pz')
+        # attitude
+        ax, ay, az = ca.SX.sym('ax'), ca.SX.sym('ay'), ca.SX.sym('az')
+        # vel
+        vx, vy, vz = ca.SX.sym('vx'), ca.SX.sym('vy'), ca.SX.sym('vz')
+        # angular velocity
+        avx, avy, avz = ca.SX.sym('avx'), ca.SX.sym('avy'), ca.SX.sym('avz')
+
+        # -- conctenated vector
+        self._x = ca.vertcat(px, py, pz, ax, ay, az, vx, vy, vz, avx, avy, avz)
+
+        # # # # # # # # # # # # # # # # # # #
+        # --------- Control Command ------------
+        # # # # # # # # # # # # # # # # # # #
+
+        thrust, wx, wy, wz = ca.SX.sym('thrust'), ca.SX.sym('wx'), \
+            ca.SX.sym('wy'), ca.SX.sym('wz')
+
+        # -- conctenated vector
+        self._u = ca.vertcat(thrust, wx, wy, wz)
+
+        thrust_scaled = thrust * 10 - 5 + 7
+        body_rates = ca.vertcat(wx - .5, wy - .5, wz - .5)
+
+        # linear dynamics
+        Cy = ca.cos(az)
+        Sy = ca.sin(az)
+        Cp = ca.cos(ay)
+        Sp = ca.sin(ay)
+        Cr = ca.cos(ax)
+        Sr = ca.sin(ax)
+
+        const = thrust_scaled / copter_params.mass
+        acc_x = (Cy * Sp * Cr + Sr * Sy) * const
+        acc_y = (Cr * Sy * Sp - Cy * Sr) * const
+        acc_z = (Cr * Cp) * const - 9.81
+
+        px_new = px + 0.5 * dt * dt * acc_x + 0.5 * dt * vx
+        py_new = py + 0.5 * dt * dt * acc_y + 0.5 * dt * vy
+        pz_new = pz + 0.5 * dt * dt * acc_z + 0.5 * dt * vz
+        vx_new = vx + dt * acc_x
+        vy_new = vy + dt * acc_y
+        vz_new = vz + dt * acc_z
+
+        # angular dynamics
+
+        att_new = 0
+        av_new = 0
+
+        # stack together
+        X = ca.vertcat(
+            px_new, py_new, pz_new, att_new, vx_new, vy_new, vz_new, av_new
+        )
+        # Fold
+        F = ca.Function('F', [self._x, self._u], [X])
+        return F

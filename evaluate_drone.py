@@ -415,15 +415,18 @@ if __name__ == "__main__":
     # optinally change drone speed
     # param_dict["max_drone_dist"] = .6
     # define evaluation environment
-    dataset = DroneDataset(1, 1, **param_dict)
-    evaluator = QuadEvaluator(
-        net,
-        dataset,
-        render=render,
-        take_every_x=5000,
-        # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
-        **param_dict
-    )
+    # dataset = DroneDataset(1, 1, **param_dict)
+    # evaluator = QuadEvaluator(
+    #     net,
+    #     dataset,
+    #     render=render,
+    #     take_every_x=5000,
+    #     # optimizer=optim.SGD(net.parameters(), lr=0.000001, momentum=0.9),
+    #     **param_dict
+    # )
+
+    from mpc_eval_wrapper import MPCWrapper
+    evaluator = MPCWrapper(None, None, render=render, **param_dict)
 
     # FLIGHTMARE
     if args.flightmare:
