@@ -335,9 +335,10 @@ class WingDataset(torch.utils.data.Dataset):
 
         # 3) Reference trajectory to torch and relative to drone position
         ref_states = self.to_torch(ref_states)
-        normed_ref_states = (
-            (ref_states - states[:, :2]) - self.ref_mean
-        ) / self.ref_std
+        # normalize
+        relative_ref = ref_states - states[:, :2]
+        ref_vec_norm = torch.sqrt(torch.sum(relative_ref**2, axis=1))
+        normed_ref_states = (relative_ref.t()/ref_vec_norm).t()
 
         return normed_states, states, normed_ref_states, ref_states
 
