@@ -240,7 +240,7 @@ class QuadEvaluator():
         np.save(outpath, data)
 
 
-def load_model(model_path, epoch="", horizon=10, dt=0.05):
+def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
     """
     Load model and corresponding parameters
     """
@@ -305,7 +305,7 @@ if __name__ == "__main__":
 
     # load model
     model_path = os.path.join("trained_models", "drone", args.model)
-    controller = load_model(model_path, epoch=args.epoch)
+    controller = load_model(model_path, epoch=args.epoch, **params)
 
     # define evaluation environment
     evaluator = QuadEvaluator(controller, **params)
