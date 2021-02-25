@@ -68,6 +68,10 @@ class MPC(object):
         elif self.dynamics_model == "fixed_wing":
             self._s_dim = 6
             self._u_dim = 2
+            self._w_min = 0
+            self._w_max = 1
+            self._thrust_min = 0
+            self._thrust_max = 1
 
         # cost matrix for tracking the goal point
         self._Q_goal = np.zeros((self._s_dim, self._s_dim))
