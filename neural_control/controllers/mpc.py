@@ -11,22 +11,12 @@ from types import SimpleNamespace
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 copter_params = SimpleNamespace(**copter_params)
-copter_params.translational_drag = torch.from_numpy(
-    copter_params.translational_drag
-).to(device)
-copter_params.gravity = torch.from_numpy(copter_params.gravity).to(device)
-copter_params.rotational_drag = torch.from_numpy(
-    copter_params.rotational_drag
-).to(device)
 # estimate intertia as in flightmare
-inertia_vector = (
+inertia_vector = ca.SX(
     copter_params.mass / 12.0 * copter_params.arm_length**2 *
-    torch.tensor([4.5, 4.5, 7])
-).float().to(device)
-copter_params.frame_inertia = torch.diag(inertia_vector)
-# torch.from_numpy(copter_params.frame_inertia
-#                                              ).float().to(device)
-kinv_ang_vel_tau = torch.diag(torch.tensor([16.6, 16.6, 5.0]).float())
+    np.array([4.5, 4.5, 7])
+)
+kinv_ang_vel_tau = ca.SX(np.array([16.6, 16.6, 5.0]))
 
 
 #
@@ -35,7 +25,7 @@ class MPC(object):
     Nonlinear MPC
     """
 
-    def __init__(self, T, dt, dynamics="high_mpc", so_path='./nmpc.so'):
+    def __init__(self, horizon, dt, dynamics="high_mpc", so_path='./nmpc.so'):
         """
         Nonlinear MPC for quadrotor control        
         """
@@ -44,9 +34,9 @@ class MPC(object):
         self.dynamics_model = dynamics
 
         # Time constant
-        self._T = T
+        self._T = horizon * dt
         self._dt = dt
-        self._N = int(self._T / self._dt)
+        self._N = horizon
 
         # Gravity
         self._gz = 9.81
@@ -80,43 +70,22 @@ class MPC(object):
             self._u_dim = 2
 
         # cost matrix for tracking the goal point
-        self._Q_goal = np.diag(
-            [
-                100,
-                100,
-                100,  # delta_x, delta_y, delta_z
-                0,
-                0,
-                0,
-                0,  # delta_qw, delta_qx, delta_qy, delta_qz
-                10,
-                10,
-                10
-            ]
-        )
+        self._Q_goal = np.zeros((self._s_dim, self._s_dim))
 
         # cost matrix for tracking the pendulum motion
-        self._Q_pen = np.diag(
-            [
-                0,
-                100,
-                100,  # delta_x, delta_y, delta_z
-                0,
-                0,
-                0,
-                0,  # delta_qw, delta_qx, delta_qy, delta_qz
-                0,
-                10,
-                10
-            ]
-        )  # delta_vx, delta_vy, delta_vz
+        if self.dynamics_model == "high_mpc":
+            self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 0, 0, 10, 10])
+            # initial state and control action
+            self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
+        elif self.dynamics_model == "simple_quad":
+            self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 10, 10, 10, 0, 0, 0])
+            # initial state and control action TODO
+            self._quad_s0 = (np.zeros(12) + .5).tolist()
+            self._quad_u0 = (np.zeros(4) + .5).tolist()
 
         # cost matrix for the action
         self._Q_u = np.diag([0.1, 0.1, 0.1, 0.1])  # T, wx, wy, wz
-
-        # initial state and control action
-        self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
 
         self._initDynamics()
 
@@ -129,7 +98,7 @@ class MPC(object):
         if self.dynamics_model == "high_mpc":
             F = self.drone_dynamics_high_mpc(self._dt)
         elif self.dynamics_model == "simple_quad":
-            F = self.drone_dynamics_simple(self.dt)
+            F = self.drone_dynamics_simple(self._dt)
         fMap = F.map(self._N, "openmp")  # parallel
 
         # # # # # # # # # # # # # # #
@@ -222,7 +191,11 @@ class MPC(object):
                     self._s_dim+(self._s_dim+3)*(k+1)-3])
                 cost_gap_k = f_cost_gap(delta_p_k)
 
-            delta_u_k = U[:, k] - [self._gz, 0, 0, 0]
+            if self.dynamics_model == "simple_quad":
+                delta_u_k = U[:, k] - [.5, .5, .5, .5]
+            elif self.dynamics_model == "high_mpc":
+                delta_u_k = U[:, k] - [self._gz, 0, 0, 0]
+
             cost_u_k = f_cost_u(delta_u_k)
 
             self.mpc_obj = self.mpc_obj + cost_goal_k + cost_u_k + cost_gap_k
@@ -301,9 +274,47 @@ class MPC(object):
         # for i in range(10):
         #     traj_test = sol_x0[i*14 : (i+1)*14]
         #     print([round(s[0],2) for s in traj_test])
-        print(opt_u)
         # return optimal action, and a sequence of predicted optimal trajectory.
+        # print(opt_u)
+        # np.set_printoptions(suppress=True, precision=3)
+        # print(opt_u)
+        # print(x0_array)
+        # print(np.array(ref_states[self._s_dim:-self._s_dim]).reshape((10, 15)))
+        # exit()
         return opt_u, x0_array
+
+    def predict_actions(self, current_state, ref_states):
+        """
+        current_state: list / array of len 12
+        ref_states: array of shape (horizon, 9) with pos, vel, acc
+        """
+        # [0 for _ in range(len(current_state))]
+        # modify the reference traj to input it into mpc
+        changed_middle_ref_states = np.zeros((self._N, len(current_state)))
+        changed_middle_ref_states[:, :3] = ref_states[:, :3]
+        changed_middle_ref_states[:, 6:9] = ref_states[:, 3:6]
+
+        # no goal point for now
+        goal_state = changed_middle_ref_states[-1].copy().tolist()
+
+        # apped three mysterious entries:
+        addon = np.swapaxes(
+            np.vstack(
+                (
+                    np.expand_dims(np.arange(0, self._T, self._dt), 0),
+                    np.zeros((1, self._N)), np.zeros((1, self._N)) + 10
+                )
+            ), 1, 0
+        )
+        high_mpc_reference = np.hstack((changed_middle_ref_states, addon))
+
+        flattened_ref = (
+            current_state.tolist() + high_mpc_reference.flatten().tolist() +
+            goal_state
+        )
+
+        action, _ = self.solve(flattened_ref)
+        return np.array([action[:, 0]])
 
     def drone_dynamics_high_mpc(self, dt):
 
@@ -397,7 +408,6 @@ class MPC(object):
         self._u = ca.vertcat(thrust, wx, wy, wz)
 
         thrust_scaled = thrust * 10 - 5 + 7
-        body_rates = ca.vertcat(wx - .5, wy - .5, wz - .5)
 
         # linear dynamics
         Cy = ca.cos(az)
@@ -421,12 +431,34 @@ class MPC(object):
 
         # angular dynamics
 
-        att_new = 0
-        av_new = 0
+        body_rates = ca.vertcat(wx - .5, wy - .5, wz - .5)
+        av = ca.vertcat(avx, avy, avz)
+
+        # action to body torques
+        omega_change = body_rates - av
+        first_part = inertia_vector * kinv_ang_vel_tau * omega_change
+        inertia_times_av = inertia_vector * av
+        second_part = ca.cross(av, inertia_times_av)  # dim??
+        body_torques = (first_part + second_part) / inertia_vector
+
+        # angular_velocity = angular_velocity + dt * angular_acc
+        avx_new = avx + dt * body_torques[0]
+        avy_new = avy + dt * body_torques[1]
+        avz_new = avz + dt * body_torques[2]
+
+        # attitude = attitude + dt * euler_rate(attitude, new angular_velocity)
+        euler_rate_x = avx_new - ca.sin(ay) * avz_new
+        euler_rate_y = ca.cos(ax) * avy_new + ca.cos(ay) * ca.sin(ax) * avz_new
+        euler_rate_z = -ca.sin(ax) * avy_new + ca.cos(ay
+                                                      ) * ca.cos(ax) * avz_new
+        ax_new = ax + dt * euler_rate_x
+        ay_new = ay + dt * euler_rate_y
+        az_new = az + dt * euler_rate_z
 
         # stack together
         X = ca.vertcat(
-            px_new, py_new, pz_new, att_new, vx_new, vy_new, vz_new, av_new
+            px_new, py_new, pz_new, ax_new, ay_new, az_new, vx_new, vy_new,
+            vz_new, avx_new, avy_new, avz_new
         )
         # Fold
         F = ca.Function('F', [self._x, self._u], [X])
