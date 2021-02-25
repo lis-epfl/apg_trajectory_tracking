@@ -38,7 +38,7 @@ def plot_state_variables(collect_data, save_path=None):
     Plot a collection of state by plotting position and velocities over time
     """
     labels = [
-         "x", "y", "z", "roll", "pitch", "yaw", "vel_x", "vel_y", "vel_z",
+        "x", "y", "z", "roll", "pitch", "yaw", "vel_x", "vel_y", "vel_z",
         "vel_roll", "vel_pitch", "vel_yaw"
     ]
     plt.figure(figsize=(20, 10))
@@ -62,6 +62,21 @@ def plot_position(collect_data, save_path=None):
         plt.plot(collect_data[:, i], label=labels[i])
     plt.legend(fontsize="15")
     # plt.ylim(-1, 1)
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+
+
+def plot_wing_pos(states, target=None, save_path=None):
+    plt.figure(figsize=(10, 10))
+    plt.plot(states[:, 0], states[:, 1], label="altitude")
+    plt.plot(states[:, 0], states[:, 4], label="theta")
+    if target is not None:
+        plt.scatter(target[0], target[1], label="target", c="red")
+    plt.xlabel("x position")
+    plt.ylabel("y position")
+    plt.legend()
     if save_path is None:
         plt.show()
     else:
