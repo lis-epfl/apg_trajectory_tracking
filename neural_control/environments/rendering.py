@@ -1,4 +1,5 @@
 import numpy as np
+from neural_control.environments.copter import Euler
 
 
 def body_to_world_matrix(euler):
@@ -84,6 +85,11 @@ class Renderer:
             position = (position[0], position[2])
         copter.add_attr(rendering.Transform(translation=position))
         self.viewer.add_onetime(copter)
+
+    def draw_polygon(self, v, filled=False):
+        from gym.envs.classic_control import rendering
+        airplane = rendering.make_polygon(v, filled=filled)
+        self.viewer.add_onetime(airplane)
 
     def add_object(self, new):
         self.objects.append(new)
@@ -196,3 +202,63 @@ class QuadCopter(RenderedObject):  # pragma: no cover
         renderer.draw_line_3d(
             position + structure_line, position + structure_line + thrust_line
         )
+
+
+class FixedWingDrone(RenderedObject):
+
+    def __init__(self, source):
+        self.source = source
+        self._show_thrust = True
+        self.target = [100, 0]
+
+    def set_target(self, target):
+        self.target = target
+        self.x_normalize = 14 / self.target[0]
+
+    def draw(self, renderer):
+        status = self.source._state.copy()
+        max_rotor_speed = 1000
+
+        # transformed main axis
+        trafo = Euler(0, status[4], 0)
+
+        # normalize x to have drone between left and right bound
+        # and set z to other way round
+        position = [-7 + status[0] * self.x_normalize, 0, status[1] * (-1)]
+
+        # draw target point
+        renderer.draw_circle(
+            (6.8, self.target[1] * (-1)), .2, (0, 1, 0), filled=True
+        )
+
+        self.draw_airplane(renderer, position, trafo)
+
+    @staticmethod
+    def draw_airplane(renderer, position, euler):
+        # plaen definition
+        offset = np.array([-5, 0, -1.5])
+        scale = .3
+        coord_plane = (
+            np.array(
+                [
+                    [1, 0, 1], [1, 0, 3.3], [2, 0, 2], [5.5, 0, 2],
+                    [5, 0, 2.5], [4.5, 0, 2], [8, 0, 2], [10, 0, 1], [1, 0, 1]
+                ]
+            ) + offset
+        ) * scale
+        coord_wing = (
+            np.array([[4, 0, 1.5], [5, 0, 0], [6, 0, 1.5]]) + offset
+        ) * scale
+
+        rot_matrix = body_to_world_matrix(euler)
+        coord_plane_rotated = (
+            np.array([np.dot(rot_matrix, coord)
+                      for coord in coord_plane]) + position
+        )[:, [0, 2]]
+        coord_wing_rotated = (
+            np.array([np.dot(rot_matrix, coord)
+                      for coord in coord_wing]) + position
+        )[:, [0, 2]]
+
+        renderer.draw_polygon(coord_plane_rotated)
+        renderer.draw_polygon(coord_wing_rotated)

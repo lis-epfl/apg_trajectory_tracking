@@ -12,9 +12,6 @@ def dummy_context():
     yield None
 
 
-ACTION_DIM = 4
-
-
 class NetworkWrapper:
 
     def __init__(
@@ -39,6 +36,9 @@ class NetworkWrapper:
         self.optimizer = optimizer
         self.take_every_x = take_every_x
         self.action_counter = 0
+
+        # four control signals
+        self.action_dim = 4
 
     def predict_actions(self, current_np_state, ref_states):
         """
@@ -68,7 +68,7 @@ class NetworkWrapper:
             suggested_action = torch.reshape(
                 # batch size 1
                 suggested_action,
-                (1, self.horizon, ACTION_DIM)
+                (1, self.horizon, self.action_dim)
             )
 
         if do_training:
@@ -135,3 +135,25 @@ class NetworkWrapper:
                     f"ref outlier (t={i}):",
                     ref_state_names[normed_ref_state[i] > 3]
                 )
+
+
+class FixedWingNetWrapper:
+
+    def __init__(self, model, dataset, horizon=1, **kwargs):
+        self.net = model
+        self.dataset = dataset
+        self.horizon = horizon
+        self.action_dim = 2
+
+    def predict_actions(self, state, ref_state):
+        normed_state, _, normed_ref, _ = self.dataset.prepare_data(
+            state, ref_state
+        )
+        with torch.no_grad():
+            suggested_action = self.net(normed_state, normed_ref)
+            suggested_action = torch.sigmoid(suggested_action)[0]
+
+            suggested_action = torch.reshape(
+                suggested_action, (self.horizon, self.action_dim)
+            )
+        return suggested_action.detach().numpy()

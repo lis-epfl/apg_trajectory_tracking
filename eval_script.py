@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
             # load model
             model_path = os.path.join("trained_models", "drone", model_name)
-            controller = load_model(model_path, epoch=epoch)
+            controller = load_model(model_path, epoch=epoch, **config)
 
             for speed in [0.5, 1]:
                 max_drone_dist = speed * config["dt"] * config["horizon"]

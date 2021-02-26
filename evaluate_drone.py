@@ -240,19 +240,25 @@ class QuadEvaluator():
         np.save(outpath, data)
 
 
-def load_model(model_path, epoch="", horizon=10, dt=0.05):
+def load_model_params(model_path, name="model_quad", epoch=""):
+    with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
+        param_dict = json.load(outfile)
+
+    net = torch.load(os.path.join(model_path, name + epoch))
+    net = net.to(device)
+    net.eval()
+    return net, param_dict
+
+
+def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
     """
     Load model and corresponding parameters
     """
     if "mpc" not in model_path:
         # load std or other parameters from json
-        with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
-            param_dict = json.load(outfile)
-
-        net = torch.load(os.path.join(model_path, "model_quad" + epoch))
-        net = net.to(device)
-        net.eval()
-
+        net, param_dict = load_model_params(
+            model_path, "model_quad", epoch=epoch
+        )
         dataset = DroneDataset(1, 1, **param_dict)
 
         controller = NetworkWrapper(net, dataset, **param_dict)
@@ -305,7 +311,7 @@ if __name__ == "__main__":
 
     # load model
     model_path = os.path.join("trained_models", "drone", args.model)
-    controller = load_model(model_path, epoch=args.epoch)
+    controller = load_model(model_path, epoch=args.epoch, **params)
 
     # define evaluation environment
     evaluator = QuadEvaluator(controller, **params)

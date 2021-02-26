@@ -139,8 +139,8 @@ class Polynomial:
             dist_from_next = np.linalg.norm(
                 drone_pos - self.reference[self.target_ind + 1]
             )
-            # if dist_from_next < self.max_drone_dist:
-            self.target_ind += 1
+            if dist_from_next < self.max_drone_dist:
+                self.target_ind += 1
         else:
             self.finished = True
         goal_pos = self.reference[self.target_ind]
