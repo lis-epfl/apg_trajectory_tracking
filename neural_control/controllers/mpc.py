@@ -97,8 +97,8 @@ class MPC(object):
             self._Q_u = np.diag([10, .1, .1, .1])
             self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
             # initial state and control action TODO
-            self._quad_s0 = (np.zeros(12) + .5).tolist()
-            self._quad_u0 = (np.zeros(4) + .5).tolist()
+            self._quad_s0 = (np.zeros(12)).tolist()
+            self._quad_u0 = [0.781, .5, .5, .5]
         elif self.dynamics_model == "fixed_wing":
             # cost matrix for the action
             self._Q_u = np.diag([0 for _ in range(self._u_dim)])
@@ -321,14 +321,19 @@ class MPC(object):
         changed_middle_ref_states[:, 6:9] = ref_states[:, 3:6]
 
         # no goal point for now
-        goal_state = changed_middle_ref_states[-1].copy().tolist()
+        # goal_state = changed_middle_ref_states[-1].copy().tolist()
+        goal_state = np.zeros(self._s_dim)
+        goal_state[:3] = (2 * changed_middle_ref_states[-1, :3] +
+                    changed_middle_ref_states[-2, :3])
+        goal_state[6:9] = changed_middle_ref_states[-1, :3]
+
 
         # apped three mysterious entries:
         high_mpc_reference = np.hstack((changed_middle_ref_states, self.addon))
 
         flattened_ref = (
             current_state.tolist() + high_mpc_reference.flatten().tolist() +
-            goal_state
+            goal_state.tolist()
         )
         return flattened_ref
 
