@@ -86,22 +86,26 @@ class MPC(object):
 
         # cost matrix for tracking the pendulum motion
         if self.dynamics_model == "high_mpc":
+            # cost matrix for the action
+            self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])
             self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 0, 0, 10, 10])
             # initial state and control action
             self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
         elif self.dynamics_model == "simple_quad":
+            # cost matrix for the action
+            self._Q_u = np.diag([0.5 for _ in range(self._u_dim)])
             self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 10, 10, 10, 0, 0, 0])
             # initial state and control action TODO
             self._quad_s0 = (np.zeros(12) + .5).tolist()
             self._quad_u0 = (np.zeros(4) + .5).tolist()
         elif self.dynamics_model == "fixed_wing":
+            # cost matrix for the action
+            self._Q_u = np.diag([0 for _ in range(self._u_dim)])
             self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
+            # initial states
             self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
-            self._quad_u0 = (np.zeros(2) + .1).tolist()
-
-        # cost matrix for the action
-        self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])  # T, wx, wy, wz
+            self._quad_u0 = (np.zeros(2) + .5).tolist()
 
         self._initDynamics()
 
