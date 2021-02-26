@@ -156,4 +156,4 @@ class FixedWingNetWrapper:
             suggested_action = torch.reshape(
                 suggested_action, (self.horizon, self.action_dim)
             )
-        return suggested_action[0].detach().numpy()
+        return suggested_action.detach().numpy()

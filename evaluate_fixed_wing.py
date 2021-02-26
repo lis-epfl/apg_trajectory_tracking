@@ -39,7 +39,7 @@ class FixedWingEvaluator:
             action = self.controller.predict_actions(state, target_point)
             # np.random.rand(2)
             # self.predict_actions(state, target_point)
-            state, stable = self.eval_env.step(tuple(action))
+            state, stable = self.eval_env.step(tuple(action[0]))
             if self.render:
                 self.eval_env.render()
             drone_traj.append(state)

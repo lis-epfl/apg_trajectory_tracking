@@ -43,6 +43,16 @@ class MPC(object):
         # Gravity
         self._gz = 9.81
 
+        # add to reference
+        self.addon = np.swapaxes(
+            np.vstack(
+                (
+                    np.expand_dims(np.arange(0, self._T, self._dt), 0),
+                    np.zeros((1, self._N)), np.zeros((1, self._N)) + 10
+                )
+            ), 1, 0
+        )
+
         if self.dynamics_model == "high_mpc":
             # Quadrotor constant
             self._w_max_xy = 6.0
@@ -86,9 +96,9 @@ class MPC(object):
             self._quad_s0 = (np.zeros(12) + .5).tolist()
             self._quad_u0 = (np.zeros(4) + .5).tolist()
         elif self.dynamics_model == "fixed_wing":
-            self._Q_pen = np.diag([10, 10, 0, 0, 0, 0])
+            self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
             self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
-            self._quad_u0 = (np.zeros(4) + .5).tolist()
+            self._quad_u0 = (np.zeros(2) + .1).tolist()
 
         # cost matrix for the action
         self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])  # T, wx, wy, wz
@@ -256,6 +266,10 @@ class MPC(object):
             middle_ref_states[:, 3:7] = 0
             ref_states = start + middle_ref_states.flatten().tolist() + end
 
+        # print(
+        #     len(self.nlp_w0), len(self.lbw), len(self.ubw), len(ref_states),
+        #     len(self.lbg), len(self.ubg)
+        # )
         self.sol = self.solver(
             x0=self.nlp_w0,
             lbx=self.lbw,
@@ -291,7 +305,7 @@ class MPC(object):
         # exit()
         return opt_u, x0_array
 
-    def predict_actions(self, current_state, ref_states):
+    def preprocess_simple_quad(self, current_state, ref_states):
         """
         current_state: list / array of len 12
         ref_states: array of shape (horizon, 9) with pos, vel, acc
@@ -306,22 +320,48 @@ class MPC(object):
         goal_state = changed_middle_ref_states[-1].copy().tolist()
 
         # apped three mysterious entries:
-        addon = np.swapaxes(
-            np.vstack(
-                (
-                    np.expand_dims(np.arange(0, self._T, self._dt), 0),
-                    np.zeros((1, self._N)), np.zeros((1, self._N)) + 10
-                )
-            ), 1, 0
+        high_mpc_reference = np.hstack((changed_middle_ref_states, self.addon))
+
+        flattened_ref = (
+            current_state.tolist() + high_mpc_reference.flatten().tolist() +
+            goal_state
         )
-        high_mpc_reference = np.hstack((changed_middle_ref_states, addon))
+        return flattened_ref
+
+    def preprocess_fixed_wing(self, current_state, ref_states):
+        vec_to_target = ref_states - current_state[:2]
+        vec_norm = np.linalg.norm(vec_to_target)
+        speed = np.sqrt(current_state[2]**2 + current_state[3]**2)
+        vec_len_per_step = speed * self._dt
+        vector_per_step = vec_to_target * (vec_len_per_step / vec_norm)
+
+        middle_ref_states = np.zeros((self._N + 1, len(current_state)))
+        for i in range(self._N + 1):
+            middle_ref_states[
+                i, :2] = current_state[:2] + (i + 1) * vector_per_step
+
+        # goal point is last point of middle ref
+        goal_state = middle_ref_states[-1].tolist()
+
+        high_mpc_reference = np.hstack((middle_ref_states[:-1], self.addon))
 
         flattened_ref = (
             current_state.tolist() + high_mpc_reference.flatten().tolist() +
             goal_state
         )
 
-        action, _ = self.solve(flattened_ref)
+        return flattened_ref
+
+    def predict_actions(self, current_state, ref_states):
+        if self.dynamics_model == "simple_quad":
+            preprocessed_ref = self.preprocess_simple_quad(
+                current_state, ref_states
+            )
+        elif self.dynamics_model == "fixed_wing":
+            preprocessed_ref = self.preprocess_fixed_wing(
+                current_state, ref_states
+            )
+        action, _ = self.solve(preprocessed_ref)
         return np.array([action[:, 0]])
 
     def drone_dynamics_high_mpc(self, dt):
