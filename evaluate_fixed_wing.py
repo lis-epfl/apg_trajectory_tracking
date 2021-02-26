@@ -9,6 +9,8 @@ from neural_control.environments.wing_env import SimpleWingEnv, run_wing_flight
 from neural_control.utils.plotting import plot_wing_pos
 from neural_control.dataset import WingDataset
 from evaluate_drone import load_model_params
+from neural_control.controllers.network_wrapper import FixedWingNetWrapper
+from neural_control.controllers.mpc import MPC
 
 ACTION_DIM = 2
 
@@ -18,26 +20,12 @@ class FixedWingEvaluator:
     Evaluate performance of the fixed wing drone
     """
 
-    def __init__(self, model, dataset, dt=0.01, horizon=1, render=0, **kwargs):
-        self.net = model
+    def __init__(self, controller, dt=0.01, horizon=1, render=0, **kwargs):
+        self.controller = controller
         self.dt = dt
-        self.dataset = dataset
         self.horizon = horizon
         self.render = render
         self.eval_env = SimpleWingEnv(dt)
-
-    def predict_actions(self, state, ref_state):
-        normed_state, _, normed_ref, _ = self.dataset.prepare_data(
-            state, ref_state
-        )
-        with torch.no_grad():
-            suggested_action = self.net(normed_state, normed_ref)
-            suggested_action = torch.sigmoid(suggested_action)[0]
-
-            suggested_action = torch.reshape(
-                suggested_action, (self.horizon, ACTION_DIM)
-            )
-        return suggested_action[0].detach().numpy()
 
     def fly_to_point(self, target_point):
         self.eval_env.zero_reset()
@@ -48,7 +36,7 @@ class FixedWingEvaluator:
         stable = True
         drone_traj = []
         while stable and state[0] < target_point[0] + .5:
-            action = self.predict_actions(state, target_point)
+            action = self.controller.predict_actions(state, target_point)
             # np.random.rand(2)
             # self.predict_actions(state, target_point)
             state, stable = self.eval_env.step(tuple(action))
@@ -78,6 +66,23 @@ class FixedWingEvaluator:
         return mean_err, std_err
 
 
+def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
+    """
+    Load model and corresponding parameters
+    """
+    if "mpc" not in model_path:
+        # load std or other parameters from json
+        net, param_dict = load_model_params(
+            model_path, "model_wing", epoch=epoch
+        )
+        dataset = WingDataset(100, **param_dict)
+
+        controller = FixedWingNetWrapper(net, dataset, **param_dict)
+    else:
+        controller = MPC(horizon, dt, dynamics="fixed_wing")
+    return controller
+
+
 if __name__ == "__main__":
     # make as args:
     parser = argparse.ArgumentParser("Model directory as argument")
@@ -96,20 +101,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # rendering
-    render = 1
+    # parameters
+    params = {"render": 1, "dt": 0.01, "horizon": 5}
 
     # load model
     model_name = args.model
     model_path = os.path.join("trained_models", "wing", model_name)
-    net, param_dict = load_model_params(
-        model_path, epoch=args.epoch, name="model_wing"
+
+    controller = load_model(
+        model_path, epoch=args.epoch, name="model_wing", **params
     )
 
-    dataset = WingDataset(100, **param_dict)
-    evaluator = FixedWingEvaluator(
-        net, dataset=dataset, render=render, **param_dict
-    )
+    evaluator = FixedWingEvaluator(controller, **params)
 
     # only run evaluation without render
     # out_path = "../presentations/intel_meeting_26_02"
@@ -118,7 +121,7 @@ if __name__ == "__main__":
     # np.save(os.path.join(out_path, "dists_target.npy"), dists_from_target)
     # exit()
 
-    test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=param_dict["dt"])
+    test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
     target_point = test_traj[0, 300, :2]
     print("target_point", target_point)
 

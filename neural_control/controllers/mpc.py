@@ -45,8 +45,6 @@ class MPC(object):
 
         if self.dynamics_model == "high_mpc":
             # Quadrotor constant
-            self._w_max_yaw = 6.0
-            self._w_min_yaw = -6.0
             self._w_max_xy = 6.0
             self._w_min_xy = -6.0
             self._thrust_min = 2.0
@@ -59,8 +57,6 @@ class MPC(object):
             self._u_dim = 4
         elif self.dynamics_model == "simple_quad":
             # Quadrotor constant
-            self._w_max_yaw = 1
-            self._w_min_yaw = 0
             self._w_max_xy = 1
             self._w_min_xy = 0
             self._thrust_min = 0
@@ -70,8 +66,8 @@ class MPC(object):
         elif self.dynamics_model == "fixed_wing":
             self._s_dim = 6
             self._u_dim = 2
-            self._w_min = 0
-            self._w_max = 1
+            self._w_min_xy = 0
+            self._w_max_xy = 1
             self._thrust_min = 0
             self._thrust_max = 1
 
@@ -91,11 +87,11 @@ class MPC(object):
             self._quad_u0 = (np.zeros(4) + .5).tolist()
         elif self.dynamics_model == "fixed_wing":
             self._Q_pen = np.diag([10, 10, 0, 0, 0, 0])
-            self._quad_s0 = np.array([0, 0, 10, 0, 0, 0])
+            self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
             self._quad_u0 = (np.zeros(4) + .5).tolist()
 
         # cost matrix for the action
-        self._Q_u = np.diag([0.1, 0.1, 0.1, 0.1])  # T, wx, wy, wz
+        self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])  # T, wx, wy, wz
 
         self._initDynamics()
 
@@ -110,7 +106,7 @@ class MPC(object):
         elif self.dynamics_model == "simple_quad":
             F = self.drone_dynamics_simple(self._dt)
         elif self.dynamics_model == "fixed_wing":
-            F = self.fixed_wing_dynamics(self.dt)
+            F = self.fixed_wing_dynamics(self._dt)
         fMap = F.map(self._N, "openmp")  # parallel
 
         # # # # # # # # # # # # # # #
@@ -146,12 +142,10 @@ class MPC(object):
         self.lbg = []  # lower bound of constrait functions, lbg < g
         self.ubg = []  # upper bound of constrait functions, g < ubg
 
-        u_min = [
-            self._thrust_min, self._w_min_xy, self._w_min_xy, self._w_min_yaw
-        ]
-        u_max = [
-            self._thrust_max, self._w_max_xy, self._w_max_xy, self._w_max_yaw
-        ]
+        u_min = [self._thrust_min
+                 ] + [self._w_min_xy for _ in range(self._u_dim - 1)]
+        u_max = [self._thrust_max
+                 ] + [self._w_max_xy for _ in range(self._u_dim - 1)]
         x_bound = ca.inf
         x_min = [-x_bound for _ in range(self._s_dim)]
         x_max = [+x_bound for _ in range(self._s_dim)]
@@ -511,7 +505,7 @@ class MPC(object):
             ca.SX.sym('px'), ca.SX.sym('pz'), ca.SX.sym('vx'), ca.SX.sym('vz'),
             ca.SX.sym('theta'), ca.SX.sym('q')
         )
-        self._x = ca.vertcat(px, py, vx, vz, theta, q)
+        self._x = ca.vertcat(px, pz, vx, vz, theta, q)
 
         # -----------control command ---------------
         thrust, del_e = ca.SX.sym('thrust'), ca.SX.sym('del_e')

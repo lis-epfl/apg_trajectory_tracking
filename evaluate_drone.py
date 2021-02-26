@@ -250,9 +250,7 @@ def load_model_params(model_path, name="model_quad", epoch=""):
     return net, param_dict
 
 
-def load_model(
-    model_path, epoch="", name="model_quad", horizon=10, dt=0.05, **kwargs
-):
+def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
     """
     Load model and corresponding parameters
     """
