@@ -94,8 +94,8 @@ class MPC(object):
             self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
         elif self.dynamics_model == "simple_quad":
             # cost matrix for the action
-            self._Q_u = np.diag([0.5 for _ in range(self._u_dim)])
-            self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 10, 10, 10, 0, 0, 0])
+            self._Q_u = np.diag([10, .1, .1, .1])
+            self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
             # initial state and control action TODO
             self._quad_s0 = (np.zeros(12) + .5).tolist()
             self._quad_u0 = (np.zeros(4) + .5).tolist()
@@ -212,7 +212,7 @@ class MPC(object):
                 cost_gap_k = f_cost_gap(delta_p_k)
 
             if self.dynamics_model == "simple_quad":
-                delta_u_k = U[:, k] - [.5, .5, .5, .5]
+                delta_u_k = U[:, k] - [.781, .5, .5, .5]
             elif self.dynamics_model == "high_mpc":
                 delta_u_k = U[:, k] - [self._gz, 0, 0, 0]
             elif self.dynamics_model == "fixed_wing":
