@@ -93,7 +93,7 @@ class QuadRotorEnvBase(gym.Env):
         # set the blade speeds. as F ~ w², and we want F ~ action.
         torch_state = torch.from_numpy(np.array([self._state.as_np])
                                        ).to(device)
-        torch_action = torch.from_numpy(np.array([action])).to(device)
+        torch_action = torch.from_numpy(np.array([action])).float().to(device)
         new_state_arr = simulate_quadrotor(
             torch_action, torch_state, dt=self.dt
         )

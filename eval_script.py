@@ -27,12 +27,14 @@ eval_dict = {
 thresh_stable = 1.5
 thresh_divergence = 3
 
+config = {"render": 0, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
+
 if __name__ == "__main__":
-    models_to_evaluate = ["current_model", "horizon_1", "motion_prior"]
-    names = ["normal", "larger step size", "motion prior"]
+    models_to_evaluate = ["current_model", "mpc"]
+    names = ["neural controller", "MPC"]
 
     for model_name, save_name in zip(models_to_evaluate, names):
-        for use_flightmare in [0,1]:
+        for use_flightmare in [0, 1]:
             env_name = "flightmare" if use_flightmare else "simple env"
             print(f"---------------- {model_name} in env {env_name} --------")
 
@@ -51,26 +53,19 @@ if __name__ == "__main__":
                 ]
             )
 
+            # load model
             model_path = os.path.join("trained_models", "drone", model_name)
-
-            net, param_dict = load_model(model_path, epoch=epoch)
+            controller = load_model(model_path, epoch=epoch, **config)
 
             for speed in [0.5, 1]:
-                max_drone_dist = speed * param_dict["dt"] * param_dict["horizon"]
-                param_dict["max_drone_dist"] = max_drone_dist
+                max_drone_dist = speed * config["dt"] * config["horizon"]
+                config["max_drone_dist"] = max_drone_dist
 
-                dataset = DroneDataset(1, 1, **param_dict)
-                evaluator = QuadEvaluator(
-                    net,
-                    dataset,
-                    take_every_x=5000,
-                    render=0,
-                    **param_dict
-                )
+                # define evaluation environment
+                evaluator = QuadEvaluator(controller, **config)
+
                 if use_flightmare:
-                    evaluator.eval_env = FlightmareWrapper(
-                            param_dict["dt"], False
-                    )
+                    evaluator.eval_env = FlightmareWrapper(config["dt"], False)
 
                 for reference, ref_params in eval_dict.items():
                     # run x times
@@ -81,7 +76,11 @@ if __name__ == "__main__":
                             # if use_flightmare:
                             #     circle_args["plane"] = [0,1]
                         else:
-                            circle_args = {"plane": 0, "radius": 0, "direction": 0}
+                            circle_args = {
+                                "plane": 0,
+                                "radius": 0,
+                                "direction": 0
+                            }
 
                         # run trajectory tracking
                         _, drone_ref, divergence = evaluator.follow_trajectory(
@@ -101,19 +100,22 @@ if __name__ == "__main__":
                         except ZeroDivisionError:
                             speed = np.nan
 
-                        was_diverged = int(steps_until_fail < ref_params["max_steps"]
-                                and divergence[-1] > thresh_divergence)
+                        was_diverged = int(
+                            steps_until_fail < ref_params["max_steps"]
+                            and divergence[-1] > thresh_divergence
+                        )
 
                         # log
                         print(
-                            reference, "len", steps_until_fail, "div", avg_divergence,
-                            "speed", speed, "diverged?", was_diverged
+                            reference, "len", steps_until_fail, "div",
+                            avg_divergence, "speed", speed, "diverged?",
+                            was_diverged
                         )
                         df.loc[len(df)] = [
                             save_model_name, max_drone_dist, reference,
                             circle_args["plane"], circle_args["radius"],
-                            circle_args["direction"], steps_until_fail, avg_divergence,
-                            speed, was_diverged
+                            circle_args["direction"], steps_until_fail,
+                            avg_divergence, speed, was_diverged
                         ]
 
             print(df)
