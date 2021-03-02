@@ -9,6 +9,7 @@ import torch.nn.functional as F
 from neural_control.dataset import DroneDataset
 from neural_control.drone_loss import drone_loss_function, trajectory_loss, reference_loss
 from neural_control.environments.drone_dynamics import simulate_quadrotor
+from neural_control.controllers.network_wrapper import NetworkWrapper
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
 from neural_control.utils.plotting import plot_loss_episode_len
@@ -116,13 +117,8 @@ for epoch in range(NR_EPOCHS):
     try:
         # EVALUATE
         print(f"Epoch {epoch} (before)")
-        eval_env = QuadEvaluator(
-            net,
-            state_data,
-            take_every_x=take_every_x,
-            optimizer=None,
-            **param_dict
-        )
+        controller = NetworkWrapper(net, state_data, **param_dict)
+        eval_env = QuadEvaluator(controller, **param_dict)
         for reference, ref_params in eval_dict.items():
             ref_params["max_steps"] = steps_per_eval * take_steps
             suc_mean, suc_std = eval_env.eval_ref(
