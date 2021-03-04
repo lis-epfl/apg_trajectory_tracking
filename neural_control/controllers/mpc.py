@@ -103,8 +103,8 @@ class MPC(object):
             self._quad_u0 = [0.781, .5, .5, .5]
         elif self.dynamics_model == "fixed_wing":
             # cost matrix for the action
-            self._Q_u = np.diag([0 for _ in range(self._u_dim)])
-            self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
+            self._Q_u = np.diag([1, 10])
+            self._Q_pen = np.diag([10, 100, 0, 0, 0, 0])
             # initial states
             self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
             self._quad_u0 = (np.zeros(2) + .5).tolist()
@@ -304,8 +304,8 @@ class MPC(object):
         #     print([round(s[0],2) for s in traj_test])
         # return optimal action, and a sequence of predicted optimal trajectory.
         # print(opt_u)
-        # np.set_printoptions(suppress=True, precision=3)
-        # print(opt_u)
+        np.set_printoptions(suppress=True, precision=9)
+        print(opt_u.tolist())
         # print(x0_array)
         # print(np.array(ref_states[self._s_dim:-self._s_dim]).reshape((10, 15)))
         # exit()
@@ -593,14 +593,14 @@ class MPC(object):
 
         ## Global displacement
         x_dot = u * ca.cos(theta) + w * ca.sin(theta)  # forward
-        h_dot = u * ca.sin(theta) + w * ca.cos(theta)  # upward
+        h_dot = u * ca.sin(theta) - w * ca.cos(theta)  # upward
 
         ## Body fixed accelerations
         u_dot = -w * q + (1 / m) * (
             T + L * ca.sin(alpha) - D * ca.cos(alpha) - m * g * ca.sin(theta)
         )
         w_dot = u * q - (1 / m) * (
-            L * ca.cos(alpha) - D * ca.sin(alpha) - m * g * ca.cos(theta)
+            L * ca.cos(alpha) + D * ca.sin(alpha) - m * g * ca.cos(theta)
         )
 
         ## Pitch acceleration
