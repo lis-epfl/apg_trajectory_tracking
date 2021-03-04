@@ -209,15 +209,15 @@ class FixedWingDrone(RenderedObject):
     def __init__(self, source):
         self.source = source
         self._show_thrust = True
-        self.target = [100, 0]
+        self.targets = [[100, 0]]
 
     def set_target(self, target):
-        self.target = target
-        self.x_normalize = 14 / self.target[0]
+        self.targets = np.array(target)
+        self.x_norm_factor = self.targets[-1, 0]
+        self.x_normalize = 14 / self.x_norm_factor
 
     def draw(self, renderer):
         status = self.source._state.copy()
-        max_rotor_speed = 1000
 
         # transformed main axis
         trafo = Euler(0, status[4], 0)
@@ -227,9 +227,12 @@ class FixedWingDrone(RenderedObject):
         position = [-7 + status[0] * self.x_normalize, 0, status[1] * (-1)]
 
         # draw target point
-        renderer.draw_circle(
-            (6.8, self.target[1] * (-1)), .2, (0, 1, 0), filled=True
-        )
+        for target in self.targets:
+            renderer.draw_circle(
+                (-7 + target[0] * self.x_normalize, target[1] * (-1)),
+                .2, (0, 1, 0),
+                filled=True
+            )
 
         self.draw_airplane(renderer, position, trafo)
 

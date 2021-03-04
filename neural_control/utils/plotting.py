@@ -68,11 +68,11 @@ def plot_position(collect_data, save_path=None):
         plt.savefig(save_path)
 
 
-def plot_wing_pos(states, target=None, save_path=None):
+def plot_wing_pos(states, targets, save_path=None):
     plt.figure(figsize=(10, 10))
     plt.plot(states[:, 0], states[:, 1], label="altitude")
     plt.plot(states[:, 0], states[:, 4], label="theta")
-    if target is not None:
+    for target in targets:
         plt.scatter(target[0], target[1], label="target", c="red")
     plt.xlabel("x position")
     plt.ylabel("y position")

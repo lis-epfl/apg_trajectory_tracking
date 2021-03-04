@@ -4,6 +4,16 @@ import numpy as np
 from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
 from neural_control.utils.plotting import plot_wing_pos
 
+# # Changes after error correction
+# state = [0;0;11.34;0.1615;0;0;];
+# dt = 1/100;
+# t_end = 100;
+# t = [0:dt:t_end];
+
+# T = 1.77; % thrust [N]
+# del_e = deg2rad(0); % angle of elevator [rad] (negative is up)
+# input = [T; del_e];
+
 state = torch.tensor([[0, 0, 10, 0, 0, 0], [0, 0, 10, 0, 0, 0]]).float()
 print("state", state.size())
 dt = 1 / 100

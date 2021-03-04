@@ -27,23 +27,31 @@ class FixedWingEvaluator:
         self.render = render
         self.eval_env = SimpleWingEnv(dt)
 
-    def fly_to_point(self, target_point):
+    def fly_to_point(self, target_points):
         self.eval_env.zero_reset()
         if self.render:
-            self.eval_env.drone_render_object.set_target(target_point)
+            self.eval_env.drone_render_object.set_target(target_points)
+
+        # first target
+        current_target_ind = 0
 
         state = self.eval_env._state
         stable = True
         drone_traj = []
-        while stable and state[0] < target_point[0] + .5:
-            action = self.controller.predict_actions(state, target_point)
+        while stable:
+            current_target = target_points[current_target_ind]
+            action = self.controller.predict_actions(state, current_target)
             # np.random.rand(2)
             # self.predict_actions(state, target_point)
             state, stable = self.eval_env.step(tuple(action[0]))
             if self.render:
                 self.eval_env.render()
             drone_traj.append(state)
-
+            if state[0] > current_target[0]:
+                if current_target_ind < len(target_points) - 1:
+                    current_target_ind += 1
+                else:
+                    break
         return np.array(drone_traj)
 
     def run_eval(self, nr_test, return_dists=False):
@@ -121,9 +129,10 @@ if __name__ == "__main__":
     # np.save(os.path.join(out_path, "dists_target.npy"), dists_from_target)
     # exit()
 
-    test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
-    target_point = test_traj[0, 300, :2]
-    print("target_point", target_point)
+    # test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
+    # target_point = [test_traj[0, 300, :2]]
+    # print("target_point", target_point)
+    target_point = [[30, -3.5], [60, -2]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point)
@@ -131,6 +140,6 @@ if __name__ == "__main__":
     # EVAL
     plot_wing_pos(
         drone_traj,
-        target=target_point,
+        target_point,
         save_path=os.path.join(model_path, "coords.png")
     )
