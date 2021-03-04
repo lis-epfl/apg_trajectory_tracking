@@ -11,6 +11,7 @@ from neural_control.drone_loss import trajectory_loss
 from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
 from neural_control.models.hutter_model import Net
 from evaluate_fixed_wing import FixedWingEvaluator
+from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.utils.plotting import plot_loss_episode_len
 
 DELTA_T = 0.01
@@ -22,9 +23,9 @@ STATE_SIZE = 6
 NR_ACTIONS = 5
 REF_DIM = 2
 ACTION_DIM = 2
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = None  # "trained_models/drone/current_model"
+BASE_MODEL = "trained_models/wing/current_model"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
@@ -71,7 +72,8 @@ for epoch in range(NR_EPOCHS):
     try:
         # EVALUATE
         print(f"Epoch {epoch} (before)")
-        eval_env = FixedWingEvaluator(net, state_data, **param_dict)
+        controller = FixedWingNetWrapper(net, state_data, **param_dict)
+        eval_env = FixedWingEvaluator(controller, **param_dict)
 
         nr_test = 40 if epoch == 0 else 10
         suc_mean, suc_std = eval_env.run_eval(nr_test=nr_test)

@@ -155,7 +155,7 @@ def trajectory_loss(state, target_state, drone_state, printout=0):
 
     # divergence from the desired route
     divergence_loss_all = (projected_pos - drone_pos)**2
-    divergence_loss = torch.sum(divergence_loss_all) * 10000
+    divergence_loss = torch.sum(divergence_loss_all) * 10
 
     # minimize remaining distance to target (normalized on total distance)
     # progress_loss_all = (projected_pos - target_pos)**2

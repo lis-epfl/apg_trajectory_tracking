@@ -87,9 +87,61 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):
     return np.array(sampled_trajectories)
 
 
-def sample_training_data(
+def generate_unit_vecs(num_vecs, mean_vec=[1, 0.1]):
+    """
+    Generate unit vectors that are normal distributed around mean_vec
+    """
+    gauss_vecs = np.random.multivariate_normal(
+        mean_vec, [[1, 0], [0, 1]], size=num_vecs
+    )
+    gauss_vecs[gauss_vecs[:, 0] < 0.01, 0] = 1
+    # gauss_vecs = np.array(
+    #     [vec / np.linalg.norm(vec) for vec in gauss_vecs if vec[0] > 0]
+    # )
+    return gauss_vecs
+
+
+def sample_training_data(num_samples, take_every=10, traj_len=1000, **kwargs):
+    """
+    Fly some trajectories in order to sample drone states
+    Then add random unit vectors in all directions
+    """
+    num_points_per_traj = traj_len // take_every
+    num_flights = int(num_samples / num_points_per_traj)
+    # sample fixed wing trajectories
+    sampled_trajectories = run_wing_flight(
+        num_traj=num_flights, traj_len=traj_len, **kwargs
+    )
+    # sample random direction vectors
+    gauss_vecs = generate_unit_vecs(num_samples)
+    print(gauss_vecs.shape)
+
+    # combine states and gauss_vecs
+    training_states = []
+    training_refs = []
+    counter = 0
+    for traj in sampled_trajectories:
+        for i in range(len(traj) // take_every):
+            # don't start at zero each time
+            curr_ind = int(i * take_every + np.random.rand() * 5)
+            drone_state = traj[curr_ind]
+            drone_ref = drone_state[:2] + gauss_vecs[counter]
+            training_states.append(drone_state)
+            training_refs.append(drone_ref)
+            counter += 1
+    # make arrays
+    training_states = np.array(training_states)
+    training_refs = np.array(training_refs)
+    return training_states, training_refs
+
+
+def sample_point_and_waypoint(
     num_samples, num_points_per_traj=20, len_per_trajectory=350, **kwargs
 ):
+    """
+    first training data sampling: take states and random waypoints from the
+    trajectory
+    """
     # training data: only a state and a position --> one that is reachable
     start_way, end_way = (200, 350)
     start_state, end_state = (0, 150)
