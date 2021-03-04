@@ -53,63 +53,67 @@ class MPC(object):
             ), 1, 0
         )
 
-        if self.dynamics_model == "high_mpc":
-            # Quadrotor constant
-            self._w_max_xy = 6.0
-            self._w_min_xy = -6.0
-            self._thrust_min = 2.0
-            self._thrust_max = 20.0
-            # state dimension (px, py, pz,           # quadrotor position
-            #                  qw, qx, qy, qz,       # quadrotor quaternion
-            #                  vx, vy, vz,           # quadrotor linear velocity
-            self._s_dim = 10
-            # action dimensions (c_thrust, wx, wy, wz)
-            self._u_dim = 4
-        elif self.dynamics_model == "simple_quad":
-            # Quadrotor constant
-            self._w_max_xy = 1
-            self._w_min_xy = 0
-            self._thrust_min = 0
-            self._thrust_max = 1
-            self._s_dim = 12
-            self._u_dim = 4
-        elif self.dynamics_model == "fixed_wing":
-            self._s_dim = 6
-            self._u_dim = 2
-            self._w_min_xy = 0
-            self._w_max_xy = 1
-            self._thrust_min = 0
-            self._thrust_max = 1
-
         # cost matrix for tracking the goal point
         self._Q_goal = np.zeros((self._s_dim, self._s_dim))
 
         # cost matrix for tracking the pendulum motion
         if self.dynamics_model == "high_mpc":
-            # cost matrix for the action
-            self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])
-            self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 0, 0, 10, 10])
-            # initial state and control action
-            self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
+            self._initParamsHighMPC()
         elif self.dynamics_model == "simple_quad":
-            # cost matrix for the action
-            self._Q_u = np.diag([10, .1, .1, .1])
-            self._Q_pen = np.diag(
-                [100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1]
-            )
-            # initial state and control action TODO
-            self._quad_s0 = (np.zeros(12)).tolist()
-            self._quad_u0 = [0.781, .5, .5, .5]
+            self._initParamsSimpleQuad()
         elif self.dynamics_model == "fixed_wing":
-            # cost matrix for the action
-            self._Q_u = np.diag([1, 10])
-            self._Q_pen = np.diag([10, 100, 0, 0, 0, 0])
-            # initial states
-            self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
-            self._quad_u0 = (np.zeros(2) + .5).tolist()
+            self._initParamsFixedWing()
 
         self._initDynamics()
+
+    def _initParamsHighMPC(self):
+        # Quadrotor constant
+        self._w_max_xy = 6.0
+        self._w_min_xy = -6.0
+        self._thrust_min = 2.0
+        self._thrust_max = 20.0
+        # state dimension (px, py, pz,           # quadrotor position
+        #                  qw, qx, qy, qz,       # quadrotor quaternion
+        #                  vx, vy, vz,           # quadrotor linear velocity
+        self._s_dim = 10
+        # action dimensions (c_thrust, wx, wy, wz)
+        self._u_dim = 4
+
+        # cost matrix for the action
+        self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])
+        self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 0, 0, 10, 10])
+        # initial state and control action
+        self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
+
+    def _initParamsSimpleQuad(self):
+        # Quadrotor constant
+        self._w_max_xy = 1
+        self._w_min_xy = 0
+        self._thrust_min = 0
+        self._thrust_max = 1
+        self._s_dim = 12
+        self._u_dim = 4
+        # cost matrix for the action
+        self._Q_u = np.diag([10, .1, .1, .1])
+        self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
+        # initial state and control action TODO
+        self._quad_s0 = (np.zeros(12)).tolist()
+        self._quad_u0 = [0.781, .5, .5, .5]
+
+    def _initParamsFixedWing(self):
+        self._s_dim = 6
+        self._u_dim = 2
+        self._w_min_xy = 0
+        self._w_max_xy = 1
+        self._thrust_min = 0
+        self._thrust_max = 1
+        # cost matrix for the action
+        self._Q_u = np.diag([1, 10])
+        self._Q_pen = np.diag([10, 100, 0, 0, 0, 0])
+        # initial states
+        self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
+        self._quad_u0 = (np.zeros(2) + .5).tolist()
 
     def _initDynamics(self, ):
         # # # # # # # # # # # # # # # # # # #
