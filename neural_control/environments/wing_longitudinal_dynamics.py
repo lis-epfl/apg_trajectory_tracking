@@ -38,8 +38,8 @@ def long_dynamics(state, action, dt):
     q = state[:, 5]  # pitch rate
 
     # input states
-    T = 1.3 + action[:, 0] * .4 - .2
-    del_e = torch.deg2rad(action[:, 1] * 10 - 5)
+    T = action[:, 0] * 7
+    del_e = torch.deg2rad(action[:, 1] * 40 - 20)
 
     ## aerodynamic forces calculations
     # (see beard & mclain, 2012, p. 44 ff)

@@ -215,11 +215,12 @@ class FixedWingDrone(RenderedObject):
         self.source = source
         self._show_thrust = True
         self.targets = [[100, 0]]
+        self.x_normalize = 0.1
+        self.z_offset = 2
 
     def set_target(self, target):
         self.targets = np.array(target)
-        self.x_norm_factor = self.targets[-1, 0]
-        self.x_normalize = 14 / self.x_norm_factor
+        self.x_normalize = 14 / self.targets[-1, 0]
 
     def draw(self, renderer):
         status = self.source._state.copy()
@@ -231,7 +232,7 @@ class FixedWingDrone(RenderedObject):
         # and set z to other way round
         position = [
             -7 + status[0] * self.x_normalize, 0,
-            status[1] * (-1) * self.x_normalize
+            status[1] * (-1) * self.x_normalize + self.z_offset
         ]
 
         # draw target point
@@ -239,7 +240,7 @@ class FixedWingDrone(RenderedObject):
             renderer.draw_circle(
                 (
                     -7 + target[0] * self.x_normalize, target[1] *
-                    (-1) * self.x_normalize
+                    (-1) * self.x_normalize + self.z_offset
                 ),
                 .2, (0, 1, 0),
                 filled=True

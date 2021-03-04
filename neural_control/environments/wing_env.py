@@ -68,7 +68,7 @@ class SimpleWingEnv(gym.Env):
         self.renderer.close()
 
 
-def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):
+def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, render=0, **kwargs):
     sampled_trajectories = []
     for i in range(num_traj):
         env = SimpleWingEnv(dt)
@@ -77,11 +77,11 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, **kwargs):
         for j in range(traj_len):
             if j % 100 == 0:
                 # always keep same action for 10 steps
-                T = np.random.rand(1)[0]
-                del_e = np.random.rand(1)[0]
-            # 10 + np.random.rand(1) * 4 - 1
-            # del_e = np.random.rand(1) * 10 - 5
+                T = .5 + np.random.rand(1)[0] * .1
+                del_e = .5 + np.random.rand(1)[0] * .3
             new_state, _ = env.step((T, del_e))
+            if render:
+                env.render()
             sampled_states.append(new_state)
         sampled_trajectories.append(np.array(sampled_states))
     return np.array(sampled_trajectories)
@@ -173,5 +173,6 @@ def sample_point_and_waypoint(
 
 
 if __name__ == "__main__":
-    states, refs = sample_training_data(100)
-    print(states.shape, refs.shape)
+    # states, refs = sample_training_data(100)
+    # print(states.shape, refs.shape)
+    run_wing_flight(num_traj=1, traj_len=1000, dt=0.01, render=1)

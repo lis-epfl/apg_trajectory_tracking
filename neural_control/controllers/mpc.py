@@ -569,8 +569,9 @@ class MPC(object):
         w = vz  # upward velocity  in body frame
 
         # input states
-        T = 1.3 + thrust * .4 - .2
-        del_e = np.pi * (del_e * 10 - 5) / 180
+        T = thrust * 7
+        # angle between -20 and 20 degrees
+        del_e = np.pi * (del_e * 40 - 20) / 180
 
         ## aerodynamic forces calculations
         # (see beard & mclain, 2012, p. 44 ff)
