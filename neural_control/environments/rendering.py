@@ -210,7 +210,8 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
 class FixedWingDrone(RenderedObject):
 
-    def __init__(self, source):
+    def __init__(self, source, draw_quad=False):
+        self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
         self.target = [100, 0]
@@ -240,7 +241,18 @@ class FixedWingDrone(RenderedObject):
             filled=True
         )
 
-        self.draw_airplane(renderer, position, trafo)
+        if self.draw_quad:
+            self.quad_as_plane(renderer, trafo, position)
+        else:
+            self.draw_airplane(renderer, position, trafo)
+
+    @staticmethod
+    def quad_as_plane(renderer, trafo, position):
+        rotated = body_to_world(trafo, [0, 0, 0.5])
+        renderer.draw_line_3d(position, position + rotated)
+
+        QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 1)
+        QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 1)
 
     @staticmethod
     def draw_airplane(renderer, position, euler):
