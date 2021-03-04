@@ -18,7 +18,7 @@ class SimpleWingEnv(gym.Env):
     def __init__(self, dt):
         self.dt = dt
         self.reset()
-        self.renderer = Renderer()
+        self.renderer = Renderer(viewer_shape=(1000, 500), y_axis=7)
         self.renderer.add_object(Ground())
         self.drone_render_object = FixedWingDrone(self)
         self.renderer.add_object(self.drone_render_object)

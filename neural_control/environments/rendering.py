@@ -62,12 +62,14 @@ def body_to_world(euler, vector):
 
 class Renderer:
 
-    def __init__(self):
+    def __init__(self, viewer_shape=(500, 500), y_axis=14):
         self.viewer = None
         self.center = None
 
         self.scroll_speed = 0.1
         self.objects = []
+        self.viewer_shape = viewer_shape
+        self.y_axis = y_axis
 
     def draw_line_2d(self, start, end, color=(0, 0, 0)):
         self.viewer.draw_line(start, end, color=color)
@@ -109,12 +111,14 @@ class Renderer:
             1.0 - self.scroll_speed
         ) * self.center + self.scroll_speed * new_center
         if self.viewer is not None:
-            self.viewer.set_bounds(-7 + self.center, 7 + self.center, -1, 13)
+            self.viewer.set_bounds(
+                -7 + self.center, 7 + self.center, -1, self.y_axis
+            )
 
     def setup(self):
         from gym.envs.classic_control import rendering
         if self.viewer is None:
-            self.viewer = rendering.Viewer(500, 500)
+            self.viewer = rendering.Viewer(*self.viewer_shape)
 
     def render(self, mode='human', close=False):
         if close:
@@ -206,7 +210,8 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
 class FixedWingDrone(RenderedObject):
 
-    def __init__(self, source):
+    def __init__(self, source, draw_quad=False):
+        self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
         self.targets = [[100, 0]]
@@ -224,23 +229,38 @@ class FixedWingDrone(RenderedObject):
 
         # normalize x to have drone between left and right bound
         # and set z to other way round
-        position = [-7 + status[0] * self.x_normalize, 0, status[1] * (-1)]
+        position = [
+            -7 + status[0] * self.x_normalize, 0,
+            status[1] * (-1) * self.x_normalize
+        ]
 
         # draw target point
         for target in self.targets:
             renderer.draw_circle(
-                (-7 + target[0] * self.x_normalize, target[1] * (-1)),
+                (
+                    -7 + target[0] * self.x_normalize, target[1] *
+                    (-1) * self.x_normalize
+                ),
                 .2, (0, 1, 0),
                 filled=True
             )
 
-        self.draw_airplane(renderer, position, trafo)
+        if self.draw_quad:
+            self.quad_as_plane(renderer, trafo, position)
+        else:
+            self.draw_airplane(renderer, position, trafo)
+
+    @staticmethod
+    def quad_as_plane(renderer, trafo, position):
+        rotated = body_to_world(trafo, [0, 0, 0.5])
+        renderer.draw_line_3d(position, position + rotated)
+
+        QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 1)
+        QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 1)
 
     @staticmethod
     def draw_airplane(renderer, position, euler):
-        # plaen definition
-        show_plane = True
-
+        # plane definition
         offset = np.array([-5, 0, -1.5])
         scale = .3
         coord_plane = (
@@ -252,9 +272,6 @@ class FixedWingDrone(RenderedObject):
             ) + offset
         ) * scale
 
-        if not show_plane:
-            coord_plane = np.array([[-1, 0, 0], [1, 0, 0]])
-
         rot_matrix = body_to_world_matrix(euler)
         coord_plane_rotated = (
             np.array([np.dot(rot_matrix, coord)
@@ -262,9 +279,7 @@ class FixedWingDrone(RenderedObject):
         )[:, [0, 2]]
         renderer.draw_polygon(coord_plane_rotated)
 
-        if not show_plane:
-            return 0
-
+        # add wing
         coord_wing = (
             np.array([[4, 0, 1.5], [5, 0, 0], [6, 0, 1.5]]) + offset
         ) * scale
