@@ -163,6 +163,11 @@ class QuadEvaluator():
         )
 
     def compute_speed(self, drone_traj):
+        """
+        Compute speed, given a trajectory of drone positions
+        """
+        if len(drone_traj) == 0:
+            return 0
         dist = 0
         for j in range(len(drone_traj) - 1):
             dist += np.linalg.norm(drone_traj[j, :3] - drone_traj[j + 1, :3])

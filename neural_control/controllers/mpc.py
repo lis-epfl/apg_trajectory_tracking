@@ -95,7 +95,9 @@ class MPC(object):
         elif self.dynamics_model == "simple_quad":
             # cost matrix for the action
             self._Q_u = np.diag([10, .1, .1, .1])
-            self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
+            self._Q_pen = np.diag(
+                [100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1]
+            )
             # initial state and control action TODO
             self._quad_s0 = (np.zeros(12)).tolist()
             self._quad_u0 = [0.781, .5, .5, .5]
@@ -323,10 +325,11 @@ class MPC(object):
         # no goal point for now
         # goal_state = changed_middle_ref_states[-1].copy().tolist()
         goal_state = np.zeros(self._s_dim)
-        goal_state[:3] = (2 * changed_middle_ref_states[-1, :3] +
-                    changed_middle_ref_states[-2, :3])
-        goal_state[6:9] = changed_middle_ref_states[-1, :3]
-
+        goal_state[:3] = (
+            2 * changed_middle_ref_states[-1, :3] +
+            changed_middle_ref_states[-2, :3]
+        )
+        goal_state[6:9] = changed_middle_ref_states[-1, 6:9]
 
         # apped three mysterious entries:
         high_mpc_reference = np.hstack((changed_middle_ref_states, self.addon))

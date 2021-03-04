@@ -48,6 +48,7 @@ class Polynomial:
         self.reference = np.vstack([start_hover, points_3d, end_hover])
         self.ref_len = len(self.reference)
         self.target_ind = 0
+        self.current_ind = 0
 
         # draw trajectory on renderer
         if render:
@@ -124,6 +125,40 @@ class Polynomial:
         # transform to 3D
         points_3d = points_2d_ext @ rot
         return points_3d
+
+    def get_fixed_ref(self, drone_state, drone_acc):
+        """
+        Return directly the points on the reference, and not the relative min
+        snap
+        Working with MPC, but not with neural controller
+        """
+        out_reference = np.zeros((self.horizon, 9))
+        # if already at end, return zero velocities and accelerations
+        if self.current_ind >= len(self.reference) - self.horizon - 2:
+            out_reference[:, :3] = self.reference[self.current_ind]
+            return out_reference
+        # else: compute next velocities and accs
+        next_positions = self.reference[self.current_ind:self.current_ind +
+                                        self.horizon + 2]
+        next_velocities = [
+            (next_positions[i + 1] - next_positions[i]) / self.dt * 2
+            for i in range(self.horizon + 1)
+        ]
+        next_accs = [
+            (next_velocities[i + 1] - next_velocities[i]) / self.dt
+            for i in range(self.horizon)
+        ]
+        ref_out = np.hstack(
+            (
+                next_positions[:self.horizon], next_velocities[:self.horizon],
+                next_accs[:self.horizon]
+            )
+        )
+        self.current_ind += 1
+        self.target_ind += 1
+        # np.set_printoptions(suppress=True, precision=3)
+        # print(ref_out)
+        return ref_out
 
     def get_ref_traj(self, drone_state, drone_acc):
         """

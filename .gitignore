@@ -9,6 +9,7 @@ data_backup/
 outputs/
 
 .ipynb_checkpoints/
+*.csv
 *.ipynb
 *.npy
 models
