@@ -239,6 +239,8 @@ class FixedWingDrone(RenderedObject):
     @staticmethod
     def draw_airplane(renderer, position, euler):
         # plaen definition
+        show_plane = True
+
         offset = np.array([-5, 0, -1.5])
         scale = .3
         coord_plane = (
@@ -249,19 +251,26 @@ class FixedWingDrone(RenderedObject):
                 ]
             ) + offset
         ) * scale
-        coord_wing = (
-            np.array([[4, 0, 1.5], [5, 0, 0], [6, 0, 1.5]]) + offset
-        ) * scale
+
+        if not show_plane:
+            coord_plane = np.array([[-1, 0, 0], [1, 0, 0]])
 
         rot_matrix = body_to_world_matrix(euler)
         coord_plane_rotated = (
             np.array([np.dot(rot_matrix, coord)
                       for coord in coord_plane]) + position
         )[:, [0, 2]]
+        renderer.draw_polygon(coord_plane_rotated)
+
+        if not show_plane:
+            return 0
+
+        coord_wing = (
+            np.array([[4, 0, 1.5], [5, 0, 0], [6, 0, 1.5]]) + offset
+        ) * scale
         coord_wing_rotated = (
             np.array([np.dot(rot_matrix, coord)
                       for coord in coord_wing]) + position
         )[:, [0, 2]]
 
-        renderer.draw_polygon(coord_plane_rotated)
         renderer.draw_polygon(coord_wing_rotated)

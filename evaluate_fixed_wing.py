@@ -132,7 +132,7 @@ if __name__ == "__main__":
     # test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
     # target_point = [test_traj[0, 300, :2]]
     # print("target_point", target_point)
-    target_point = [[30, -3.5], [60, -2]]
+    target_point = [[30, -3.5], [50, -2]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point)
