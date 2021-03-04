@@ -62,12 +62,14 @@ def body_to_world(euler, vector):
 
 class Renderer:
 
-    def __init__(self):
+    def __init__(self, viewer_shape=(500, 500), y_axis=14):
         self.viewer = None
         self.center = None
 
         self.scroll_speed = 0.1
         self.objects = []
+        self.viewer_shape = viewer_shape
+        self.y_axis = y_axis
 
     def draw_line_2d(self, start, end, color=(0, 0, 0)):
         self.viewer.draw_line(start, end, color=color)
@@ -109,12 +111,14 @@ class Renderer:
             1.0 - self.scroll_speed
         ) * self.center + self.scroll_speed * new_center
         if self.viewer is not None:
-            self.viewer.set_bounds(-7 + self.center, 7 + self.center, -1, 13)
+            self.viewer.set_bounds(
+                -7 + self.center, 7 + self.center, -1, self.y_axis
+            )
 
     def setup(self):
         from gym.envs.classic_control import rendering
         if self.viewer is None:
-            self.viewer = rendering.Viewer(500, 500)
+            self.viewer = rendering.Viewer(*self.viewer_shape)
 
     def render(self, mode='human', close=False):
         if close:
@@ -224,11 +228,16 @@ class FixedWingDrone(RenderedObject):
 
         # normalize x to have drone between left and right bound
         # and set z to other way round
-        position = [-7 + status[0] * self.x_normalize, 0, status[1] * (-1)]
+        position = [
+            -7 + status[0] * self.x_normalize, 0,
+            status[1] * (-1) * self.x_normalize
+        ]
 
         # draw target point
         renderer.draw_circle(
-            (6.8, self.target[1] * (-1)), .2, (0, 1, 0), filled=True
+            (6.8, self.target[1] * (-1) * self.x_normalize),
+            .2, (0, 1, 0),
+            filled=True
         )
 
         self.draw_airplane(renderer, position, trafo)
