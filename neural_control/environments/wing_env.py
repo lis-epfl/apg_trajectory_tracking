@@ -78,7 +78,7 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, render=0, **kwargs):
             if j % 100 == 0:
                 # always keep same action for 10 steps
                 T = np.clip(np.random.normal(scale=.25) + .5, 0, 1)
-                del_e = np.clip(np.random.normal(scale=.25) + .5, 0, 1)
+                del_e = np.clip(np.random.normal(scale=.25) + .4, 0, 1)
             new_state, _ = env.step((T, del_e))
             if render:
                 env.render()
@@ -87,7 +87,7 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, render=0, **kwargs):
     return np.array(sampled_trajectories)
 
 
-def generate_unit_vecs(num_vecs, mean_vec=[1, 0.1]):
+def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
     """
     Generate unit vectors that are normal distributed around mean_vec
     """

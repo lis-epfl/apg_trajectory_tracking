@@ -27,7 +27,7 @@ class FixedWingEvaluator:
         self.render = render
         self.eval_env = SimpleWingEnv(dt)
 
-    def fly_to_point(self, target_points):
+    def fly_to_point(self, target_points, max_steps=1000):
         self.eval_env.zero_reset()
         if self.render:
             self.eval_env.drone_render_object.set_target(target_points)
@@ -38,11 +38,9 @@ class FixedWingEvaluator:
         state = self.eval_env._state
         stable = True
         drone_traj = []
-        while stable:
+        while stable and len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
-            # np.random.rand(2)
-            # self.predict_actions(state, target_point)
             state, stable = self.eval_env.step(tuple(action[0]))
             if self.render:
                 self.eval_env.render()
@@ -57,9 +55,10 @@ class FixedWingEvaluator:
     def run_eval(self, nr_test, return_dists=False):
         min_dists = []
         for i in range(nr_test):
-            test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=self.dt)
-            where_to_sample = int(250 + np.random.rand(1) * 100)
-            target_point = [test_traj[0, where_to_sample, :2]]
+            target_point = [
+                np.random.rand(2) * np.array([60, 10]) + np.array([30, -5])
+            ]
+            print(target_point)
             drone_traj = self.fly_to_point(target_point)
             last_x_points = drone_traj[-20:, :2]
             last_x_dists = [
@@ -132,7 +131,7 @@ if __name__ == "__main__":
     # test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
     # target_point = [test_traj[0, 300, :2]]
     # print("target_point", target_point)
-    target_point = [[30, -2], [60, -4]]
+    target_point = [[30, -5], [60, -1]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point)
