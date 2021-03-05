@@ -58,7 +58,6 @@ class FixedWingEvaluator:
             target_point = [
                 np.random.rand(2) * np.array([60, 10]) + np.array([30, -5])
             ]
-            print(target_point)
             drone_traj = self.fly_to_point(target_point)
             last_x_points = drone_traj[-20:, :2]
             last_x_dists = [

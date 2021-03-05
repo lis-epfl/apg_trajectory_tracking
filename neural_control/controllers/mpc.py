@@ -578,9 +578,9 @@ class MPC(object):
         w = vz  # upward velocity  in body frame
 
         # input states
-        T = thrust * 3
+        T = thrust * 7
         # angle between -20 and 20 degrees
-        del_e = np.pi * (del_e * 20 - 10) / 180
+        del_e = np.pi * (del_e * 40 - 20) / 180
 
         ## aerodynamic forces calculations
         # (see beard & mclain, 2012, p. 44 ff)
@@ -602,8 +602,8 @@ class MPC(object):
         M = 1 / 2 * rho * V**2 * S * c * Cm  # pitch moment
 
         ## Global displacement
-        x_dot = u * ca.cos(theta) - w * ca.sin(theta)  # forward
-        h_dot = u * ca.sin(theta) + w * ca.cos(theta)  # upward
+        x_dot = u * ca.cos(theta) + w * ca.sin(theta)  # forward
+        h_dot = -u * ca.sin(theta) + w * ca.cos(theta)  # upward
 
         ## Body fixed accelerations
         u_dot = -w * q + (1 / m) * (

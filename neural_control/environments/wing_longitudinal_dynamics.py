@@ -38,8 +38,8 @@ def long_dynamics(state, action, dt):
     q = state[:, 5]  # pitch rate
 
     # input states
-    T = action[:, 0] * 3
-    del_e = torch.deg2rad(action[:, 1] * 20 - 10)
+    T = action[:, 0] * 7
+    del_e = torch.deg2rad(action[:, 1] * 40 - 20)
 
     ## aerodynamic forces calculations
     # (see beard & mclain, 2012, p. 44 ff)
@@ -61,8 +61,8 @@ def long_dynamics(state, action, dt):
     M = 1 / 2 * rho * V**2 * S * c * Cm  # pitch moment
 
     ## Global displacement
-    x_dot = u * torch.cos(theta) - w * torch.sin(theta)  # forward
-    h_dot = u * torch.sin(theta) + w * torch.cos(theta)  # upward
+    x_dot = u * torch.cos(theta) + w * torch.sin(theta)  # forward
+    h_dot = -u * torch.sin(theta) + w * torch.cos(theta)  # upward
 
     ## Body fixed accelerations
     # (see Fundamentals of airplane flight mechanics, David G. Hull, 2007)

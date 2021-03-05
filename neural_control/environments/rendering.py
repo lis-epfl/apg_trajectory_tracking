@@ -226,7 +226,7 @@ class FixedWingDrone(RenderedObject):
         status = self.source._state.copy()
 
         # transformed main axis
-        trafo = Euler(0, status[4], 0)
+        trafo = Euler(0, status[4] * (-1), 0)
 
         # normalize x to have drone between left and right bound
         # and set z to other way round
