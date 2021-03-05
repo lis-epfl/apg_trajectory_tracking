@@ -77,8 +77,8 @@ def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, render=0, **kwargs):
         for j in range(traj_len):
             if j % 100 == 0:
                 # always keep same action for 10 steps
-                T = .5 + np.random.rand(1)[0] * .1
-                del_e = .5 + np.random.rand(1)[0] * .3
+                T = np.clip(np.random.normal(scale=.25) + .5, 0, 1)
+                del_e = np.clip(np.random.normal(scale=.25) + .5, 0, 1)
             new_state, _ = env.step((T, del_e))
             if render:
                 env.render()

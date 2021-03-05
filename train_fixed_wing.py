@@ -25,7 +25,7 @@ REF_DIM = 2
 ACTION_DIM = 2
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = "trained_models/wing/current_model"
+BASE_MODEL = None  # "trained_models/wing/current_model"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
