@@ -53,9 +53,6 @@ class MPC(object):
             ), 1, 0
         )
 
-        # cost matrix for tracking the goal point
-        self._Q_goal = np.zeros((self._s_dim, self._s_dim))
-
         # cost matrix for tracking the pendulum motion
         if self.dynamics_model == "high_mpc":
             self._initParamsHighMPC()
@@ -63,6 +60,9 @@ class MPC(object):
             self._initParamsSimpleQuad()
         elif self.dynamics_model == "fixed_wing":
             self._initParamsFixedWing()
+
+        # cost matrix for tracking the goal point
+        self._Q_goal = np.zeros((self._s_dim, self._s_dim))
 
         self._initDynamics()
 
@@ -109,8 +109,8 @@ class MPC(object):
         self._thrust_min = 0
         self._thrust_max = 1
         # cost matrix for the action
-        self._Q_u = np.diag([1, 10])
-        self._Q_pen = np.diag([10, 100, 0, 0, 0, 0])
+        self._Q_u = np.diag([0, 10])
+        self._Q_pen = np.diag([100, 100, 0, 0, 10, 0])
         # initial states
         self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
         self._quad_u0 = (np.zeros(2) + .5).tolist()
@@ -308,8 +308,9 @@ class MPC(object):
         #     print([round(s[0],2) for s in traj_test])
         # return optimal action, and a sequence of predicted optimal trajectory.
         # print(opt_u)
-        np.set_printoptions(suppress=True, precision=9)
-        print(opt_u.tolist())
+        # print("solver:")
+        # np.set_printoptions(suppress=True, precision=3)
+        # print(opt_u.tolist())
         # print(x0_array)
         # print(np.array(ref_states[self._s_dim:-self._s_dim]).reshape((10, 15)))
         # exit()
@@ -330,7 +331,7 @@ class MPC(object):
         # goal_state = changed_middle_ref_states[-1].copy().tolist()
         goal_state = np.zeros(self._s_dim)
         goal_state[:3] = (
-            2 * changed_middle_ref_states[-1, :3] +
+            2 * changed_middle_ref_states[-1, :3] -
             changed_middle_ref_states[-2, :3]
         )
         goal_state[6:9] = changed_middle_ref_states[-1, 6:9]
@@ -345,6 +346,10 @@ class MPC(object):
         return flattened_ref
 
     def preprocess_fixed_wing(self, current_state, ref_states):
+        """
+        Construct a reference as required by MPC from the current state and
+        the desired ref
+        """
         vec_to_target = ref_states - current_state[:2]
         vec_norm = np.linalg.norm(vec_to_target)
         speed = np.sqrt(current_state[2]**2 + current_state[3]**2)
@@ -357,13 +362,13 @@ class MPC(object):
                 i, :2] = current_state[:2] + (i + 1) * vector_per_step
 
         # goal point is last point of middle ref
-        goal_state = middle_ref_states[-1].tolist()
+        goal_state = 2 * middle_ref_states[-1] - middle_ref_states[-2]
 
         high_mpc_reference = np.hstack((middle_ref_states[:-1], self.addon))
 
         flattened_ref = (
             current_state.tolist() + high_mpc_reference.flatten().tolist() +
-            goal_state
+            goal_state.tolist()
         )
 
         return flattened_ref
@@ -573,9 +578,9 @@ class MPC(object):
         w = vz  # upward velocity  in body frame
 
         # input states
-        T = thrust * 7
+        T = thrust * 3
         # angle between -20 and 20 degrees
-        del_e = np.pi * (del_e * 40 - 20) / 180
+        del_e = np.pi * (del_e * 10 - 5) / 180
 
         ## aerodynamic forces calculations
         # (see beard & mclain, 2012, p. 44 ff)
@@ -597,8 +602,8 @@ class MPC(object):
         M = 1 / 2 * rho * V**2 * S * c * Cm  # pitch moment
 
         ## Global displacement
-        x_dot = u * ca.cos(theta) + w * ca.sin(theta)  # forward
-        h_dot = u * ca.sin(theta) - w * ca.cos(theta)  # upward
+        x_dot = u * ca.cos(theta) - w * ca.sin(theta)  # forward
+        h_dot = u * ca.sin(theta) + w * ca.cos(theta)  # upward
 
         ## Body fixed accelerations
         u_dot = -w * q + (1 / m) * (

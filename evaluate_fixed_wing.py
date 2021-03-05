@@ -110,7 +110,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # parameters
-    params = {"render": 1, "dt": 0.01, "horizon": 5}
+    params = {"render": 1, "dt": 0.01, "horizon": 10}
 
     # load model
     model_name = args.model
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     # test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
     # target_point = [test_traj[0, 300, :2]]
     # print("target_point", target_point)
-    target_point = [[30, -2], [50, -1]]
+    target_point = [[50, -2]]  # , [50, -1]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point)
