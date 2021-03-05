@@ -109,8 +109,8 @@ class MPC(object):
         self._thrust_min = 0
         self._thrust_max = 1
         # cost matrix for the action
-        self._Q_u = np.diag([0, 10])
-        self._Q_pen = np.diag([100, 100, 0, 0, 10, 0])
+        self._Q_u = np.diag([0, 0])
+        self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
         # initial states
         self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
         self._quad_u0 = (np.zeros(2) + .5).tolist()
@@ -580,7 +580,7 @@ class MPC(object):
         # input states
         T = thrust * 3
         # angle between -20 and 20 degrees
-        del_e = np.pi * (del_e * 10 - 5) / 180
+        del_e = np.pi * (del_e * 20 - 10) / 180
 
         ## aerodynamic forces calculations
         # (see beard & mclain, 2012, p. 44 ff)
