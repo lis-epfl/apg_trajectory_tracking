@@ -85,6 +85,8 @@ class MPC(object):
         # initial state and control action
         self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
+        # default u
+        self._default_u = [self._gz, 0, 0, 0]
 
     def _initParamsSimpleQuad(self):
         # Quadrotor constant
@@ -100,6 +102,8 @@ class MPC(object):
         # initial state and control action TODO
         self._quad_s0 = (np.zeros(12)).tolist()
         self._quad_u0 = [0.781, .5, .5, .5]
+        # default u
+        self._default_u = [.781, .5, .5, .5]
 
     def _initParamsFixedWing(self):
         self._s_dim = 6
@@ -109,11 +113,13 @@ class MPC(object):
         self._thrust_min = 0
         self._thrust_max = 1
         # cost matrix for the action
-        self._Q_u = np.diag([0, 0])
+        self._Q_u = np.diag([0, 10])
         self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
         # initial states
         self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
-        self._quad_u0 = (np.zeros(2) + .5).tolist()
+        self._quad_u0 = [.25, .5]
+        # default u
+        self._default_u = [.25, .5]
 
     def _initDynamics(self, ):
         # # # # # # # # # # # # # # # # # # #
@@ -217,12 +223,7 @@ class MPC(object):
                     self._s_dim+(self._s_dim+3)*(k+1)-3])
                 cost_gap_k = f_cost_gap(delta_p_k)
 
-            if self.dynamics_model == "simple_quad":
-                delta_u_k = U[:, k] - [.781, .5, .5, .5]
-            elif self.dynamics_model == "high_mpc":
-                delta_u_k = U[:, k] - [self._gz, 0, 0, 0]
-            elif self.dynamics_model == "fixed_wing":
-                delta_u_k = U[:, k] - [.5, .5]
+            delta_u_k = U[:, k] - self._default_u
 
             cost_u_k = f_cost_u(delta_u_k)
 
@@ -362,7 +363,7 @@ class MPC(object):
                 i, :2] = current_state[:2] + (i + 1) * vector_per_step
 
         # goal point is last point of middle ref
-        goal_state = 2 * middle_ref_states[-1] - middle_ref_states[-2]
+        goal_state = middle_ref_states[-1]
 
         high_mpc_reference = np.hstack((middle_ref_states[:-1], self.addon))
 
