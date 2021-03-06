@@ -62,7 +62,7 @@ def long_dynamics(state, action, dt):
 
     ## Global displacement
     x_dot = u * torch.cos(theta) + w * torch.sin(theta)  # forward
-    h_dot = -u * torch.sin(theta) + w * torch.cos(theta)  # upward
+    h_dot = u * torch.sin(theta) - w * torch.cos(theta)  # upward
 
     ## Body fixed accelerations
     # (see Fundamentals of airplane flight mechanics, David G. Hull, 2007)

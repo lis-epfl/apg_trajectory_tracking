@@ -603,7 +603,7 @@ class MPC(object):
 
         ## Global displacement
         x_dot = u * ca.cos(theta) + w * ca.sin(theta)  # forward
-        h_dot = -u * ca.sin(theta) + w * ca.cos(theta)  # upward
+        h_dot = u * ca.sin(theta) - w * ca.cos(theta)  # upward
 
         ## Body fixed accelerations
         u_dot = -w * q + (1 / m) * (

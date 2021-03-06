@@ -13,8 +13,8 @@ t_end = 10.0001
 t = np.arange(0, t_end, dt)
 
 ## inputs
-T = 3.5  # thrust [N]
-del_e = np.deg2rad(5)  # angle of elevator [rad] (negative is up)
+T = 1.77  # thrust [N]
+del_e = np.deg2rad(0)  # angle of elevator [rad] (negative is up)
 
 # action
 action = torch.tensor([[T, del_e]]).float()  # , [T, del_e]]).float()
