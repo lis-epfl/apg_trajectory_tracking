@@ -20,6 +20,29 @@ inertia_vector = ca.SX(
 )
 kinv_ang_vel_tau = ca.SX(np.array([16.6, 16.6, 5.0]))
 
+# ------------------ constants ---------------------
+m = 1.01
+I_xx = 0.04766
+rho = 1.225
+S = 0.276
+c = 0.185
+g = 9.81
+# linearized for alpha = 0 and u = 12 m/s
+Cl0 = 0.3900
+Cl_alpha = 4.5321
+Cl_q = 0.3180
+Cl_del_e = 0.527
+# drag coefficients
+Cd0 = 0.0765
+Cd_alpha = 0.3346
+Cd_q = 0.354
+Cd_del_e = 0.004
+# moment coefficients
+Cm0 = 0.0200
+Cm_alpha = -1.4037
+Cm_q = -0.1324
+Cm_del_e = -0.4236
+
 
 #
 class MPC(object):
@@ -312,7 +335,9 @@ class MPC(object):
         # print("solver:")
         # np.set_printoptions(suppress=True, precision=3)
         # print(opt_u.tolist())
+        # print("x0array")
         # print(x0_array)
+        # print("opt_u", opt_u.tolist())
         # print(np.array(ref_states[self._s_dim:-self._s_dim]).reshape((10, 15)))
         # exit()
         return opt_u, x0_array
@@ -361,6 +386,11 @@ class MPC(object):
         for i in range(self._N + 1):
             middle_ref_states[
                 i, :2] = current_state[:2] + (i + 1) * vector_per_step
+
+        # np.set_printoptions(suppress=True, precision=3)
+        # # print(opt_u.tolist())
+        # print("middle_ref_states")
+        # print(np.vstack((current_state, middle_ref_states)))
 
         # goal point is last point of middle ref
         goal_state = middle_ref_states[-1]
@@ -531,7 +561,7 @@ class MPC(object):
             vz_new, avx_new, avy_new, avz_new
         )
         # Fold
-        F = ca.Function('F', [self._x, self._u], [X])
+        F = ca.Function('F', [self._x, self._u], [X], ['x', 'u'], ['ode'])
         return F
 
     def fixed_wing_dynamics(self, dt):
@@ -539,49 +569,21 @@ class MPC(object):
         Longitudinal dynamics for fixed wing
         """
 
-        # ------------------ constants ---------------------
-        m = 1.01
-        I_xx = 0.04766
-        rho = 1.225
-        S = 0.276
-        c = 0.185
-        g = 9.81
-        # linearized for alpha = 0 and u = 12 m/s
-        Cl0 = 0.3900
-        Cl_alpha = 4.5321
-        Cl_q = 0.3180
-        Cl_del_e = 0.527
-        # drag coefficients
-        Cd0 = 0.0765
-        Cd_alpha = 0.3346
-        Cd_q = 0.354
-        Cd_del_e = 0.004
-        # moment coefficients
-        Cm0 = 0.0200
-        Cm_alpha = -1.4037
-        Cm_q = -0.1324
-        Cm_del_e = -0.4236
-
         # --------- state vector ----------------
-        px, pz, vx, vz, theta, q = (
+        px, pz, u, w, theta, q = (
             ca.SX.sym('px'), ca.SX.sym('pz'), ca.SX.sym('vx'), ca.SX.sym('vz'),
             ca.SX.sym('theta'), ca.SX.sym('q')
         )
-        self._x = ca.vertcat(px, pz, vx, vz, theta, q)
+        x_state = ca.vertcat(px, pz, u, w, theta, q)
 
         # -----------control command ---------------
-        thrust, del_e = ca.SX.sym('thrust'), ca.SX.sym('del_e')
-        self._u = ca.vertcat(thrust, del_e)
-
-        x = px  # x position
-        h = pz  # z position / altitude
-        u = vx  # forward velocity in body frame
-        w = vz  # upward velocity  in body frame
+        u_thrust, u_del_e = ca.SX.sym('thrust'), ca.SX.sym('del_e')
+        u_control = ca.vertcat(u_thrust, u_del_e)
 
         # input states
-        T = thrust * 7
+        T = u_thrust * 7
         # angle between -20 and 20 degrees
-        del_e = np.pi * (del_e * 40 - 20) / 180
+        del_e = np.pi * (u_del_e * 40 - 20) / 180
 
         ## aerodynamic forces calculations
         # (see beard & mclain, 2012, p. 44 ff)
@@ -619,12 +621,12 @@ class MPC(object):
 
         x_new = px + dt * x_dot
         h_new = pz + dt * h_dot
-        u_new = vx + dt * u_dot
-        w_new = vz + dt * w_dot
+        u_new = u + dt * u_dot
+        w_new = w + dt * w_dot
         theta_new = theta + dt * q
         q_new = q + dt * q_dot
 
         X = ca.vertcat(x_new, h_new, u_new, w_new, theta_new, q_new)
 
-        F = ca.Function('F', [self._x, self._u], [X])
+        F = ca.Function('F', [x_state, u_control], [X], ['x', 'u'], ['ode'])
         return F
