@@ -26,6 +26,8 @@ Cm_del_e = -0.4236
 # lower and upper bounds:
 alpha_bound = float(5 / 180 * np.pi)
 
+torch_pi = np.pi
+
 
 def long_dynamics(state, action, dt):
     # extract variables
@@ -39,7 +41,7 @@ def long_dynamics(state, action, dt):
 
     # input states
     T = action[:, 0] * 7
-    del_e = torch.deg2rad(action[:, 1] * 40 - 20)
+    del_e = torch_pi * (action[:, 1] * 40 - 20) / 180
 
     ## aerodynamic forces calculations
     # (see beard & mclain, 2012, p. 44 ff)
@@ -62,7 +64,7 @@ def long_dynamics(state, action, dt):
 
     ## Global displacement
     x_dot = u * torch.cos(theta) + w * torch.sin(theta)  # forward
-    h_dot = u * torch.sin(theta) - w * torch.cos(theta)  # upward
+    h_dot = u * torch.sin(theta) + w * torch.cos(theta)  # upward
 
     ## Body fixed accelerations
     # (see Fundamentals of airplane flight mechanics, David G. Hull, 2007)

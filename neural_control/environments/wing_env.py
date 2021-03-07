@@ -52,7 +52,9 @@ class SimpleWingEnv(gym.Env):
         new_state = long_dynamics(state_torch, action_torch, self.dt)
         self._state = new_state[0].numpy()
 
-        is_stable = True  # TODO
+        is_stable = -.7 < self._state[4] < .7
+        if not is_stable:
+            print("unstable!")
         return self._state, is_stable
 
     def render(self, mode='human', close=False):
@@ -68,23 +70,22 @@ class SimpleWingEnv(gym.Env):
         self.renderer.close()
 
 
-def run_wing_flight(num_traj=100, traj_len=1000, dt=0.01, render=0, **kwargs):
-    sampled_trajectories = []
-    for i in range(num_traj):
-        env = SimpleWingEnv(dt)
-        env.zero_reset()
-        sampled_states = []
-        for j in range(traj_len):
-            if j % 100 == 0:
-                # always keep same action for 10 steps
-                T = np.clip(np.random.normal(scale=.25) + .5, 0, 1)
-                del_e = np.clip(np.random.normal(scale=.25) + .4, 0, 1)
-            new_state, _ = env.step((T, del_e))
-            if render:
-                env.render()
-            sampled_states.append(new_state)
-        sampled_trajectories.append(np.array(sampled_states))
-    return np.array(sampled_trajectories)
+def run_wing_flight(env, traj_len=1000, render=0, **kwargs):
+
+    env.zero_reset()
+    sampled_states = []
+    for j in range(traj_len):
+        if j % 100 == 0:
+            # always keep same action for 10 steps
+            T = np.clip(np.random.normal(scale=.1) + .25, 0, 1)
+            del_e = np.clip(np.random.normal(scale=.1) + .5, 0, 1)
+        new_state, stable = env.step((T, del_e))
+        if not stable:
+            break
+        if render:
+            env.render()
+        sampled_states.append(new_state)
+    return np.array(sampled_states)
 
 
 def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
@@ -92,7 +93,7 @@ def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
     Generate unit vectors that are normal distributed around mean_vec
     """
     gauss_vecs = np.random.multivariate_normal(
-        mean_vec, [[1, 0], [0, 1]], size=num_vecs
+        mean_vec, [[.05, 0], [0, .05]], size=num_vecs
     )
     gauss_vecs[gauss_vecs[:, 0] < 0.01, 0] = 1
     # gauss_vecs = np.array(
@@ -101,34 +102,38 @@ def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
     return gauss_vecs
 
 
-def sample_training_data(num_samples, take_every=10, traj_len=1000, **kwargs):
+def sample_training_data(
+    num_samples, dt=0.01, take_every=10, traj_len=1000, **kwargs
+):
     """
     Fly some trajectories in order to sample drone states
     Then add random unit vectors in all directions
     """
-    num_points_per_traj = traj_len // take_every
-    num_flights = int(num_samples / num_points_per_traj)
-    # sample fixed wing trajectories
-    sampled_trajectories = run_wing_flight(
-        num_traj=num_flights, traj_len=traj_len, **kwargs
-    )
     # sample random direction vectors
     gauss_vecs = generate_unit_vecs(num_samples)
-    print(gauss_vecs.shape)
+    env = SimpleWingEnv(dt)
 
     # combine states and gauss_vecs
     training_states = []
     training_refs = []
     counter = 0
-    for traj in sampled_trajectories:
-        for i in range(len(traj) // take_every):
+    leftover = np.inf
+    while leftover > 0:
+        # sample trajectory
+        traj = run_wing_flight(env, num_traj=1, traj_len=1000, **kwargs)
+        # sample states from trajectory
+        nr_samples = min([len(traj) // take_every, leftover])
+        for i in range(nr_samples):
             # don't start at zero each time
             curr_ind = int(i * take_every + np.random.rand() * 5)
             drone_state = traj[curr_ind]
+
+            # sample gauss vec
             drone_ref = drone_state[:2] + gauss_vecs[counter]
             training_states.append(drone_state)
             training_refs.append(drone_ref)
             counter += 1
+        leftover = num_samples - len(training_refs)
     # make arrays
     training_states = np.array(training_states)
     training_refs = np.array(training_refs)
@@ -173,6 +178,9 @@ def sample_point_and_waypoint(
 
 
 if __name__ == "__main__":
-    # states, refs = sample_training_data(100)
-    # print(states.shape, refs.shape)
-    run_wing_flight(num_traj=1, traj_len=1000, dt=0.01, render=1)
+    states, refs = sample_training_data(1000)
+    print(states.shape, refs.shape)
+    np.save("states.npy", states)
+    np.save("ref.npy", refs)
+    # env = SimpleWingEnv(dt)
+    # run_wing_flight(env, traj_len=1000, dt=0.01, render=1)
