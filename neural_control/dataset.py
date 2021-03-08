@@ -63,7 +63,7 @@ class DroneDataset(torch.utils.data.Dataset):
             self.std = np.std(states, axis=0)
 
         self.kwargs = kwargs
-        (self.normed_states, self.states,
+        (self.normed_states, self.states, self.in_ref_states, 
          self.ref_states) = self.prepare_data(states, ref_states)
 
         # count where to add new evaluation data
@@ -88,13 +88,14 @@ class DroneDataset(torch.utils.data.Dataset):
         states, ref_states = trajectory_training_data(
             self.num_sampled_states, **self.kwargs
         )
-        (prep_normed_states, prep_states,
+        (prep_normed_states, prep_states, prep_in_ref_states,
          prep_ref_states) = self.prepare_data(states, ref_states)
 
         # add to first (the sampled) part of dataset
         num = self.num_sampled_states
         self.normed_states[:num] = prep_normed_states
         self.states[:num] = prep_states
+        self.in_ref_states[:num] = prep_in_ref_states
         self.ref_states[:num] = prep_ref_states
 
     def get_and_add_eval_data(self, states, ref_states, add_to_dataset=False):
@@ -103,17 +104,18 @@ class DroneDataset(torch.utils.data.Dataset):
         While evaluating, add the data to the dataset with some probability
         to achieve self play
         """
-        (normed_states, states,
+        (normed_states, states, in_ref_states,
          ref_states) = self.prepare_data(states, ref_states)
         if add_to_dataset and self.num_self_play > 0:
             # replace previous eval data with new eval data
             counter = self.get_eval_index()
             self.normed_states[counter] = normed_states[0]
             self.states[counter] = states[0]
+            self.in_ref_states[counter] = in_ref_states[0]
             self.ref_states[counter] = ref_states[0]
             self.eval_counter += 1
 
-        return normed_states, states, ref_states
+        return normed_states, states, in_ref_states, ref_states
 
     def to_torch(self, states):
         return torch.from_numpy(states).float().to(device)
@@ -125,7 +127,7 @@ class DroneDataset(torch.utils.data.Dataset):
         # Select sample
         return (
             self.normed_states[index], self.states[index],
-            self.ref_states[index]
+            self.in_ref_states[index], self.ref_states[index]
         )
 
     def prepare_data(self, states, ref_states):
@@ -176,6 +178,8 @@ class DroneDataset(torch.utils.data.Dataset):
         # transform acceleration
         torch_ref_states[:, :, 6:] *= self.kwargs["dt"]
 
+        in_ref_state = torch_ref_states[:, -1, :6]
+
         # ref_states_body = torch.unsqueeze(ref_states_body, 3)
         # for i in range(ref_states.shape[1]):
         #     # for each time step in the reference:
@@ -193,7 +197,7 @@ class DroneDataset(torch.utils.data.Dataset):
         #         world_to_body, ref_states_body[:, i, 6:9]
         #     )
         # ref_states_body = torch.squeeze(ref_states_body, dim=3)
-        return normed_drone_states, drone_states, torch_ref_states
+        return normed_drone_states, drone_states, in_ref_state, torch_ref_states
 
 
 class CartpoleDataset(torch.utils.data.Dataset):

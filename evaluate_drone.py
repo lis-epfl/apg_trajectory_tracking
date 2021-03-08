@@ -308,7 +308,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
+    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .25}
 
     # rendering
     if args.unity:
@@ -345,7 +345,7 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     reference_traj, drone_traj, _ = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=500, **traj_args
+        args.ref, max_nr_steps=2000, **traj_args
     )
 
     if args.unity:

@@ -48,7 +48,7 @@ class NetworkWrapper:
         # determine whether we also add the sample to our train data
         add_to_dataset = (self.action_counter + 1) % self.take_every_x == 0
         # preprocess state
-        in_state, current_state, ref = self.dataset.get_and_add_eval_data(
+        in_state, current_state, ref, _ = self.dataset.get_and_add_eval_data(
             current_np_state.copy(), ref_states, add_to_dataset=add_to_dataset
         )
         # check if we want to train on this sample

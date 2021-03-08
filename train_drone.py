@@ -27,11 +27,11 @@ THRESH_DIV = .4
 NR_EVAL_ITERS = 5
 STATE_SIZE = 12
 NR_ACTIONS = 10
-REF_DIM = 9
+REF_DIM = 6
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/interp_good_025"
+BASE_MODEL = "trained_models/drone/inp_last_minsnap_loss"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):
@@ -75,7 +75,7 @@ else:
     )
     in_state_size = state_data.normed_states.size()[1]
     # +9 because adding 12 things but deleting position (3)
-    net = Net(in_state_size, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS)
+    net = Net(in_state_size, 1, REF_DIM, ACTION_DIM * NR_ACTIONS, conv=0)
     (STD, MEAN) = (state_data.std, state_data.mean)
 
 # Use cuda if available
@@ -160,13 +160,13 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, current_state, ref_states = data
+            in_state, current_state, in_ref_state, ref_states = data
 
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # ------------ VERSION 1 (x states at once)-----------------
-            actions = net(in_state, ref_states)
+            actions = net(in_state, in_ref_state)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
