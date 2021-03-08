@@ -688,6 +688,19 @@ class RapidTrajectory:
 def get_reference(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
     """
     Compute reference trajectory based on start (0) and final (f) states
+    Simplified version: only interpolate between positions and velocities
+    """
+    pos_vec = (posf - pos0) / ref_length
+    vel_vec = (velf - vel0) / ref_length
+    traj = np.zeros((ref_length, 9))
+    for i in range(1, ref_length+1):
+        traj[i-1, :6] = np.concatenate((pos0 + i * pos_vec, vel0 + i * vel_vec))
+
+    return traj
+
+def get_reference_min_snap(pos0, vel0, acc0, posf, velf, delta_t=0.02, ref_length=5):
+    """
+    Compute reference trajectory based on start (0) and final (f) states
     """
     # generate trajectory
     traj = RapidTrajectory(pos0, vel0, acc0, [0, 0, -9.81])

@@ -47,7 +47,7 @@ class Polynomial:
 
         self.reference = np.vstack([start_hover, points_3d, end_hover])
         self.ref_len = len(self.reference)
-        self.target_ind = 0
+        self.target_ind = self.horizon
         self.current_ind = 0
 
         # draw trajectory on renderer
@@ -171,18 +171,15 @@ class Polynomial:
         # if we are close enough to the next point, set it as the next target,
         # otherwise stick with the current target
         if self.target_ind < self.ref_len - 2:
-            dist_from_next = np.linalg.norm(
-                drone_pos - self.reference[self.target_ind + 1]
-            )
-            if dist_from_next < self.max_drone_dist:
-                self.target_ind += 1
+            self.target_ind += 1
+            self.current_ind += 1
         else:
             self.finished = True
         goal_pos = self.reference[self.target_ind]
 
         # TODO: is the velocity simply the two subtracted? or times dt or so?
-        goal_vel = self.reference[self.target_ind +
-                                  1] - self.reference[self.target_ind]
+        goal_vel = (self.reference[self.target_ind +
+                                  1] - self.reference[self.target_ind]) / self.dt
 
         reference = get_reference(
             drone_pos,
@@ -199,15 +196,7 @@ class Polynomial:
         """
         Project drone state onto the trajectory
         """
-        start = max([self.target_ind - 20, 0])
-        end = max([self.target_ind, 2])
-        possible_locs = self.reference[start:end]
-        # compute distance to each of them
-        distances = [
-            np.linalg.norm(drone_state[:3] - loc) for loc in possible_locs
-        ]
-        # return the closest one
-        return possible_locs[np.argmin(distances)]
+        return self.reference[self.current_ind]
 
 
 class PolyObject():

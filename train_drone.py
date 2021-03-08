@@ -17,6 +17,7 @@ from neural_control.utils.plotting import plot_loss_episode_len
 DELTA_T = 0.05
 EPOCH_SIZE = 3000
 SELF_PLAY = 0.5
+SELF_PLAY_EVERY_X = 5
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
@@ -30,16 +31,19 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # "trained_models/drone/current_model"
+BASE_MODEL = "trained_models/drone/interp_good_025"
 BASE_MODEL_NAME = 'model_quad'
+
+if not os.path.exists(SAVE):
+    os.makedirs(SAVE)
 
 eval_dict = {
     "straight": {
-        "nr_test": 10,
+        "nr_test": 0,
         "max_steps": 200
     },
     "circle": {
-        "nr_test": 10,
+        "nr_test": 0,
         "max_steps": 200
     },
     "hover": {
@@ -47,7 +51,7 @@ eval_dict = {
         "max_steps": 200
     },
     "poly": {
-        "nr_test": 10,
+        "nr_test": 15,
         "max_steps": 200
     }
 }
@@ -95,6 +99,7 @@ param_dict["horizon"] = NR_ACTIONS
 param_dict["ref_length"] = NR_ACTIONS
 param_dict["treshold_divergence"] = THRESH_DIV
 param_dict["dt"] = DELTA_T
+param_dict["take_every_x"] = SELF_PLAY_EVERY_X
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
