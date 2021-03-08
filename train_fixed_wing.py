@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 
 from neural_control.dataset import WingDataset
-from neural_control.drone_loss import trajectory_loss
+from neural_control.drone_loss import trajectory_loss, fixed_wing_loss
 from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
 from neural_control.models.hutter_model import Net
 from evaluate_fixed_wing import FixedWingEvaluator
@@ -20,12 +20,12 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 STATE_SIZE = 6
-NR_ACTIONS = 20
+NR_ACTIONS = 30
 REF_DIM = 2
 ACTION_DIM = 2
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = None  # "trained_models/wing/half_corrected_working"
+BASE_MODEL = None  # "trained_models/wing/with_action_loss_stable"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
@@ -75,7 +75,7 @@ for epoch in range(NR_EPOCHS):
         controller = FixedWingNetWrapper(net, state_data, **param_dict)
         eval_env = FixedWingEvaluator(controller, **param_dict)
 
-        nr_test = 20 if epoch == 0 else 10
+        nr_test = 10 if epoch == 0 else 10
         suc_mean, suc_std = eval_env.run_eval(nr_test=nr_test)
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
@@ -86,7 +86,7 @@ for epoch in range(NR_EPOCHS):
             print(f"Sampled new data ({state_data.num_sampled_states})")
 
         # save best model
-        if epoch > 0 and suc_mean < highest_success:
+        if (epoch > 0 and suc_mean < highest_success) or (epoch + 1) % 6 == 0:
             highest_success = suc_mean
             print("Best model")
             torch.save(net, os.path.join(SAVE, "model_wing" + str(epoch)))
@@ -100,7 +100,21 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, current_state, in_ref_state, ref_state = data
+            in_state, current_state, in_ref_state, _ = data
+
+            # take current speed
+            speed = torch.sqrt(current_state[:, 2]**2 + current_state[:, 3]**2)
+            vec_len_per_step = speed * DELTA_T
+            # vector_per_step = in_ref_state * vec_len_per_step
+            # form auxiliary array with linear reference for loss computation
+            middle_ref_states = torch.zeros(
+                (in_state.size()[0], NR_ACTIONS, 2)
+            )
+            for k in range(NR_ACTIONS):
+                for j in range(2):
+                    middle_ref_states[:, k, j] = current_state[:, j] + (
+                        k + 1
+                    ) * in_ref_state[:, j] * vec_len_per_step[:]
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -121,9 +135,16 @@ for epoch in range(NR_EPOCHS):
                 drone_state = long_dynamics(drone_state, action, dt=DELTA_T)
                 intermediate_states[:, k] = drone_state
 
-            loss = trajectory_loss(
-                current_state, ref_state, intermediate_states, printout=0
+            loss = fixed_wing_loss(
+                intermediate_states, middle_ref_states, action_seq, printout=0
             )
+            # trajectory_loss(
+            #     current_state,
+            #     middle_ref_states,
+            #     intermediate_states,
+            #     action_seq,
+            #     printout=0
+            # )
 
             # Backprop
             loss.backward()

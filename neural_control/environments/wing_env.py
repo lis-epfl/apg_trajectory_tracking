@@ -93,7 +93,7 @@ def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
     Generate unit vectors that are normal distributed around mean_vec
     """
     gauss_vecs = np.random.multivariate_normal(
-        mean_vec, [[.05, 0], [0, .05]], size=num_vecs
+        mean_vec, [[.15, 0], [0, .15]], size=num_vecs
     )
     gauss_vecs[gauss_vecs[:, 0] < 0.01, 0] = 1
     # gauss_vecs = np.array(
@@ -130,6 +130,7 @@ def sample_training_data(
 
             # sample gauss vec
             drone_ref = drone_state[:2] + gauss_vecs[counter]
+            # print(gauss_vecs[counter] / np.linalg.norm(gauss_vecs[counter]))
             training_states.append(drone_state)
             training_refs.append(drone_ref)
             counter += 1

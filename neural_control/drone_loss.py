@@ -136,12 +136,48 @@ def pos_traj_loss(start_state, drone_state):
     return divergence_loss, progress_loss
 
 
-def trajectory_loss(start_state, target_state, drone_state, printout=0):
+action_prior = torch.tensor([.25, .5])
+
+
+def fixed_wing_loss(drone_states, linear_reference, actions, printout=0):
+    div_weight = torch.tensor([1, 100])
+    pitch_weight = 0
+    action_weight = 1
+
+    divergence_loss = torch.sum(
+        (drone_states[:, :, :2] - linear_reference)**2 * div_weight
+    ) * 0.1
+
+    # pitch loss:
+    pitch_loss = torch.sum(drone_states[:, :, 5]**2)
+
+    # action loss
+    action_loss = torch.sum((actions - action_prior)**2)
+
+    # together
+    loss = divergence_loss + (pitch_weight *
+                              pitch_loss) + (action_weight * action_loss)
+    if printout:
+        import numpy as np
+        print(linear_reference.size(), drone_states.size())
+        np.set_printoptions(precision=3, suppress=True)
+        print("target")
+        print(linear_reference.detach().numpy()[0])
+        print("drone states")
+        print(drone_states.detach().numpy()[0])
+        exit()
+    return loss
+
+
+def trajectory_loss(
+    start_state, target_state, drone_state, actions, printout=0
+):
     """
     Trajectory loss for position and attitude (in contrast to pos_traj_loss)
     Input states must be normalized!
     """
     div_weight = 1
+    action_weight = 0
     pitch_weight = 1
 
     start_pos = start_state[:, :2]
@@ -154,6 +190,7 @@ def trajectory_loss(start_state, target_state, drone_state, printout=0):
         # normalize by distance between states
         # total_distance = (start_pos - target_pos)**2
         projected_pos = project_to_line(start_pos, target_pos, drone_pos)
+        # projected_states[:, k] = projected_pos
 
         # divergence from the desired route
         divergence_loss_all = (projected_pos - drone_pos)**2
@@ -162,8 +199,12 @@ def trajectory_loss(start_state, target_state, drone_state, printout=0):
     # pitch loss:
     pitch_loss = torch.sum(drone_state[:, :, 5]**2)
 
+    # action loss
+    action_loss = torch.sum((actions - action_prior)**2)
+
     # together
-    loss = (div_weight * divergence_loss) + (pitch_weight * pitch_loss)
+    loss = (div_weight * divergence_loss) + (pitch_weight * pitch_loss
+                                             ) + (action_weight * action_loss)
 
     # minimize remaining distance to target (normalized on total distance)
     # progress_loss_all = (projected_pos - target_pos)**2
@@ -173,27 +214,14 @@ def trajectory_loss(start_state, target_state, drone_state, printout=0):
     # av_loss = torch.sum(drone_state[:, 5]**2)
 
     if printout:
-        print(
-            total_distance.size(), progress_loss_all.size(),
-            progress_loss.size()
-        )
-        print("start pos", start_pos[0])
-        print("drone pos", drone_pos[0])
-        print("target pos", target_pos[0])
-        print("drone on line", projected_pos[0])
-        print()
-        print("----------------")
-        print("state", state[0])
-        print("target", target_state[0])
-        print("drone", drone_state[0])
-        print("divergence all", divergence_loss_all[0])
-        print("progress all", progress_loss_all[0])
-        print("divergence", div_weight * divergence_loss)
-        print("progress_loss", pro_weight * progress_loss)
-        print("av loss", av_weight * av_loss)
-        print(
-            "final", pro_weight * progress_loss + div_weight * divergence_loss
-        )
+        import numpy as np
+        np.set_printoptions(precision=3, suppress=True)
+        print("target")
+        print(target_state.detach().numpy()[0])
+        print("drone states")
+        print(drone_state.detach().numpy()[0])
+        print("projected")
+        print(projected_states.detach().numpy()[0])
         exit()
     return loss
     # (
