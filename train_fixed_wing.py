@@ -20,12 +20,12 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 STATE_SIZE = 6
-NR_ACTIONS = 5
+NR_ACTIONS = 20
 REF_DIM = 2
 ACTION_DIM = 2
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = None  # "trained_models/wing/current_model"
+BASE_MODEL = None  # "trained_models/wing/half_corrected_working"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
@@ -75,7 +75,7 @@ for epoch in range(NR_EPOCHS):
         controller = FixedWingNetWrapper(net, state_data, **param_dict)
         eval_env = FixedWingEvaluator(controller, **param_dict)
 
-        nr_test = 40 if epoch == 0 else 10
+        nr_test = 20 if epoch == 0 else 10
         suc_mean, suc_std = eval_env.run_eval(nr_test=nr_test)
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
@@ -111,18 +111,18 @@ for epoch in range(NR_EPOCHS):
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
             # start_state = current_state.clone()
-            # intermediate_states = torch.zeros(
-            #     in_state.size()[0], NR_ACTIONS, STATE_SIZE
-            # )
+            intermediate_states = torch.zeros(
+                in_state.size()[0], NR_ACTIONS, STATE_SIZE
+            )
             drone_state = current_state
             for k in range(NR_ACTIONS):
                 # extract action
                 action = action_seq[:, k]
                 drone_state = long_dynamics(drone_state, action, dt=DELTA_T)
-            # intermediate_states[:, k] = current_state
+                intermediate_states[:, k] = drone_state
 
             loss = trajectory_loss(
-                current_state, ref_state, drone_state, printout=0
+                current_state, ref_state, intermediate_states, printout=0
             )
 
             # Backprop

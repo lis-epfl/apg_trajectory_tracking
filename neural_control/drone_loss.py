@@ -141,23 +141,26 @@ def trajectory_loss(start_state, target_state, drone_state, printout=0):
     Trajectory loss for position and attitude (in contrast to pos_traj_loss)
     Input states must be normalized!
     """
-    div_weight = 10
+    div_weight = 1
     pitch_weight = 1
 
-    drone_pos = drone_state[:, :2]
     start_pos = start_state[:, :2]
     target_pos = target_state[:, :2]
 
-    # normalize by distance between states
-    # total_distance = (start_pos - target_pos)**2
-    projected_pos = project_to_line(start_pos, target_pos, drone_pos)
+    divergence_loss = 0
+    for k in range(drone_state.size()[1]):
+        drone_pos = drone_state[:, k, :2]
 
-    # divergence from the desired route
-    divergence_loss_all = (projected_pos - drone_pos)**2
-    divergence_loss = torch.sum(divergence_loss_all)
+        # normalize by distance between states
+        # total_distance = (start_pos - target_pos)**2
+        projected_pos = project_to_line(start_pos, target_pos, drone_pos)
+
+        # divergence from the desired route
+        divergence_loss_all = (projected_pos - drone_pos)**2
+        divergence_loss += (k * torch.sum(divergence_loss_all))
 
     # pitch loss:
-    pitch_loss = torch.sum(drone_state[:, 5]**2)
+    pitch_loss = torch.sum(drone_state[:, :, 5]**2)
 
     # together
     loss = (div_weight * divergence_loss) + (pitch_weight * pitch_loss)
