@@ -240,11 +240,10 @@ class FixedWingDrone(RenderedObject):
         theta = status[4]
         x_dot = u * np.cos(theta) + w * np.sin(theta)  # forward
         h_dot = u * np.sin(theta) - w * np.cos(theta)  # upward
-        theta_vec = np.array([1, 0, np.sin(theta)]) * 3
+        # theta_vec = np.array([1, 0, np.sin(theta)]) * 3
         vel_vec = np.array([x_dot, 0, h_dot])
         vel_vec = vel_vec / np.linalg.norm(vel_vec) * 3
-        renderer.draw_line_3d(position, position + vel_vec)
-        renderer.draw_line_3d(position, position + theta_vec, color=(1, 0, 0))
+        renderer.draw_line_3d(position, position + vel_vec, color=(1, 0, 0))
 
         # draw target point
         for target in self.targets:
@@ -267,8 +266,8 @@ class FixedWingDrone(RenderedObject):
         rotated = body_to_world(trafo, [0, 0, 0.5])
         renderer.draw_line_3d(position, position + rotated)
 
-        QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 1)
-        QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 1)
+        QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 0)
+        QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 0)
 
     @staticmethod
     def draw_airplane(renderer, position, euler):

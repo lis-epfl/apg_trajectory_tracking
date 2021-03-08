@@ -24,7 +24,7 @@ class SimpleWingEnv(gym.Env):
         self.renderer.add_object(self.drone_render_object)
 
     def zero_reset(self):
-        self._state = np.array([0, 0, 10, 0, 0, 0])
+        self._state = np.array([0, 0, 10, 0.615, 0, 0])
 
     def reset(self):
         # no need to randomize because relative position used anyway
@@ -178,9 +178,9 @@ def sample_point_and_waypoint(
 
 
 if __name__ == "__main__":
-    states, refs = sample_training_data(1000)
-    print(states.shape, refs.shape)
-    np.save("states.npy", states)
-    np.save("ref.npy", refs)
-    # env = SimpleWingEnv(dt)
-    # run_wing_flight(env, traj_len=1000, dt=0.01, render=1)
+    # states, refs = sample_training_data(1000)
+    # print(states.shape, refs.shape)
+    # np.save("states.npy", states)
+    # np.save("ref.npy", refs)
+    env = SimpleWingEnv(0.01)
+    run_wing_flight(env, traj_len=1000, dt=0.01, render=1)
