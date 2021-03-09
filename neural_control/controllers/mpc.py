@@ -47,7 +47,7 @@ class MPC(object):
         self.addon = np.swapaxes(
             np.vstack(
                 (
-                    np.expand_dims(np.arange(0, self._T, self._dt), 0),
+                    np.expand_dims(np.arange(0, self._T-0.001, self._dt), 0),
                     np.zeros((1, self._N)), np.zeros((1, self._N)) + 10
                 )
             ), 1, 0
@@ -326,7 +326,7 @@ class MPC(object):
         # goal_state = changed_middle_ref_states[-1].copy().tolist()
         goal_state = np.zeros(self._s_dim)
         goal_state[:3] = (
-            2 * changed_middle_ref_states[-1, :3] +
+            2 * changed_middle_ref_states[-1, :3] -
             changed_middle_ref_states[-2, :3]
         )
         goal_state[6:9] = changed_middle_ref_states[-1, 6:9]

@@ -51,7 +51,8 @@ class NetworkWrapper:
         in_state, current_state, ref, _ = self.dataset.get_and_add_eval_data(
             current_np_state.copy(), ref_states, add_to_dataset=add_to_dataset
         )
-        # check if we want to train on this sample
+        # TODO merge: ref_states also .copy()?
+        #  check if we want to train on this sample
         do_training = (
             (self.optimizer is not None)
             and np.random.rand() < 1 / self.take_every_x

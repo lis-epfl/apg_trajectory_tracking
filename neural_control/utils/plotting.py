@@ -68,6 +68,29 @@ def plot_position(collect_data, save_path=None):
         plt.savefig(save_path)
 
 
+def print_state_ref_div(np_ref, np_state):
+    """
+    pretty printing of target trajectory and actual trajectory
+    """
+    np.set_printoptions(suppress=True, precision=3)
+    traj_len = len(np_ref)
+    print("Positions:")
+    for i in range(traj_len):
+        print(np_state[i, :3], "ref:", np_ref[i, :3])
+
+    print("Attitudes:")
+    for i in range(traj_len):
+        print(np_state[i, 3:6], "ref:", np_ref[i, 3:6])
+
+    print("Velocities:")
+    for i in range(traj_len):
+        print(np_state[i, 6:9], "ref:", np_ref[i, 6:9])
+
+    print("Body rates:")
+    for i in range(traj_len):
+        print(np_state[i, 9:], "ref:", np_ref[i, 9:])
+
+
 def plot_wing_pos(states, target=None, save_path=None):
     plt.figure(figsize=(10, 10))
     plt.plot(states[:, 0], states[:, 1], label="altitude")

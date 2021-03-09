@@ -176,6 +176,7 @@ class DroneDataset(torch.utils.data.Dataset):
             torch_ref_states[:,
                              i, :3] = (torch_ref_states[:, i, :3] - drone_pos)
         # transform acceleration
+        # TODO merge: delete this line?
         torch_ref_states[:, :, 6:] *= self.kwargs["dt"]
 
         in_ref_state = torch_ref_states[:, -1, :6]
@@ -342,7 +343,7 @@ class WingDataset(torch.utils.data.Dataset):
         # normalize
         relative_ref = ref_states - states[:, :2]
         ref_vec_norm = torch.sqrt(torch.sum(relative_ref**2, axis=1))
-        normed_ref_states = (relative_ref.t()/ref_vec_norm).t()
+        normed_ref_states = (relative_ref.t() / ref_vec_norm).t()
 
         return normed_states, states, normed_ref_states, ref_states
 

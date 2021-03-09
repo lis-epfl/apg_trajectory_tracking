@@ -230,7 +230,6 @@ def random_angle(random_state, max_pitch_roll):
 
 def trajectory_training_data(
     len_data,
-    step_size=0,
     max_drone_dist=0.1,
     ref_length=5,
     reset_strength=1,
@@ -242,7 +241,6 @@ def trajectory_training_data(
     Generate training dataset for trajectories as input
     Arguments:
         len_data: int, how much data to generate
-        step_size: Distance between two points on the trajectory
         max_drone_dist: Maximum distance of the drone from the first state
         ref_length: Number of states sampled from reference traj
         reset_strength: How much to reset the model

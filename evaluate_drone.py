@@ -15,6 +15,7 @@ from neural_control.utils.plotting import (
 from neural_control.utils.straight import Hover, Straight
 from neural_control.utils.circle import Circle
 from neural_control.utils.polynomial import Polynomial
+from neural_control.utils.random_traj import Random
 from neural_control.dataset import DroneDataset
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
@@ -98,7 +99,8 @@ class QuadEvaluator():
             "hover": Hover,
             "straight": Straight,
             "circle": Circle,
-            "poly": Polynomial
+            "poly": Polynomial,
+            "rand": Random
         }
         reference = object_dict[traj_type](
             current_np_state.copy(),
@@ -109,6 +111,9 @@ class QuadEvaluator():
             dt=self.dt,
             **traj_args
         )
+        if traj_type == "rand":
+            self.eval_env._state.from_np(reference.initial_state)
+            current_np_state = self.eval_env._state.as_np
 
         self.help_render()
         # start = input("start")
@@ -286,7 +291,7 @@ if __name__ == "__main__":
         "-e", "--epoch", type=str, default="", help="Saved epoch"
     )
     parser.add_argument(
-        "-r", "--ref", type=str, default="circle", help="which trajectory"
+        "-r", "--ref", type=str, default="poly", help="which trajectory"
     )
     parser.add_argument(
         '-p',
@@ -308,7 +313,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .25}
+    params = {"render": 1, "dt": 0.05, "horizon": 20, "max_drone_dist": .5}
 
     # rendering
     if args.unity:
@@ -331,8 +336,8 @@ if __name__ == "__main__":
         "plane": [0, 2],
         "radius": 2,
         "direction": 1,
-        "thresh_div": 3,
-        "thresh_stable": 1
+        "thresh_div": 10,
+        "thresh_stable": 2
     }
     if args.points is not None:
         from neural_control.utils.predefined_trajectories import (
@@ -345,7 +350,7 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     reference_traj, drone_traj, _ = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=2000, **traj_args
+        args.ref, max_nr_steps=500, **traj_args
     )
 
     if args.unity:

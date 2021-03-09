@@ -190,6 +190,10 @@ class Polynomial:
             ref_length=self.horizon,
             delta_t=self.dt
         )
+        # ref_zero = np.zeros((self.horizon, 9))
+        # ref_zero[:, :3] = goal_pos
+        # ref_zero[:, 3:6] = goal_vel
+        # reference = ref_zero
         return reference
 
     def project_on_ref(self, drone_state):
@@ -205,7 +209,7 @@ class PolyObject():
         self.points = np.array(
             [
                 reference_arr[i] for i in range(len(reference_arr))
-                if i % 20 == 0
+                if i % 10 == 0
             ]
         )
         self.points[:, 2] += 1
