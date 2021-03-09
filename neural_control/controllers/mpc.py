@@ -47,7 +47,7 @@ class MPC(object):
         self.addon = np.swapaxes(
             np.vstack(
                 (
-                    np.expand_dims(np.arange(0, self._T-0.001, self._dt), 0),
+                    np.expand_dims(np.arange(0, self._T - 0.001, self._dt), 0),
                     np.zeros((1, self._N)), np.zeros((1, self._N)) + 10
                 )
             ), 1, 0
@@ -94,7 +94,7 @@ class MPC(object):
             self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
         elif self.dynamics_model == "simple_quad":
             # cost matrix for the action
-            self._Q_u = np.diag([10, .1, .1, .1])
+            self._Q_u = np.diag([50, 1, 1, 1])
             self._Q_pen = np.diag(
                 [100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1]
             )
