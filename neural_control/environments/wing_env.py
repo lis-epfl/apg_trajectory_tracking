@@ -88,12 +88,12 @@ def run_wing_flight(env, traj_len=1000, render=0, **kwargs):
     return np.array(sampled_states)
 
 
-def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
+def generate_unit_vecs(num_vecs, mean_vec=[1, 0], std=.15):
     """
     Generate unit vectors that are normal distributed around mean_vec
     """
     gauss_vecs = np.random.multivariate_normal(
-        mean_vec, [[.15, 0], [0, .15]], size=num_vecs
+        mean_vec, [[std, 0], [0, std]], size=num_vecs
     )
     gauss_vecs[gauss_vecs[:, 0] < 0.01, 0] = 1
     # gauss_vecs = np.array(
@@ -103,14 +103,14 @@ def generate_unit_vecs(num_vecs, mean_vec=[1, 0]):
 
 
 def sample_training_data(
-    num_samples, dt=0.01, take_every=10, traj_len=1000, **kwargs
+    num_samples, dt=0.01, take_every=10, traj_len=1000, vec_std=.15, **kwargs
 ):
     """
     Fly some trajectories in order to sample drone states
     Then add random unit vectors in all directions
     """
     # sample random direction vectors
-    gauss_vecs = generate_unit_vecs(num_samples)
+    gauss_vecs = generate_unit_vecs(num_samples, std=vec_std)
     env = SimpleWingEnv(dt)
 
     # combine states and gauss_vecs

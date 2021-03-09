@@ -20,6 +20,7 @@ DELTA_T = 0.05
 EPOCH_SIZE = 3000
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
+VEC_STD = 0.15
 BATCH_SIZE = 8
 STATE_SIZE = 6
 NR_ACTIONS = 10
@@ -40,7 +41,7 @@ if BASE_MODEL is not None:
     with open(os.path.join(BASE_MODEL, "param_dict.json"), "r") as outfile:
         param_dict = json.load(outfile)
 else:
-    param_dict = {"dt": DELTA_T, "horizon": NR_ACTIONS}
+    param_dict = {"dt": DELTA_T, "horizon": NR_ACTIONS, "vec_std": VEC_STD}
     net = Net(
         STATE_SIZE - REF_DIM, 1, REF_DIM, ACTION_DIM * NR_ACTIONS, conv=False
     )
@@ -83,6 +84,8 @@ for epoch in range(NR_EPOCHS):
         success_std_list.append(suc_std)
 
         if (epoch + 1) % 4 == 0:
+            # increase the standard deviation
+            # state_data.kwargs["vec_std"] += .05
             # renew the sampled data
             state_data.resample_data()
             print(f"Sampled new data ({state_data.num_sampled_states})")
