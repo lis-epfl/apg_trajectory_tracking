@@ -102,21 +102,17 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, current_state, in_ref_state, ref_states = data
+            in_state, current_state, in_ref_state, _ = data
 
             # # GIVE LINEAR TRAJECTORY FOR LOSS
             speed = torch.sqrt(current_state[:, 2]**2 + current_state[:, 3]**2)
-            vec_len_per_step = speed * DELTA_T
-            # vector_per_step = in_ref_state * vec_len_per_step
+            vec_len_per_step = speed * DELTA_T * NR_ACTIONS
             # form auxiliary array with linear reference for loss computation
-            middle_ref_states = torch.zeros(
-                (in_state.size()[0], NR_ACTIONS, 2)
-            )
-            for k in range(NR_ACTIONS):
-                for j in range(2):
-                    middle_ref_states[:, k, j] = current_state[:, j] + (
-                        k + 1
-                    ) * in_ref_state[:, j] * vec_len_per_step[:]
+            target_pos = torch.zeros((in_state.size()[0], 2))
+            for j in range(2):
+                target_pos[:, j] = current_state[:, j] + (
+                    in_ref_state[:, j] * vec_len_per_step
+                )
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -125,27 +121,15 @@ for epoch in range(NR_EPOCHS):
             actions = net(in_state, in_ref_state)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-            # unnnormalize state
-            # start_state = current_state.clone()
-            intermediate_states = torch.zeros(
-                in_state.size()[0], NR_ACTIONS, STATE_SIZE
-            )
-            drone_state = current_state
+
             for k in range(NR_ACTIONS):
                 # extract action
                 action = action_seq[:, k]
-                drone_state = long_dynamics(drone_state, action, dt=DELTA_T)
-                intermediate_states[:, k] = drone_state
+                current_state = long_dynamics(
+                    current_state, action, dt=DELTA_T
+                )
 
-            loss = fixed_wing_loss(
-                intermediate_states, middle_ref_states, action_seq, printout=0
-            )
-            # loss = trajectory_loss(
-            #     current_state, ref_states, drone_state, action_seq, printout=0
-            # )
-            # loss = angle_loss(
-            #     current_state, ref_states, drone_state, printout=0
-            # )
+            loss = fixed_wing_loss(current_state, target_pos, printout=0)
 
             # Backprop
             loss.backward()

@@ -139,24 +139,13 @@ def pos_traj_loss(start_state, drone_state):
 action_prior = torch.tensor([.25, .5])
 
 
-def fixed_wing_loss(drone_states, linear_reference, actions, printout=0):
+def fixed_wing_loss(drone_states, linear_reference, printout=0):
     div_weight = torch.tensor([1, 100])
-    pitch_weight = 0
-    action_weight = 0
 
     loss = torch.sum(
-        (drone_states[:, :, :2] - linear_reference)**2 * div_weight
+        (drone_states[:, :2] - linear_reference)**2 * div_weight
     ) * 0.1
 
-    # # pitch loss:
-    # pitch_loss = torch.sum(drone_states[:, :, 5]**2)
-
-    # # action loss
-    # action_loss = torch.sum((actions - action_prior)**2)
-
-    # # together
-    # loss = divergence_loss + (pitch_weight *
-    #                           pitch_loss) + (action_weight * action_loss)
     if printout:
         import numpy as np
         print(linear_reference.size(), drone_states.size())

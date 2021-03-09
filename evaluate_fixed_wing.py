@@ -41,10 +41,13 @@ class FixedWingEvaluator:
         while stable and len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
+            # print(action[0])
             state, stable = self.eval_env.step(tuple(action[0]))
+            # print(state[2])
             if self.render:
                 self.eval_env.render()
-            drone_traj.append(state)
+                time.sleep(.05)
+            drone_traj.append(np.concatenate((state, action[0])))
             if state[0] > current_target[0]:
                 if current_target_ind < len(target_points) - 1:
                     current_target_ind += 1
@@ -108,7 +111,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # parameters
-    params = {"render": 1, "dt": 0.01, "horizon": 10}
+    params = {"render": 1, "dt": 0.05, "horizon": 10}
 
     # load model
     model_name = args.model
@@ -121,19 +124,20 @@ if __name__ == "__main__":
     evaluator = FixedWingEvaluator(controller, **params)
 
     # only run evaluation without render
-    # out_path = "../presentations/intel_meeting_26_02"
+    # tic = time.time()
+    # out_path = "../presentations/intel_meeting_10_03"
     # evaluator.render = 0
     # dists_from_target = evaluator.run_eval(nr_test=100, return_dists=True)
-    # np.save(os.path.join(out_path, "dists_target.npy"), dists_from_target)
+    # np.save(os.path.join(out_path, "dists_mpc_last.npy"), dists_from_target)
+    # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    # test_traj = run_wing_flight(num_traj=1, traj_len=350, dt=params["dt"])
-    # target_point = [test_traj[0, 300, :2]]
-    # print("target_point", target_point)
-    target_point = [[30, -5], [60, -1]]
+    target_point = [[70, 4], [140, -4]]
 
     # RUN
-    drone_traj = evaluator.fly_to_point(target_point)
+    drone_traj = evaluator.fly_to_point(target_point, max_steps=1000)
+    print(drone_traj.shape)
+    np.save("drone_traj.npy", drone_traj)
 
     # EVAL
     plot_wing_pos(
