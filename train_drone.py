@@ -7,7 +7,9 @@ import torch
 import torch.nn.functional as F
 
 from neural_control.dataset import DroneDataset
-from neural_control.drone_loss import drone_loss_function, trajectory_loss, reference_loss
+from neural_control.drone_loss import (
+    drone_loss_function, trajectory_loss, reference_loss, simply_last_loss
+)
 from neural_control.environments.drone_dynamics import simulate_quadrotor
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from evaluate_drone import QuadEvaluator
@@ -169,8 +171,7 @@ for epoch in range(NR_EPOCHS):
             actions = net(in_state, in_ref_state)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-            # unnnormalize state
-            # start_state = current_state.clone()
+            # save the reached states
             intermediate_states = torch.zeros(
                 in_state.size()[0], NR_ACTIONS, STATE_SIZE
             )
@@ -182,8 +183,8 @@ for epoch in range(NR_EPOCHS):
                 )
                 intermediate_states[:, k] = current_state
 
-            loss = reference_loss(
-                intermediate_states, ref_states, printout=0, delta_t=DELTA_T
+            loss = simply_last_loss(
+                intermediate_states, ref_states[:, -1], printout=0,
             )
 
             # Backprop
