@@ -20,7 +20,7 @@ PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 STATE_SIZE = 6
-NR_ACTIONS = 30
+NR_ACTIONS = 20
 REF_DIM = 2
 ACTION_DIM = 2
 LEARNING_RATE = 0.0001
@@ -100,21 +100,21 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, current_state, in_ref_state, _ = data
+            in_state, current_state, in_ref_state, ref_states = data
 
-            # take current speed
-            speed = torch.sqrt(current_state[:, 2]**2 + current_state[:, 3]**2)
-            vec_len_per_step = speed * DELTA_T
-            # vector_per_step = in_ref_state * vec_len_per_step
-            # form auxiliary array with linear reference for loss computation
-            middle_ref_states = torch.zeros(
-                (in_state.size()[0], NR_ACTIONS, 2)
-            )
-            for k in range(NR_ACTIONS):
-                for j in range(2):
-                    middle_ref_states[:, k, j] = current_state[:, j] + (
-                        k + 1
-                    ) * in_ref_state[:, j] * vec_len_per_step[:]
+            # # GIVE LINEAR TRAJECTORY FOR LOSS
+            # speed = torch.sqrt(current_state[:, 2]**2 + current_state[:, 3]**2)
+            # vec_len_per_step = speed * DELTA_T
+            # # vector_per_step = in_ref_state * vec_len_per_step
+            # # form auxiliary array with linear reference for loss computation
+            # middle_ref_states = torch.zeros(
+            #     (in_state.size()[0], NR_ACTIONS, 2)
+            # )
+            # for k in range(NR_ACTIONS):
+            #     for j in range(2):
+            #         middle_ref_states[:, k, j] = current_state[:, j] + (
+            #             k + 1
+            #         ) * in_ref_state[:, j] * vec_len_per_step[:]
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -125,26 +125,22 @@ for epoch in range(NR_EPOCHS):
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
             # unnnormalize state
             # start_state = current_state.clone()
-            intermediate_states = torch.zeros(
-                in_state.size()[0], NR_ACTIONS, STATE_SIZE
-            )
+            # intermediate_states = torch.zeros(
+            #     in_state.size()[0], NR_ACTIONS, STATE_SIZE
+            # )
             drone_state = current_state
             for k in range(NR_ACTIONS):
                 # extract action
                 action = action_seq[:, k]
                 drone_state = long_dynamics(drone_state, action, dt=DELTA_T)
-                intermediate_states[:, k] = drone_state
+                # intermediate_states[:, k] = drone_state
 
-            loss = fixed_wing_loss(
-                intermediate_states, middle_ref_states, action_seq, printout=0
-            )
-            # trajectory_loss(
-            #     current_state,
-            #     middle_ref_states,
-            #     intermediate_states,
-            #     action_seq,
-            #     printout=0
+            # loss = fixed_wing_loss(
+            #     intermediate_states, middle_ref_states, action_seq, printout=0
             # )
+            loss = trajectory_loss(
+                current_state, ref_states, drone_state, action_seq, printout=0
+            )
 
             # Backprop
             loss.backward()
