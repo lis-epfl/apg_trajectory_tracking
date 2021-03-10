@@ -139,6 +139,7 @@ class QuadRotorEnvBase(gym.Env):
         state_arr[3:] = 0
         self._state._velocity = np.zeros(3)
         self._state.from_np(state_arr)
+        return self._state.as_np
 
     def render_reset(self, strength=.8):
         """

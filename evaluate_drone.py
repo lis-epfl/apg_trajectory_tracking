@@ -112,8 +112,8 @@ class QuadEvaluator():
             **traj_args
         )
         if traj_type == "rand":
-            self.eval_env._state.from_np(reference.initial_state)
-            current_np_state = self.eval_env._state.as_np
+            # self.eval_env._state.from_np(reference.initial_state)
+            current_np_state = self.eval_env.zero_reset(*tuple(reference.initial_state[:3]))
 
         self.help_render()
         # start = input("start")

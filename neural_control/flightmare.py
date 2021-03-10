@@ -80,10 +80,11 @@ class FlightmareWrapper(QuadRotorEnvBase):
 
     def zero_reset(self, position_x=0, position_y=0, position_z=2):
         """
-                TODO: should ideally set vel to zero
-                and position to arguments pos_x etc
-                """
-        return self.reset()
+        set state to given position and zero velocity
+        """
+        super().zero_reset(position_x, position_y, position_z)
+        obs = self.env.zero_reset(position_x, position_y, position_z)
+        return self._state.as_np
 
     def step(self, action, thresh=.8):
         """

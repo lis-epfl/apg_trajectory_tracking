@@ -571,7 +571,7 @@ def generate_trajectory(
         duration, 0.01
     )
     # dt for trajectory generation is 0.01, then transform back
-    take_every_nth = int(dt / 0.01)
+    take_every_nth = 4 # int(dt / 0.01)
     taken_every = trajectory[::take_every_nth, :]
     # transform to euler angels
     quaternions = taken_every[:, 3:7]
@@ -583,7 +583,7 @@ def generate_trajectory(
     # )
     transformed_ref = np.hstack(
         (
-            taken_every[:, :3], euler_angles, taken_every[:, 7:10],
+            taken_every[:, :3], euler_angles, taken_every[:, 7:10] / take_every_nth,
             taken_every[:, 16:19]
         )
     )
