@@ -313,7 +313,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 20, "max_drone_dist": .5}
+    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
 
     # rendering
     if args.unity:

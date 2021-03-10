@@ -31,9 +31,9 @@ STATE_SIZE = 12
 NR_ACTIONS = 10
 REF_DIM = 6
 ACTION_DIM = 4
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.01
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/inp_last_minsnap_loss"
+BASE_MODEL = None  # "trained_models/drone/inp_last_minsnap_loss"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):
@@ -143,7 +143,7 @@ for epoch in range(NR_EPOCHS):
                 - self play counter: {state_data.get_eval_index()}"
             )
 
-        if suc_mean > take_steps * steps_per_eval - 50:
+        if suc_mean > take_steps * steps_per_eval - 50 and take_steps < 10:
             # evaluate for more steps
             take_steps += 1
 
@@ -184,7 +184,9 @@ for epoch in range(NR_EPOCHS):
                 intermediate_states[:, k] = current_state
 
             loss = simply_last_loss(
-                intermediate_states, ref_states[:, -1], printout=0,
+                intermediate_states,
+                ref_states[:, -1],
+                printout=0,
             )
 
             # Backprop
