@@ -20,6 +20,29 @@ inertia_vector = ca.SX(
 )
 kinv_ang_vel_tau = ca.SX(np.array([16.6, 16.6, 5.0]))
 
+# ------------------ constants ---------------------
+m = 1.01
+I_xx = 0.04766
+rho = 1.225
+S = 0.276
+c = 0.185
+g = 9.81
+# linearized for alpha = 0 and u = 12 m/s
+Cl0 = 0.3900
+Cl_alpha = 4.5321
+Cl_q = 0.3180
+Cl_del_e = 0.527
+# drag coefficients
+Cd0 = 0.0765
+Cd_alpha = 0.3346
+Cd_q = 0.354
+Cd_del_e = 0.004
+# moment coefficients
+Cm0 = 0.0200
+Cm_alpha = -1.4037
+Cm_q = -0.1324
+Cm_del_e = -0.4236
+
 
 #
 class MPC(object):
@@ -53,63 +76,73 @@ class MPC(object):
             ), 1, 0
         )
 
+        # cost matrix for tracking the pendulum motion
         if self.dynamics_model == "high_mpc":
-            # Quadrotor constant
-            self._w_max_xy = 6.0
-            self._w_min_xy = -6.0
-            self._thrust_min = 2.0
-            self._thrust_max = 20.0
-            # state dimension (px, py, pz,           # quadrotor position
-            #                  qw, qx, qy, qz,       # quadrotor quaternion
-            #                  vx, vy, vz,           # quadrotor linear velocity
-            self._s_dim = 10
-            # action dimensions (c_thrust, wx, wy, wz)
-            self._u_dim = 4
+            self._initParamsHighMPC()
         elif self.dynamics_model == "simple_quad":
-            # Quadrotor constant
-            self._w_max_xy = 1
-            self._w_min_xy = 0
-            self._thrust_min = 0
-            self._thrust_max = 1
-            self._s_dim = 12
-            self._u_dim = 4
+            self._initParamsSimpleQuad()
         elif self.dynamics_model == "fixed_wing":
-            self._s_dim = 6
-            self._u_dim = 2
-            self._w_min_xy = 0
-            self._w_max_xy = 1
-            self._thrust_min = 0
-            self._thrust_max = 1
+            self._initParamsFixedWing()
 
         # cost matrix for tracking the goal point
         self._Q_goal = np.zeros((self._s_dim, self._s_dim))
 
-        # cost matrix for tracking the pendulum motion
-        if self.dynamics_model == "high_mpc":
-            # cost matrix for the action
-            self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])
-            self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 0, 0, 10, 10])
-            # initial state and control action
-            self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-            self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
-        elif self.dynamics_model == "simple_quad":
-            # cost matrix for the action
-            self._Q_u = np.diag([50, 1, 1, 1])
-            self._Q_pen = np.diag(
-                [100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1]
-            )
-            # initial state and control action TODO
-            self._quad_s0 = (np.zeros(12)).tolist()
-            self._quad_u0 = [0.781, .5, .5, .5]
-        elif self.dynamics_model == "fixed_wing":
-            # cost matrix for the action
-            self._Q_u = np.diag([0 for _ in range(self._u_dim)])
-            self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
-            # initial states
-            self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
-            self._quad_u0 = (np.zeros(2) + .5).tolist()
-
         self._initDynamics()
+
+    def _initParamsHighMPC(self):
+        # Quadrotor constant
+        self._w_max_xy = 6.0
+        self._w_min_xy = -6.0
+        self._thrust_min = 2.0
+        self._thrust_max = 20.0
+        # state dimension (px, py, pz,           # quadrotor position
+        #                  qw, qx, qy, qz,       # quadrotor quaternion
+        #                  vx, vy, vz,           # quadrotor linear velocity
+        self._s_dim = 10
+        # action dimensions (c_thrust, wx, wy, wz)
+        self._u_dim = 4
+
+        # cost matrix for the action
+        self._Q_u = np.diag([0.1 for _ in range(self._u_dim)])
+        self._Q_pen = np.diag([0, 100, 100, 0, 0, 0, 0, 0, 10, 10])
+        # initial state and control action
+        self._quad_s0 = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self._quad_u0 = [9.81, 0.0, 0.0, 0.0]
+        # default u
+        self._default_u = [self._gz, 0, 0, 0]
+
+    def _initParamsSimpleQuad(self):
+        # Quadrotor constant
+        self._w_max_xy = 1
+        self._w_min_xy = 0
+        self._thrust_min = 0
+        self._thrust_max = 1
+        self._s_dim = 12
+        self._u_dim = 4
+        # cost matrix for the action
+        self._Q_u = np.diag([50, 1, 1, 1])
+        self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
+        # initial state and control action TODO
+        self._quad_s0 = (np.zeros(12)).tolist()
+        self._quad_u0 = [0.781, .5, .5, .5]
+        # default u
+        self._default_u = [.781, .5, .5, .5]
+
+    def _initParamsFixedWing(self):
+        self._s_dim = 6
+        self._u_dim = 2
+        self._w_min_xy = 0
+        self._w_max_xy = 1
+        self._thrust_min = 0
+        self._thrust_max = 1
+        # cost matrix for the action
+        self._Q_u = np.diag([0, 10])
+        self._Q_pen = np.diag([1000, 1000, 0, 0, 0, 0])
+        # initial states
+        self._quad_s0 = np.array([0, 0, 10, 0, 0, 0]).tolist()
+        self._quad_u0 = [.25, .5]
+        # default u
+        self._default_u = [.25, .5]
 
     def _initDynamics(self, ):
         # # # # # # # # # # # # # # # # # # #
@@ -213,12 +246,7 @@ class MPC(object):
                     self._s_dim+(self._s_dim+3)*(k+1)-3])
                 cost_gap_k = f_cost_gap(delta_p_k)
 
-            if self.dynamics_model == "simple_quad":
-                delta_u_k = U[:, k] - [.781, .5, .5, .5]
-            elif self.dynamics_model == "high_mpc":
-                delta_u_k = U[:, k] - [self._gz, 0, 0, 0]
-            elif self.dynamics_model == "fixed_wing":
-                delta_u_k = U[:, k] - [.5, .5]
+            delta_u_k = U[:, k] - self._default_u
 
             cost_u_k = f_cost_u(delta_u_k)
 
@@ -304,9 +332,12 @@ class MPC(object):
         #     print([round(s[0],2) for s in traj_test])
         # return optimal action, and a sequence of predicted optimal trajectory.
         # print(opt_u)
+        # print("solver:")
         # np.set_printoptions(suppress=True, precision=3)
-        # print(opt_u)
+        # print(opt_u.tolist())
+        # print("x0array")
         # print(x0_array)
+        # print("opt_u", opt_u.tolist())
         # print(np.array(ref_states[self._s_dim:-self._s_dim]).reshape((10, 15)))
         # exit()
         return opt_u, x0_array
@@ -341,6 +372,10 @@ class MPC(object):
         return flattened_ref
 
     def preprocess_fixed_wing(self, current_state, ref_states):
+        """
+        Construct a reference as required by MPC from the current state and
+        the desired ref
+        """
         vec_to_target = ref_states - current_state[:2]
         vec_norm = np.linalg.norm(vec_to_target)
         speed = np.sqrt(current_state[2]**2 + current_state[3]**2)
@@ -352,14 +387,19 @@ class MPC(object):
             middle_ref_states[
                 i, :2] = current_state[:2] + (i + 1) * vector_per_step
 
+        # np.set_printoptions(suppress=True, precision=3)
+        # # print(opt_u.tolist())
+        # print("middle_ref_states")
+        # print(np.vstack((current_state, middle_ref_states)))
+
         # goal point is last point of middle ref
-        goal_state = middle_ref_states[-1].tolist()
+        goal_state = middle_ref_states[-1]
 
         high_mpc_reference = np.hstack((middle_ref_states[:-1], self.addon))
 
         flattened_ref = (
             current_state.tolist() + high_mpc_reference.flatten().tolist() +
-            goal_state
+            goal_state.tolist()
         )
 
         return flattened_ref
@@ -521,7 +561,7 @@ class MPC(object):
             vz_new, avx_new, avy_new, avz_new
         )
         # Fold
-        F = ca.Function('F', [self._x, self._u], [X])
+        F = ca.Function('F', [self._x, self._u], [X], ['x', 'u'], ['ode'])
         return F
 
     def fixed_wing_dynamics(self, dt):
@@ -529,48 +569,21 @@ class MPC(object):
         Longitudinal dynamics for fixed wing
         """
 
-        # ------------------ constants ---------------------
-        m = 1.01
-        I_xx = 0.04766
-        rho = 1.225
-        S = 0.276
-        c = 0.185
-        g = 9.81
-        # linearized for alpha = 0 and u = 12 m/s
-        Cl0 = 0.3900
-        Cl_alpha = 4.5321
-        Cl_q = 0.3180
-        Cl_del_e = 0.527
-        # drag coefficients
-        Cd0 = 0.0765
-        Cd_alpha = 0.3346
-        Cd_q = 0.354
-        Cd_del_e = 0.004
-        # moment coefficients
-        Cm0 = 0.0200
-        Cm_alpha = -1.4037
-        Cm_q = -0.1324
-        Cm_del_e = -0.4236
-
         # --------- state vector ----------------
-        px, pz, vx, vz, theta, q = (
+        px, pz, u, w, theta, q = (
             ca.SX.sym('px'), ca.SX.sym('pz'), ca.SX.sym('vx'), ca.SX.sym('vz'),
             ca.SX.sym('theta'), ca.SX.sym('q')
         )
-        self._x = ca.vertcat(px, pz, vx, vz, theta, q)
+        x_state = ca.vertcat(px, pz, u, w, theta, q)
 
         # -----------control command ---------------
-        thrust, del_e = ca.SX.sym('thrust'), ca.SX.sym('del_e')
-        self._u = ca.vertcat(thrust, del_e)
-
-        x = px  # x position
-        h = pz  # z position / altitude
-        u = vx  # forward velocity in body frame
-        w = vz  # upward velocity  in body frame
+        u_thrust, u_del_e = ca.SX.sym('thrust'), ca.SX.sym('del_e')
+        u_control = ca.vertcat(u_thrust, u_del_e)
 
         # input states
-        T = 1.3 + thrust * .4 - .2
-        del_e = np.pi * (del_e * 10 - 5) / 180
+        T = u_thrust * 7
+        # angle between -20 and 20 degrees
+        del_e = np.pi * (u_del_e * 40 - 20) / 180
 
         ## aerodynamic forces calculations
         # (see beard & mclain, 2012, p. 44 ff)
@@ -593,14 +606,14 @@ class MPC(object):
 
         ## Global displacement
         x_dot = u * ca.cos(theta) + w * ca.sin(theta)  # forward
-        h_dot = u * ca.sin(theta) + w * ca.cos(theta)  # upward
+        h_dot = u * ca.sin(theta) - w * ca.cos(theta)  # upward
 
         ## Body fixed accelerations
         u_dot = -w * q + (1 / m) * (
             T + L * ca.sin(alpha) - D * ca.cos(alpha) - m * g * ca.sin(theta)
         )
         w_dot = u * q - (1 / m) * (
-            L * ca.cos(alpha) - D * ca.sin(alpha) - m * g * ca.cos(theta)
+            L * ca.cos(alpha) + D * ca.sin(alpha) - m * g * ca.cos(theta)
         )
 
         ## Pitch acceleration
@@ -608,12 +621,12 @@ class MPC(object):
 
         x_new = px + dt * x_dot
         h_new = pz + dt * h_dot
-        u_new = vx + dt * u_dot
-        w_new = vz + dt * w_dot
+        u_new = u + dt * u_dot
+        w_new = w + dt * w_dot
         theta_new = theta + dt * q
         q_new = q + dt * q_dot
 
         X = ca.vertcat(x_new, h_new, u_new, w_new, theta_new, q_new)
 
-        F = ca.Function('F', [self._x, self._u], [X])
+        F = ca.Function('F', [x_state, u_control], [X], ['x', 'u'], ['ode'])
         return F

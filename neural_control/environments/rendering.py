@@ -214,32 +214,47 @@ class FixedWingDrone(RenderedObject):
         self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
-        self.target = [100, 0]
+        self.targets = [[100, 0]]
+        self.x_normalize = 0.1
+        self.z_offset = 5
 
     def set_target(self, target):
-        self.target = target
-        self.x_normalize = 14 / self.target[0]
+        self.targets = np.array(target)
+        self.x_normalize = 14 / self.targets[-1, 0]
 
     def draw(self, renderer):
         status = self.source._state.copy()
-        max_rotor_speed = 1000
 
         # transformed main axis
-        trafo = Euler(0, status[4], 0)
+        trafo = Euler(0, -status[4], 0)
 
         # normalize x to have drone between left and right bound
         # and set z to other way round
         position = [
             -7 + status[0] * self.x_normalize, 0,
-            status[1] * (-1) * self.x_normalize
+            status[1] * self.x_normalize + self.z_offset
         ]
 
+        u = status[2]
+        w = status[3]
+        theta = status[4]
+        x_dot = u * np.cos(theta) + w * np.sin(theta)  # forward
+        h_dot = u * np.sin(theta) - w * np.cos(theta)  # upward
+        # theta_vec = np.array([1, 0, np.sin(theta)]) * 3
+        vel_vec = np.array([x_dot, 0, h_dot])
+        vel_vec = vel_vec / np.linalg.norm(vel_vec) * 3
+        renderer.draw_line_3d(position, position + vel_vec, color=(1, 0, 0))
+
         # draw target point
-        renderer.draw_circle(
-            (6.8, self.target[1] * (-1) * self.x_normalize),
-            .2, (0, 1, 0),
-            filled=True
-        )
+        for target in self.targets:
+            renderer.draw_circle(
+                (
+                    -7 + target[0] * self.x_normalize,
+                    target[1] * self.x_normalize + self.z_offset
+                ),
+                .2, (0, 1, 0),
+                filled=True
+            )
 
         if self.draw_quad:
             self.quad_as_plane(renderer, trafo, position)
@@ -251,12 +266,12 @@ class FixedWingDrone(RenderedObject):
         rotated = body_to_world(trafo, [0, 0, 0.5])
         renderer.draw_line_3d(position, position + rotated)
 
-        QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 1)
-        QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 1)
+        QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 0)
+        QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 0)
 
     @staticmethod
     def draw_airplane(renderer, position, euler):
-        # plaen definition
+        # plane definition
         offset = np.array([-5, 0, -1.5])
         scale = .3
         coord_plane = (
@@ -267,19 +282,21 @@ class FixedWingDrone(RenderedObject):
                 ]
             ) + offset
         ) * scale
-        coord_wing = (
-            np.array([[4, 0, 1.5], [5, 0, 0], [6, 0, 1.5]]) + offset
-        ) * scale
 
         rot_matrix = body_to_world_matrix(euler)
         coord_plane_rotated = (
             np.array([np.dot(rot_matrix, coord)
                       for coord in coord_plane]) + position
         )[:, [0, 2]]
+        renderer.draw_polygon(coord_plane_rotated)
+
+        # add wing
+        coord_wing = (
+            np.array([[4, 0, 1.5], [5, 0, 0], [6, 0, 1.5]]) + offset
+        ) * scale
         coord_wing_rotated = (
             np.array([np.dot(rot_matrix, coord)
                       for coord in coord_wing]) + position
         )[:, [0, 2]]
 
-        renderer.draw_polygon(coord_plane_rotated)
         renderer.draw_polygon(coord_wing_rotated)
