@@ -47,24 +47,42 @@ def drone_loss_function(current_state, start_state=None, printout=0):
         print("position loss", (pos_factor * position_loss)[0])
     return torch.sum(loss)
 
+
+weighting = torch.ones(12)
+weighting[3:6] = .1
+weighting[6:9] = .5
+weighting[9:] = .05
+
+
+def mse(states, ref_states, printout=0):
+    loss = (ref_states - states)**2 * weighting
+    if printout:
+        np_state = states[0].detach().numpy()
+        np_ref = ref_states[0].detach().numpy()
+        print_state_ref_div(np_ref, np_state)
+        exit()
+    return torch.sum(loss) * 10
+
+
 def simply_last_loss(states, ref_states, printout=0):
     angvel_factor = 2e-2
     vel_factor = 0.05
     pos_factor = 10
     yaw_factor = 10
 
-    position_loss = torch.sum((states[:, -1,:3] - ref_states[:, :3])**2)
+    position_loss = torch.sum((states[:, -1, :3] - ref_states[:, :3])**2)
     velocity_loss = torch.sum((states[:, -1, 6:9] - ref_states[:, 3:6])**2)
 
-    ang_vel_error = torch.sum(states[:,:, 9:11]**2
-                              ) + yaw_factor * torch.sum(states[:,:, 11]**2)
+    ang_vel_error = torch.sum(states[:, :, 9:11]**2
+                              ) + yaw_factor * torch.sum(states[:, :, 11]**2)
     # TODO: do on all intermediate states again?
 
     loss = (
-        angvel_factor * ang_vel_error +
-        pos_factor * position_loss + vel_factor * velocity_loss
+        angvel_factor * ang_vel_error + pos_factor * position_loss +
+        vel_factor * velocity_loss
     )
     return loss
+
 
 def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     """
@@ -106,6 +124,7 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         print("position loss", (pos_factor * position_loss).item())
     return loss
 
+
 weighting = torch.ones(12)
 weighting[3:6] = .1
 weighting[6:9] = .5
@@ -123,6 +142,7 @@ def mse(states, ref_states, printout=0):
         print_state_ref_div(np_ref, np_state)
         exit()
     return torch.sum(loss) * 10
+
 
 def project_to_line(a_on_line, b_on_line, p):
     """
