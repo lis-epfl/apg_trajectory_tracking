@@ -106,6 +106,8 @@ def plot_wing_pos(states, targets, save_path=None):
 def plot_drone_ref_coords(
     drone_trajectory, reference_trajectory, save_path=None
 ):
+    if len(drone_trajectory) == 0:
+        return 0
     quad_pos = np.hstack([drone_trajectory, reference_trajectory])
     plt.figure(figsize=(15, 8))
     labels = ["quad_x", "quad_y", "quad_z", "ref_x", "ref_y", "ref_z"]
@@ -121,6 +123,8 @@ def plot_drone_ref_coords(
 
 
 def plot_trajectory(knots, states, save_path, fixed_axis=2):
+    if len(states) == 0:
+        return 0
     leftover = [0, 1, 2]
     del leftover[fixed_axis]
     states = np.array(states)

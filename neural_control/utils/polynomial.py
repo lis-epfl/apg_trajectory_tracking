@@ -62,12 +62,11 @@ class Polynomial:
         cum_dists = np.cumsum(dists)
 
         # add one dummy point to prevent fast speed in the beginning
-        rand_vec = np.random.rand(3) * 2 - 1
-        add_point_bef = points_to_traverse[0] - rand_vec
+        add_point_bef = points_to_traverse[1]
         rand_vec_2 = np.random.rand(3) * 2 - 1
         add_point_aft = points_to_traverse[-1] - rand_vec_2
         x = np.array(
-            [-1 * np.linalg.norm(rand_vec)] + cum_dists.tolist() +
+            [-1 * dists[1]] + cum_dists.tolist() +
             [cum_dists[-1] + np.linalg.norm(add_point_aft)]
         )
         fit_points = np.vstack(
