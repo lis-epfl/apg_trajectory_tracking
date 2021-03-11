@@ -279,23 +279,25 @@ def full_state_training_data(
     Arguments:
         reset_strength: how much the drone diverges from its desired state
     """
-    sample_freq = 2
-    drone_states, ref_states = [], []
+    sample_freq = ref_length  # * some number
+    # TODO: might want to sample less frequently
+    drone_states = np.zeros((len_data, 12))
+    ref_states = np.zeros((len_data, ref_length, 12))
 
+    counter = 0
     while len(drone_states) < len_data:
         traj = generate_trajectory(10, dt)  # TODO: freq of trajectory?
-        # use every xth start point
-        for start in range(0, len(traj) - 2 * sample_freq, sample_freq):
-            noise_applied = (
-                np.ones(12) + reset_strength * (np.random.rand(12) - .5)
-            )
-            noisy_drone_state = traj[start] * noise_applied
-            drone_states.append(noisy_drone_state)
-            ref_states.append(traj[start + 1:start + 1 + ref_length])
-
-    drone_states = np.array(drone_states)
-    ref_states = np.array(ref_states)
-    # print(drone_states.shape, ref_states.shape)
+        traj_cut = traj[:-ref_length]
+        # select every xth sample as the current drone state
+        selected_starts = traj_cut[::sample_freq, :]
+        nr_states_added = len(selected_starts)
+        # add drone states
+        drone_states[counter:counter + nr_states_added, :] = selected_starts
+        # add ref states
+        for i in range(ref_length):
+            ref_states[counter:counter + nr_states_added,
+                       i] = traj[i::sample_freq]
+        counter += nr_states_added
 
     return drone_states[:len_data], ref_states[:len_data]
 

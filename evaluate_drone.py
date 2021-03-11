@@ -123,26 +123,20 @@ class QuadEvaluator():
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
-            acc = self.eval_env.get_acceleration()
-            trajectory = reference.get_ref_traj(current_np_state, acc)
+            # acc = self.eval_env.get_acceleration()
+            trajectory = reference.get_ref_traj(current_np_state, 0)
             numpy_action_seq = self.controller.predict_actions(
                 current_np_state, trajectory
             )
             # only use first action (as in mpc)
             action = numpy_action_seq[0]
-            current_np_state, stable = self.eval_env.step(
+            current_np_state, _ = self.eval_env.step(
                 action, thresh=thresh_stable
             )
             if states is not None:
                 self.eval_env._state.from_np(states[i])
                 current_np_state = states[i]
-                stable = i < (len(states) - 1)
-            if not stable:
-                if self.render:
-                    np.set_printoptions(precision=3, suppress=True)
-                    print("unstable")
-                    # print(self.eval_env._state.as_np)
-                break
+
             self.help_render(sleep=0)
 
             drone_pos = current_np_state[:3]
@@ -154,13 +148,7 @@ class QuadEvaluator():
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
             if div > thresh_div:
-                if self.render:
-                    np.set_printoptions(precision=3, suppress=True)
-                    print("state")
-                    print([round(s, 2) for s in current_np_state])
-                    print("trajectory:")
-                    print(np.around(trajectory, 2))
-                break
+                self.eval_env._state.from_np(trajectory[1])
         if self.render:
             self.eval_env.close()
         # return trajectorie and divergences
@@ -215,7 +203,8 @@ class QuadEvaluator():
                 **circle_args
             )
             div.append(np.mean(divergences))
-            stable.append(len(drone_traj))
+            no_large_div = np.sum(np.array(divergences) < thresh_div)
+            stable.append(no_large_div)
 
         # Output results
         print("Speed (last):", self.compute_speed(drone_traj))
@@ -315,7 +304,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 30, "max_drone_dist": .5}
+    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .25}
 
     # rendering
     if args.unity:
@@ -338,7 +327,7 @@ if __name__ == "__main__":
         "plane": [0, 2],
         "radius": 2,
         "direction": 1,
-        "thresh_div": 10,
+        "thresh_div": .3,
         "thresh_stable": 2
     }
     if args.points is not None:

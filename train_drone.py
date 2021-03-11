@@ -17,19 +17,19 @@ from neural_control.models.hutter_model import Net
 from neural_control.utils.plotting import plot_loss_episode_len
 
 DELTA_T = 0.05
-EPOCH_SIZE = 3000
-SELF_PLAY = 0.5
+EPOCH_SIZE = 500
+SELF_PLAY = 1.5
 SELF_PLAY_EVERY_X = 5
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
-THRESH_DIV = .4
+THRESH_DIV = .2
 NR_EVAL_ITERS = 5
 STATE_SIZE = 12
 NR_ACTIONS = 10
-REF_DIM = 6
+REF_DIM = 12
 ACTION_DIM = 4
 LEARNING_RATE = 0.01
 SAVE = os.path.join("trained_models/drone/test_model")
@@ -53,7 +53,11 @@ eval_dict = {
         "max_steps": 200
     },
     "poly": {
-        "nr_test": 15,
+        "nr_test": 0,
+        "max_steps": 200
+    },
+    "rand": {
+        "nr_test": 20,
         "max_steps": 200
     }
 }
@@ -77,7 +81,9 @@ else:
     )
     in_state_size = state_data.normed_states.size()[1]
     # +9 because adding 12 things but deleting position (3)
-    net = Net(in_state_size, 1, REF_DIM, ACTION_DIM * NR_ACTIONS, conv=0)
+    net = Net(
+        in_state_size, NR_ACTIONS, REF_DIM, ACTION_DIM * NR_ACTIONS, conv=1
+    )
     (STD, MEAN) = (state_data.std, state_data.mean)
 
 # Use cuda if available
@@ -115,9 +121,7 @@ trainloader = torch.utils.data.DataLoader(
 
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
-take_steps = 1
 take_every_x = 10
-steps_per_eval = 100
 highest_success = 0  # np.inf
 for epoch in range(NR_EPOCHS):
 
@@ -127,7 +131,6 @@ for epoch in range(NR_EPOCHS):
         controller = NetworkWrapper(net, state_data, **param_dict)
         eval_env = QuadEvaluator(controller, **param_dict)
         for reference, ref_params in eval_dict.items():
-            ref_params["max_steps"] = steps_per_eval * take_steps
             suc_mean, suc_std = eval_env.eval_ref(
                 reference, thresh_div=THRESH_DIV, **ref_params
             )
@@ -135,7 +138,7 @@ for epoch in range(NR_EPOCHS):
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
 
-        if (epoch + 1) % 2 == 0:
+        if (epoch + 1) % 3 == 0:
             # renew the sampled data
             state_data.resample_data()
             print(
@@ -143,9 +146,9 @@ for epoch in range(NR_EPOCHS):
                 - self play counter: {state_data.get_eval_index()}"
             )
 
-        if suc_mean > take_steps * steps_per_eval - 50 and take_steps < 10:
-            # evaluate for more steps
-            take_steps += 1
+        if suc_mean > 100:
+            param_dict["treshold_divergence"] += .2
+            print("increased thresh div", param_dict["treshold_divergence"])
 
         # save best model
         if epoch > 0 and suc_mean > highest_success:
@@ -183,9 +186,9 @@ for epoch in range(NR_EPOCHS):
                 )
                 intermediate_states[:, k] = current_state
 
-            loss = simply_last_loss(
+            loss = reference_loss(
                 intermediate_states,
-                ref_states[:, -1],
+                ref_states,
                 printout=0,
             )
 

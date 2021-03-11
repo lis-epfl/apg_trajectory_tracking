@@ -121,12 +121,12 @@ class MPC(object):
         self._u_dim = 4
         # cost matrix for the action
         self._Q_u = np.diag([50, 1, 1, 1])
-        self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
+        self._Q_pen = np.diag([1000, 1000, 1000, 0, 0, 0, 10, 10, 10, 1, 1, 1])
         # initial state and control action TODO
         self._quad_s0 = (np.zeros(12)).tolist()
-        self._quad_u0 = [0.781, .5, .5, .5]
+        self._quad_u0 = [.5, .5, .5, .5]
         # default u
-        self._default_u = [.781, .5, .5, .5]
+        self._default_u = [.5, .5, .5, .5]
 
     def _initParamsFixedWing(self):
         self._s_dim = 6
@@ -507,7 +507,7 @@ class MPC(object):
         # -- conctenated vector
         self._u = ca.vertcat(thrust, wx, wy, wz)
 
-        thrust_scaled = thrust * 10 - 5 + 7
+        thrust_scaled = thrust * 15 - 7.5 + 9.81
 
         # linear dynamics
         Cy = ca.cos(az)

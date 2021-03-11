@@ -166,7 +166,7 @@ def simulate_quadrotor(action, state, dt=0.02):
     angular_velocity = state[:, 9:]
 
     # action is normalized between 0 and 1 --> rescale
-    total_thrust = action[:, 0] * 10 - 5 + 7
+    total_thrust = action[:, 0] * 15 - 7.5 + 9.81
     body_rates = action[:, 1:] - .5
 
     acceleration = linear_dynamics(total_thrust, attitude, velocity)

@@ -125,7 +125,7 @@ class Polynomial:
         points_3d = points_2d_ext @ rot
         return points_3d
 
-    def get_fixed_ref(self, drone_state, drone_acc):
+    def get_ref_traj(self, drone_state, drone_acc):
         """
         Return directly the points on the reference, and not the relative min
         snap
@@ -159,7 +159,7 @@ class Polynomial:
         # print(ref_out)
         return ref_out
 
-    def get_ref_traj(self, drone_state, drone_acc):
+    def get_min_snap_ref(self, drone_state, drone_acc):
         """
         Given the current position, compute a min snap trajectory to the next
         target
@@ -177,8 +177,10 @@ class Polynomial:
         goal_pos = self.reference[self.target_ind]
 
         # TODO: is the velocity simply the two subtracted? or times dt or so?
-        goal_vel = (self.reference[self.target_ind +
-                                  1] - self.reference[self.target_ind]) / self.dt
+        goal_vel = (
+            self.reference[self.target_ind + 1] -
+            self.reference[self.target_ind]
+        ) / self.dt
 
         reference = get_reference(
             drone_pos,

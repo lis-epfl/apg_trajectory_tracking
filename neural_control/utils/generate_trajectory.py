@@ -571,20 +571,19 @@ def generate_trajectory(
         duration, 0.01
     )
     # dt for trajectory generation is 0.01, then transform back
-    take_every_nth = 4 # int(dt / 0.01)
+    take_every_nth = 2  # int(dt / 0.01)
     taken_every = trajectory[::take_every_nth, :]
+
     # transform to euler angels
     quaternions = taken_every[:, 3:7]
     euler_angles = np.array([quaternion_to_euler(q) for q in quaternions])
+    # add in stacking below: euler_angles, taken_every[:, 16:19] (av)
+
     # stack position, euler angles, velocity, body rates
-    # print(
-    #     taken_every[:, :3].shape, euler_angles.shape,
-    #     taken_every[:, 7:10].shape, taken_every[:, 16:19].shape
-    # )
     transformed_ref = np.hstack(
         (
-            taken_every[:, :3], euler_angles, taken_every[:, 7:10] / take_every_nth,
-            taken_every[:, 16:19]
+            taken_every[:, :3], euler_angles,
+            taken_every[:, 7:10] / 5 * take_every_nth, taken_every[:, 16:19]
         )
     )
     # print("transformed shape", transformed_ref.shape)
