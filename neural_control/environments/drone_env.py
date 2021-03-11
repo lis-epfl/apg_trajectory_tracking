@@ -23,9 +23,7 @@ from neural_control.environments.copter import (
 from neural_control.environments.drone_dynamics import (
     simulate_quadrotor, linear_dynamics
 )
-from neural_control.environments.utility.generate_trajectory import (
-    generate_trajectory
-)
+from neural_control.utils.generate_trajectory import generate_trajectory
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

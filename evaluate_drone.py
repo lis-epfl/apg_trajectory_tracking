@@ -113,7 +113,9 @@ class QuadEvaluator():
         )
         if traj_type == "rand":
             # self.eval_env._state.from_np(reference.initial_state)
-            current_np_state = self.eval_env.zero_reset(*tuple(reference.initial_state[:3]))
+            current_np_state = self.eval_env.zero_reset(
+                *tuple(reference.initial_state[:3])
+            )
 
         self.help_render()
         # start = input("start")
@@ -313,7 +315,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
+    params = {"render": 1, "dt": 0.05, "horizon": 30, "max_drone_dist": .5}
 
     # rendering
     if args.unity:
