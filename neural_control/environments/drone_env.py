@@ -281,11 +281,11 @@ def full_state_training_data(
     """
     sample_freq = ref_length  # * some number
     # TODO: might want to sample less frequently
-    drone_states = np.zeros((len_data, 12))
-    ref_states = np.zeros((len_data, ref_length, 12))
+    drone_states = np.zeros((len_data + 200, 12))
+    ref_states = np.zeros((len_data + 200, ref_length, 12))
 
     counter = 0
-    while len(drone_states) < len_data:
+    while counter < len_data:
         traj = generate_trajectory(10, dt)  # TODO: freq of trajectory?
         traj_cut = traj[:-ref_length]
         # select every xth sample as the current drone state
@@ -295,7 +295,7 @@ def full_state_training_data(
         drone_states[counter:counter + nr_states_added, :] = selected_starts
         # add ref states
         for i in range(ref_length):
-            ref_states[counter:counter + nr_states_added,
+            ref_states[counter:counter + nr_states_added + 1,
                        i] = traj[i::sample_freq]
         counter += nr_states_added
 
@@ -379,7 +379,7 @@ def trajectory_training_data(
 if __name__ == "__main__":
     env = QuadRotorEnvBase(0.02)
     env.reset()
-    states, ref = trajectory_training_data(1000)
+    states, ref = full_state_training_data(1000)
     # np.save("drone_states.npy", a1)
     # np.save("ref_states.npy", a2)
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")

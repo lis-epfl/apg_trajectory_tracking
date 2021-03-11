@@ -68,7 +68,7 @@ def plot_position(collect_data, save_path=None):
         plt.savefig(save_path)
 
 
-def print_state_ref_div(np_ref, np_state):
+def print_state_ref_div(np_state, np_ref):
     """
     pretty printing of target trajectory and actual trajectory
     """

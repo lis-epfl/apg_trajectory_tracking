@@ -327,7 +327,7 @@ if __name__ == "__main__":
         "plane": [0, 2],
         "radius": 2,
         "direction": 1,
-        "thresh_div": .3,
+        "thresh_div": 1,
         "thresh_stable": 2
     }
     if args.points is not None:
@@ -340,9 +340,10 @@ if __name__ == "__main__":
     if args.unity:
         evaluator.eval_env.env.connectUnity()
 
-    reference_traj, drone_traj, _ = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=500, **traj_args
+    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+        args.ref, max_nr_steps=200, **traj_args
     )
+    print(np.sum(np.array(divergences) < .2))
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

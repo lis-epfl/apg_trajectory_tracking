@@ -571,7 +571,7 @@ def generate_trajectory(
         duration, 0.01
     )
     # dt for trajectory generation is 0.01, then transform back
-    take_every_nth = 2  # int(dt / 0.01)
+    take_every_nth = 5  # int(dt / 0.01)
     taken_every = trajectory[::take_every_nth, :]
 
     # transform to euler angels

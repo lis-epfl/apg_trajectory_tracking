@@ -84,7 +84,7 @@ def simply_last_loss(states, ref_states, printout=0):
     return loss
 
 
-def reference_loss(states, ref_states, printout=0, delta_t=0.02):
+def reference_loss(states, ref_states, printout=0):
     """
     Compute loss with respect to reference trajectory
     """
@@ -93,9 +93,9 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     # TODO: include attitude in reference
     angle_factor = 0.01
     angvel_factor = 2e-2
-    vel_factor = 0.05
+    vel_factor = .5
     pos_factor = 10
-    yaw_factor = 10
+    yaw_factor = 1
 
     position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)
     velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 6:9])**2)

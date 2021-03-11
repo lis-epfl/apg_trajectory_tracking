@@ -14,7 +14,9 @@ from neural_control.environments.drone_dynamics import simulate_quadrotor
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
-from neural_control.utils.plotting import plot_loss_episode_len
+from neural_control.utils.plotting import (
+    plot_loss_episode_len, print_state_ref_div
+)
 
 DELTA_T = 0.05
 EPOCH_SIZE = 500
@@ -25,15 +27,15 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
-THRESH_DIV = .2
+THRESH_DIV = .05
 NR_EVAL_ITERS = 5
 STATE_SIZE = 12
 NR_ACTIONS = 10
 REF_DIM = 12
 ACTION_DIM = 4
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # "trained_models/drone/inp_last_minsnap_loss"
+BASE_MODEL = None  #  "trained_models/drone/first_div_train"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):
@@ -146,8 +148,8 @@ for epoch in range(NR_EPOCHS):
                 - self play counter: {state_data.get_eval_index()}"
             )
 
-        if suc_mean > 100:
-            param_dict["treshold_divergence"] += .2
+        if suc_mean > 180:
+            param_dict["treshold_divergence"] += .05
             print("increased thresh div", param_dict["treshold_divergence"])
 
         # save best model
@@ -185,6 +187,13 @@ for epoch in range(NR_EPOCHS):
                     action, current_state, dt=DELTA_T
                 )
                 intermediate_states[:, k] = current_state
+
+            # print(ref_states)
+            # print_state_ref_div(
+            #     intermediate_states[0].detach().numpy(),
+            #     ref_states[0].detach().numpy()
+            # )
+            # exit()
 
             loss = reference_loss(
                 intermediate_states,
