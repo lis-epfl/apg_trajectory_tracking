@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from neural_control.dataset import DroneDataset
 from neural_control.drone_loss import (
-    drone_loss_function, trajectory_loss, reference_loss, mse_loss
+    drone_loss_function, simply_last_loss, reference_loss, mse_loss
 )
 from neural_control.environments.drone_dynamics import simulate_quadrotor
 from neural_control.controllers.network_wrapper import NetworkWrapper
@@ -27,7 +27,7 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
-THRESH_DIV = .2
+THRESH_DIV = .1
 THRESH_STABLE = 1.5
 USE_MPC_EVERY = 500
 NR_EVAL_ITERS = 5
@@ -152,7 +152,7 @@ for epoch in range(NR_EPOCHS):
             print(f"Sampled new data ({state_data.num_sampled_states})")
         print(f"self play counter: {state_data.get_eval_index()}")
 
-        if epoch % 2 == 0:
+        if epoch % 5 == 0 and param_dict["thresh_div"] < .8:
             param_dict["thresh_div"] += .05
             print("increased thresh div", param_dict["thresh_div"])
 
@@ -198,11 +198,8 @@ for epoch in range(NR_EPOCHS):
             # )
             # exit()
 
-            loss = mse_loss(
-                intermediate_states,
-                ref_states,
-                action_seq,
-                printout=0,
+            loss = simply_last_loss(
+                intermediate_states, ref_states[:, -1], printout=0
             )
 
             # Backprop

@@ -121,25 +121,25 @@ class QuadEvaluator():
 
         self.help_render()
 
-        is_in_control = 1
+        # is_in_control = 1
 
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
             # acc = self.eval_env.get_acceleration()
             trajectory = reference.get_ref_traj(current_np_state, 0)
-            action_neural = self.controller.predict_actions(
+            action = self.controller.predict_actions(
                 current_np_state, trajectory
             )
 
             # EXPERT
-            action_mpc = 1
-            if is_in_control == 0:  # (i + 1) % use_mpc_every == 0:
-                action_mpc = self.mpc_helper.predict_actions(
-                    current_np_state, trajectory
-                )
+            # action_mpc = 1
+            # if is_in_control == 0:  # (i + 1) % use_mpc_every == 0:
+            #     action_mpc = self.mpc_helper.predict_actions(
+            #         current_np_state, trajectory
+            #     )
 
-            action = action_neural if is_in_control else action_mpc
+            # action = action_neural if is_in_control else action_mpc
 
             current_np_state, stable = self.eval_env.step(
                 action[0], thresh=thresh_stable
@@ -168,14 +168,15 @@ class QuadEvaluator():
             # if is_in_control == 0 and div < 0.3:
             #     is_in_control = 1
             # # take over control with the mpc
-            if is_in_control and (div > thresh_div or not stable):
-                if self.render:
-                    print("use mpc")
-                is_in_control = 0
+            if div > thresh_div or not stable:
+                # is_in_control and (div > thresh_div or not stable):
+                #     if self.render:
+                #         print("use mpc")
+                #     is_in_control = 0
                 current_np_state = reference.reference[reference.current_ind]
                 self.eval_env._state.from_np(current_np_state)
-            if div > 3 * thresh_div:
-                break
+            # if div > 3 * thresh_div:
+            #     break
         if self.render:
             self.eval_env.close()
         # return trajectorie and divergences
@@ -253,8 +254,8 @@ class QuadEvaluator():
             )
             div.append(np.mean(divergences))
             # before take over
-            # no_large_div = np.sum(np.array(divergences) < thresh_div)
-            no_large_div = np.where(np.array(divergences) > thresh_div)[0][0]
+            no_large_div = np.sum(np.array(divergences) < thresh_div)
+            # no_large_div = np.where(np.array(divergences) > thresh_div)[0][0]
             stable.append(no_large_div)
             # stable.append(len(drone_traj))
 
