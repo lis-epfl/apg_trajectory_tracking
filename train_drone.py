@@ -29,7 +29,7 @@ RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
 THRESH_DIV = 1
 THRESH_STABLE = 1.5
-USE_MPC_EVERY = 2
+USE_MPC_EVERY = 500
 NR_EVAL_ITERS = 5
 STATE_SIZE = 12
 NR_ACTIONS = 10
@@ -61,7 +61,7 @@ eval_dict = {
         "max_steps": 200
     },
     "rand": {
-        "nr_test": 20,
+        "nr_test": 10,
         "max_steps": 500
     }
 }
@@ -128,7 +128,7 @@ trainloader = torch.utils.data.DataLoader(
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
 take_every_x = 10
-highest_success = np.inf
+highest_success = 0  #  np.inf
 for epoch in range(NR_EPOCHS):
 
     try:
@@ -136,13 +136,12 @@ for epoch in range(NR_EPOCHS):
         print(f"Epoch {epoch} (before)")
         controller = NetworkWrapper(net, state_data, **param_dict)
         eval_env = QuadEvaluator(controller, **param_dict)
-        for reference, ref_params in eval_dict.items():
-            suc_mean, suc_std = eval_env.eval_ref(
-                reference,
-                nr_test=ref_params["nr_test"],
-                max_steps=ref_params["max_steps"],
-                **param_dict
-            )
+        # run with mpc to collect data
+        eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
+        # run without mpc for evaluation
+        suc_mean, suc_std = eval_env.eval_ref(
+            "rand", nr_test=5, max_steps=500, **param_dict
+        )
 
         success_mean_list.append(suc_mean)
         success_std_list.append(suc_std)
@@ -150,20 +149,18 @@ for epoch in range(NR_EPOCHS):
         if (epoch + 1) % 3 == 0:
             # renew the sampled data
             state_data.resample_data()
-            print(
-                f"Sampled new data ({state_data.num_sampled_states}) \
-                - self play counter: {state_data.get_eval_index()}"
-            )
+            print(f"Sampled new data ({state_data.num_sampled_states})")
+        print(f"self play counter: {state_data.get_eval_index()}")
 
-        if epoch % 2 == 0:
-            param_dict["use_mpc_every"] += 2
-            print(
-                "increased use of neural controller",
-                param_dict["use_mpc_every"]
-            )
+        # if epoch % 2 == 0:
+        #     param_dict["use_mpc_every"] += 2
+        #     print(
+        #         "increased use of neural controller",
+        #         param_dict["use_mpc_every"]
+        #     )
 
         # save best model
-        if epoch > 0 and suc_mean < highest_success:
+        if epoch > 0 and suc_mean > highest_success:
             highest_success = suc_mean
             print("Best model")
             torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))

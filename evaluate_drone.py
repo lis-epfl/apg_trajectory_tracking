@@ -133,7 +133,7 @@ class QuadEvaluator():
             )
 
             # EXPERT
-            if i % use_mpc_every == 0:
+            if (i + 1) % use_mpc_every == 0:
                 action = self.mpc_helper.predict_actions(
                     current_np_state, trajectory
                 )
@@ -203,6 +203,25 @@ class QuadEvaluator():
         circle_args = {"plane": plane, "radius": radius, "direction": direct}
         return circle_args
 
+    def run_mpc_ref(
+        self,
+        reference: str,
+        nr_test: int = 10,
+        max_steps: int = 200,
+        thresh_div=2,
+        thresh_stable=2,
+        **kwargs
+    ):
+        for _ in range(nr_test):
+            _ = self.follow_trajectory(
+                reference,
+                max_nr_steps=max_steps,
+                thresh_div=thresh_div,
+                thresh_stable=thresh_stable,
+                use_mpc_every=1
+                # **circle_args
+            )
+
     def eval_ref(
         self,
         reference: str,
@@ -243,7 +262,7 @@ class QuadEvaluator():
             "%s: Steps until divergence: %3.2f (%3.2f)" %
             (reference, np.mean(stable), np.std(stable))
         )
-        return np.mean(div), np.std(div)
+        return np.mean(stable), np.std(stable)
 
     def collect_training_data(self, outpath="data/jan_2021.npy"):
         """
@@ -367,10 +386,11 @@ if __name__ == "__main__":
     if args.unity:
         evaluator.eval_env.env.connectUnity()
 
+    # evaluator.run_mpc_ref(args.ref)
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=500, use_mpc_every=100, **traj_args
+        args.ref, max_nr_steps=500, use_mpc_every=500, **traj_args
     )
-    # print(len(drone_traj))
+    print(len(drone_traj))
     # evaluator.render = 0
     # evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
 
