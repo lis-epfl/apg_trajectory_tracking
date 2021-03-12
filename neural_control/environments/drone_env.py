@@ -279,7 +279,7 @@ def full_state_training_data(
     Arguments:
         reset_strength: how much the drone diverges from its desired state
     """
-    sample_freq = ref_length  # * some number
+    sample_freq = ref_length * 2
     # TODO: might want to sample less frequently
     drone_states = np.zeros((len_data + 200, 12))
     ref_states = np.zeros((len_data + 200, ref_length, 12))
@@ -295,7 +295,7 @@ def full_state_training_data(
         drone_states[counter:counter + nr_states_added, :] = selected_starts
         # add ref states
         for i in range(ref_length):
-            ref_states[counter:counter + nr_states_added + 1,
+            ref_states[counter:counter + nr_states_added,
                        i] = traj[i::sample_freq]
         counter += nr_states_added
 

@@ -32,7 +32,11 @@ class Quad():
         self.mass = copter_params["mass"]
         self.max_thrust_per_motor = max_thrust_per_motor
 
-        self.J = np.array([.002, .002, .025])
+        self.J = (
+            copter_params["mass"] / 12.0 * copter_params["arm_length"]**2 *
+            np.array([4.5, 4.5, 7])
+        )
+        # np.array([.002, .002, .025])
         arm_length = copter_params["arm_length"]
         h = arm_length / np.sqrt(2.0)
         self.x_f = np.array([h, -h, -h, h])
@@ -316,10 +320,10 @@ def compute_full_traj(quad, t_np, pos_np, vel_np, alin_np):
         ), 0
     )
 
-    for i in range(len_traj):
-        motor_inputs[i, :] = np.linalg.solve(a_mat, b[i, :])
+    # for i in range(len_traj):
+    #     motor_inputs[i, :] = np.linalg.solve(a_mat, b[i, :])
 
-    return trajectory, motor_inputs, t_np
+    return trajectory, np.zeros(4), t_np
 
 
 def compute_random_trajectory(
@@ -571,14 +575,14 @@ def generate_trajectory(
         duration, 0.01
     )
     # dt for trajectory generation is 0.01, then transform back
-    take_every_nth = 5  # int(dt / 0.01)
+    take_every_nth = 2  # int(dt / 0.01)
     taken_every = trajectory[::take_every_nth, :]
 
     # transform to euler angels
     quaternions = taken_every[:, 3:7]
     euler_angles = np.array([quaternion_to_euler(q) for q in quaternions])
     # add in stacking below: euler_angles, taken_every[:, 16:19] (av)
-
+    euler_angles[:, :2] = euler_angles[:, :2] / 2
     # stack position, euler angles, velocity, body rates
     transformed_ref = np.hstack(
         (

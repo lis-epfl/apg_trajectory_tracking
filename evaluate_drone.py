@@ -48,6 +48,7 @@ class QuadEvaluator():
         self.render = render
         self.dt = dt
         self.action_counter = 0
+        self.mpc_helper = MPC(horizon, dt, dynamics="simple_quad")
 
     def help_render(self, sleep=.05):
         """
@@ -69,6 +70,7 @@ class QuadEvaluator():
         max_nr_steps=200,
         thresh_stable=.4,
         thresh_div=3,
+        use_mpc_every=2,
         **traj_args
     ):
         """
@@ -118,21 +120,34 @@ class QuadEvaluator():
             )
 
         self.help_render()
-        # start = input("start")
+
+        # is_in_control = 1
 
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
             # acc = self.eval_env.get_acceleration()
             trajectory = reference.get_ref_traj(current_np_state, 0)
-            numpy_action_seq = self.controller.predict_actions(
+            action = self.controller.predict_actions(
                 current_np_state, trajectory
             )
-            # only use first action (as in mpc)
-            action = numpy_action_seq[0]
-            current_np_state, _ = self.eval_env.step(
-                action, thresh=thresh_stable
+
+            # EXPERT
+            if i % use_mpc_every == 0:
+                action = self.mpc_helper.predict_actions(
+                    current_np_state, trajectory
+                )
+
+            # action = action_neural if is_in_control == 0 else action_mpc
+
+            current_np_state, stable = self.eval_env.step(
+                action[0], thresh=thresh_stable
             )
+            # np.set_printoptions(suppress=1, precision=3)
+            # print(
+            #     np.sum(np.abs(current_np_state[3:5])),
+            #     np.sum(np.abs(trajectory[0, 3:5]))
+            # )
             if states is not None:
                 self.eval_env._state.from_np(states[i])
                 current_np_state = states[i]
@@ -147,8 +162,17 @@ class QuadEvaluator():
             reference_trajectory.append(drone_on_line)
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
+
+            # # give control back to the neural controller
+            # if is_in_control == 0 and div < 0.3:
+            #     is_in_control = 1
+            # # take over control with the mpc
+            # if is_in_control and (div > thresh_div or not stable):
+            #     is_in_control = 0
+            #     current_np_state = reference.reference[reference.current_ind]
+            #     self.eval_env._state.from_np(current_np_state)
             if div > thresh_div:
-                self.eval_env._state.from_np(trajectory[1])
+                break
         if self.render:
             self.eval_env.close()
         # return trajectorie and divergences
@@ -185,7 +209,9 @@ class QuadEvaluator():
         nr_test: int = 10,
         max_steps: int = 200,
         thresh_div=1,
-        thresh_stable=1
+        thresh_stable=1,
+        use_mpc_every=2,
+        **kwargs
     ):
         """
         Function to evaluate a trajectory multiple times
@@ -194,20 +220,21 @@ class QuadEvaluator():
             return 0, 0
         div, stable = [], []
         for _ in range(nr_test):
-            circle_args = self.sample_circle()
+            # circle_args = self.sample_circle()
             _, drone_traj, divergences = self.follow_trajectory(
                 reference,
                 max_nr_steps=max_steps,
                 thresh_div=thresh_div,
                 thresh_stable=thresh_stable,
-                **circle_args
+                use_mpc_every=use_mpc_every
+                # **circle_args
             )
             div.append(np.mean(divergences))
-            no_large_div = np.sum(np.array(divergences) < thresh_div)
-            stable.append(no_large_div)
+            # no_large_div = np.sum(np.array(divergences) < thresh_div)
+            # stable.append(no_large_div)
+            stable.append(len(drone_traj))
 
         # Output results
-        print("Speed (last):", self.compute_speed(drone_traj))
         print(
             "%s: Average divergence: %3.2f (%3.2f)" %
             (reference, np.mean(div), np.std(div))
@@ -216,7 +243,7 @@ class QuadEvaluator():
             "%s: Steps until divergence: %3.2f (%3.2f)" %
             (reference, np.mean(stable), np.std(stable))
         )
-        return np.mean(stable), np.std(stable)
+        return np.mean(div), np.std(div)
 
     def collect_training_data(self, outpath="data/jan_2021.npy"):
         """
@@ -255,7 +282,7 @@ def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
     """
     Load model and corresponding parameters
     """
-    if "mpc" not in model_path:
+    if model_path.split(os.sep)[-1] != "mpc":
         # load std or other parameters from json
         net, param_dict = load_model_params(
             model_path, "model_quad", epoch=epoch
@@ -282,7 +309,7 @@ if __name__ == "__main__":
         "-e", "--epoch", type=str, default="", help="Saved epoch"
     )
     parser.add_argument(
-        "-r", "--ref", type=str, default="poly", help="which trajectory"
+        "-r", "--ref", type=str, default="rand", help="which trajectory"
     )
     parser.add_argument(
         '-p',
@@ -327,8 +354,8 @@ if __name__ == "__main__":
         "plane": [0, 2],
         "radius": 2,
         "direction": 1,
-        "thresh_div": 1,
-        "thresh_stable": 2
+        "thresh_div": 2,
+        "thresh_stable": 1
     }
     if args.points is not None:
         from neural_control.utils.predefined_trajectories import (
@@ -341,9 +368,11 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=200, **traj_args
+        args.ref, max_nr_steps=500, use_mpc_every=100, **traj_args
     )
-    print(np.sum(np.array(divergences) < .2))
+    # print(len(drone_traj))
+    # evaluator.render = 0
+    # evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from neural_control.dataset import DroneDataset
 from neural_control.drone_loss import (
-    drone_loss_function, trajectory_loss, reference_loss, simply_last_loss
+    drone_loss_function, trajectory_loss, reference_loss, mse_loss
 )
 from neural_control.environments.drone_dynamics import simulate_quadrotor
 from neural_control.controllers.network_wrapper import NetworkWrapper
@@ -21,13 +21,15 @@ from neural_control.utils.plotting import (
 DELTA_T = 0.05
 EPOCH_SIZE = 500
 SELF_PLAY = 1.5
-SELF_PLAY_EVERY_X = 5
+SELF_PLAY_EVERY_X = 2
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
-THRESH_DIV = .05
+THRESH_DIV = 1
+THRESH_STABLE = 1.5
+USE_MPC_EVERY = 2
 NR_EVAL_ITERS = 5
 STATE_SIZE = 12
 NR_ACTIONS = 10
@@ -35,7 +37,7 @@ REF_DIM = 12
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  #  "trained_models/drone/first_div_train"
+BASE_MODEL = "trained_models/drone/mpc_take_over"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):
@@ -60,7 +62,7 @@ eval_dict = {
     },
     "rand": {
         "nr_test": 20,
-        "max_steps": 200
+        "max_steps": 500
     }
 }
 
@@ -107,9 +109,11 @@ param_dict["reset_strength"] = RESET_STRENGTH
 param_dict["max_drone_dist"] = MAX_DRONE_DIST
 param_dict["horizon"] = NR_ACTIONS
 param_dict["ref_length"] = NR_ACTIONS
-param_dict["treshold_divergence"] = THRESH_DIV
+param_dict["thresh_div"] = THRESH_DIV
 param_dict["dt"] = DELTA_T
 param_dict["take_every_x"] = SELF_PLAY_EVERY_X
+param_dict["thresh_stable"] = THRESH_STABLE
+param_dict["use_mpc_every"] = USE_MPC_EVERY
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
@@ -124,7 +128,7 @@ trainloader = torch.utils.data.DataLoader(
 loss_list, success_mean_list, success_std_list = list(), list(), list()
 
 take_every_x = 10
-highest_success = 0  # np.inf
+highest_success = np.inf
 for epoch in range(NR_EPOCHS):
 
     try:
@@ -134,7 +138,10 @@ for epoch in range(NR_EPOCHS):
         eval_env = QuadEvaluator(controller, **param_dict)
         for reference, ref_params in eval_dict.items():
             suc_mean, suc_std = eval_env.eval_ref(
-                reference, thresh_div=THRESH_DIV, **ref_params
+                reference,
+                nr_test=ref_params["nr_test"],
+                max_steps=ref_params["max_steps"],
+                **param_dict
             )
 
         success_mean_list.append(suc_mean)
@@ -148,12 +155,15 @@ for epoch in range(NR_EPOCHS):
                 - self play counter: {state_data.get_eval_index()}"
             )
 
-        if suc_mean > 180:
-            param_dict["treshold_divergence"] += .05
-            print("increased thresh div", param_dict["treshold_divergence"])
+        if epoch % 2 == 0:
+            param_dict["use_mpc_every"] += 2
+            print(
+                "increased use of neural controller",
+                param_dict["use_mpc_every"]
+            )
 
         # save best model
-        if epoch > 0 and suc_mean > highest_success:
+        if epoch > 0 and suc_mean < highest_success:
             highest_success = suc_mean
             print("Best model")
             torch.save(net, os.path.join(SAVE, "model_quad" + str(epoch)))
@@ -188,16 +198,16 @@ for epoch in range(NR_EPOCHS):
                 )
                 intermediate_states[:, k] = current_state
 
-            # print(ref_states)
             # print_state_ref_div(
             #     intermediate_states[0].detach().numpy(),
             #     ref_states[0].detach().numpy()
             # )
             # exit()
 
-            loss = reference_loss(
+            loss = mse_loss(
                 intermediate_states,
                 ref_states,
+                action_seq,
                 printout=0,
             )
 

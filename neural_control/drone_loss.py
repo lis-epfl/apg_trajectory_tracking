@@ -53,15 +53,23 @@ weighting[3:6] = .1
 weighting[6:9] = .5
 weighting[9:] = .05
 
+drone_action_prior = torch.tensor([.5, .5, .5, .5])
+action_loss_mpc = torch.tensor([50, 1, 1, 1])
+state_loss_mpc = torch.tensor([1000, 1000, 1000, 0, 0, 0, 10, 10, 10, 1, 1, 1])
 
-def mse(states, ref_states, printout=0):
-    loss = (ref_states - states)**2 * weighting
+
+def mse_loss(states, ref_states, action_seq, printout=0):
+    action_diff = (action_seq - drone_action_prior)**2 * action_loss_mpc
+    state_diff = (states - ref_states)**2 * state_loss_mpc
+
+    loss = torch.sum(action_diff) + torch.sum(state_diff)
+    # (ref_states - states)**2 * weighting
     if printout:
         np_state = states[0].detach().numpy()
         np_ref = ref_states[0].detach().numpy()
         print_state_ref_div(np_ref, np_state)
         exit()
-    return torch.sum(loss) * 10
+    return loss * .01
 
 
 def simply_last_loss(states, ref_states, printout=0):
