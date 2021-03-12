@@ -78,17 +78,17 @@ def print_state_ref_div(np_state, np_ref):
     for i in range(traj_len):
         print(np_state[i, :3], "ref:", np_ref[i, :3])
 
-    print("Attitudes:")
-    for i in range(traj_len):
-        print(np_state[i, 3:6], "ref:", np_ref[i, 3:6])
+    # print("Attitudes:")
+    # for i in range(traj_len):
+    #     print(np_state[i, 3:6], "ref:", np_ref[i, 3:6])
 
     print("Velocities:")
     for i in range(traj_len):
-        print(np_state[i, 6:9], "ref:", np_ref[i, 6:9])
+        print(np_state[i, 6:9], "ref:", np_ref[i, 3:6])
 
-    print("Body rates:")
-    for i in range(traj_len):
-        print(np_state[i, 9:], "ref:", np_ref[i, 9:])
+    # print("Body rates:")
+    # for i in range(traj_len):
+    #     print(np_state[i, 9:], "ref:", np_ref[i, 9:])
 
 
 def plot_wing_pos(states, targets, save_path=None):

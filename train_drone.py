@@ -33,11 +33,11 @@ USE_MPC_EVERY = 500
 NR_EVAL_ITERS = 5
 STATE_SIZE = 12
 NR_ACTIONS = 10
-REF_DIM = 12
+REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/mpc_take_over"
+BASE_MODEL = None  # "trained_models/drone/"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):

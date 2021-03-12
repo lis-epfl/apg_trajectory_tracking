@@ -27,7 +27,7 @@ class Random:
             raise ValueError("if render is true, need to input renderer")
 
         points_3d = generate_trajectory(duration, dt)
-        self.initial_state = points_3d[0]
+        self.initial_pos = points_3d[0, :3]
         # all_training_data = np.load("training_data.npy")
         # rand_ind = np.random.randint(0, len(all_training_data) // 501, 1)
         # start = int(rand_ind * 501)
@@ -78,6 +78,10 @@ class Random:
         Project drone state onto the trajectory
         """
         return self.reference[self.current_ind, :3]
+
+    def get_current_full_state(self):
+        pos_vel = self.reference[self.current_ind]
+        return np.hstack((pos_vel[:3], np.zeros(3), pos_vel[3:6], np.zeros(3)))
 
 
 class PolyObject():

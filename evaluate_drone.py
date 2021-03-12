@@ -116,7 +116,7 @@ class QuadEvaluator():
         if traj_type == "rand":
             # self.eval_env._state.from_np(reference.initial_state)
             current_np_state = self.eval_env.zero_reset(
-                *tuple(reference.initial_state[:3])
+                *tuple(reference.initial_pos)
             )
 
         self.help_render()
@@ -169,11 +169,14 @@ class QuadEvaluator():
             #     is_in_control = 1
             # # take over control with the mpc
             if div > thresh_div or not stable:
+                if self.render:
+                    print(len(drone_trajectory))
+                    break
                 # is_in_control and (div > thresh_div or not stable):
                 #     if self.render:
                 #         print("use mpc")
                 #     is_in_control = 0
-                current_np_state = reference.reference[reference.current_ind]
+                current_np_state = reference.get_current_full_state()
                 self.eval_env._state.from_np(current_np_state)
             # if div > 3 * thresh_div:
             #     break
@@ -379,7 +382,7 @@ if __name__ == "__main__":
         "plane": [0, 2],
         "radius": 2,
         "direction": 1,
-        "thresh_div": .2,
+        "thresh_div": 5,
         "thresh_stable": 1
     }
     if args.points is not None:
@@ -393,12 +396,11 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     # evaluator.run_mpc_ref(args.ref)
-    # reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-    #     args.ref, max_nr_steps=500, use_mpc_every=1000, **traj_args
-    # )
-    # print(len(drone_traj))
-    evaluator.render = 1
-    evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
+    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+        args.ref, max_nr_steps=500, use_mpc_every=1000, **traj_args
+    )
+    # evaluator.render = 1
+    # evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

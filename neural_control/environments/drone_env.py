@@ -282,7 +282,7 @@ def full_state_training_data(
     sample_freq = ref_length * 2
     # TODO: might want to sample less frequently
     drone_states = np.zeros((len_data + 200, 12))
-    ref_states = np.zeros((len_data + 200, ref_length, 12))
+    ref_states = np.zeros((len_data + 200, ref_length, 6))
 
     counter = 0
     while counter < len_data:
@@ -291,8 +291,15 @@ def full_state_training_data(
         # select every xth sample as the current drone state
         selected_starts = traj_cut[::sample_freq, :]
         nr_states_added = len(selected_starts)
+
+        full_drone_state = np.hstack(
+            (
+                selected_starts[:, :3], np.zeros((len(selected_starts), 3)),
+                selected_starts[:, 3:6], np.zeros((len(selected_starts), 3))
+            )
+        )
         # add drone states
-        drone_states[counter:counter + nr_states_added, :] = selected_starts
+        drone_states[counter:counter + nr_states_added, :] = full_drone_state
         # add ref states
         for i in range(ref_length):
             ref_states[counter:counter + nr_states_added,

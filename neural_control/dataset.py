@@ -182,13 +182,9 @@ class DroneDataset(torch.utils.data.Dataset):
 
         # for the reference, input is: relative pos, vel, vel-drone vel
         # TODO: add rotation, leave out av?
-        vel_minus_veldrone = torch_ref_states[:, :, 6:9] - subtract_drone_vel
+        vel_minus_veldrone = torch_ref_states[:, :, 3:6] - subtract_drone_vel
         inp_ref_states = torch.cat(
-            (
-                torch_ref_states[:, :, :3], torch_ref_states[:, :, 6:],
-                vel_minus_veldrone
-            ),
-            dim=2
+            (torch_ref_states, vel_minus_veldrone), dim=2
         )
 
         # transform acceleration
