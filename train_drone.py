@@ -27,7 +27,7 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
-THRESH_DIV = 1
+THRESH_DIV = .2
 THRESH_STABLE = 1.5
 USE_MPC_EVERY = 500
 NR_EVAL_ITERS = 5
@@ -137,7 +137,7 @@ for epoch in range(NR_EPOCHS):
         controller = NetworkWrapper(net, state_data, **param_dict)
         eval_env = QuadEvaluator(controller, **param_dict)
         # run with mpc to collect data
-        eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
+        # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
         suc_mean, suc_std = eval_env.eval_ref(
             "rand", nr_test=5, max_steps=500, **param_dict
@@ -152,12 +152,9 @@ for epoch in range(NR_EPOCHS):
             print(f"Sampled new data ({state_data.num_sampled_states})")
         print(f"self play counter: {state_data.get_eval_index()}")
 
-        # if epoch % 2 == 0:
-        #     param_dict["use_mpc_every"] += 2
-        #     print(
-        #         "increased use of neural controller",
-        #         param_dict["use_mpc_every"]
-        #     )
+        if epoch % 2 == 0:
+            param_dict["thresh_div"] += .05
+            print("increased thresh div", param_dict["thresh_div"])
 
         # save best model
         if epoch > 0 and suc_mean > highest_success:

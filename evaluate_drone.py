@@ -121,24 +121,25 @@ class QuadEvaluator():
 
         self.help_render()
 
-        # is_in_control = 1
+        is_in_control = 1
 
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
             # acc = self.eval_env.get_acceleration()
             trajectory = reference.get_ref_traj(current_np_state, 0)
-            action = self.controller.predict_actions(
+            action_neural = self.controller.predict_actions(
                 current_np_state, trajectory
             )
 
             # EXPERT
-            if (i + 1) % use_mpc_every == 0:
-                action = self.mpc_helper.predict_actions(
+            action_mpc = 1
+            if is_in_control == 0:  # (i + 1) % use_mpc_every == 0:
+                action_mpc = self.mpc_helper.predict_actions(
                     current_np_state, trajectory
                 )
 
-            # action = action_neural if is_in_control == 0 else action_mpc
+            action = action_neural if is_in_control else action_mpc
 
             current_np_state, stable = self.eval_env.step(
                 action[0], thresh=thresh_stable
@@ -167,11 +168,13 @@ class QuadEvaluator():
             # if is_in_control == 0 and div < 0.3:
             #     is_in_control = 1
             # # take over control with the mpc
-            # if is_in_control and (div > thresh_div or not stable):
-            #     is_in_control = 0
-            #     current_np_state = reference.reference[reference.current_ind]
-            #     self.eval_env._state.from_np(current_np_state)
-            if div > thresh_div:
+            if is_in_control and (div > thresh_div or not stable):
+                if self.render:
+                    print("use mpc")
+                is_in_control = 0
+                current_np_state = reference.reference[reference.current_ind]
+                self.eval_env._state.from_np(current_np_state)
+            if div > 3 * thresh_div:
                 break
         if self.render:
             self.eval_env.close()
@@ -249,9 +252,11 @@ class QuadEvaluator():
                 # **circle_args
             )
             div.append(np.mean(divergences))
+            # before take over
             # no_large_div = np.sum(np.array(divergences) < thresh_div)
-            # stable.append(no_large_div)
-            stable.append(len(drone_traj))
+            no_large_div = np.where(np.array(divergences) > thresh_div)[0][0]
+            stable.append(no_large_div)
+            # stable.append(len(drone_traj))
 
         # Output results
         print(
@@ -373,7 +378,7 @@ if __name__ == "__main__":
         "plane": [0, 2],
         "radius": 2,
         "direction": 1,
-        "thresh_div": 2,
+        "thresh_div": .2,
         "thresh_stable": 1
     }
     if args.points is not None:
@@ -387,12 +392,12 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     # evaluator.run_mpc_ref(args.ref)
-    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=500, use_mpc_every=500, **traj_args
-    )
-    print(len(drone_traj))
-    # evaluator.render = 0
-    # evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
+    # reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+    #     args.ref, max_nr_steps=500, use_mpc_every=1000, **traj_args
+    # )
+    # print(len(drone_traj))
+    evaluator.render = 1
+    evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
