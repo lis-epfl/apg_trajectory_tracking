@@ -182,3 +182,14 @@ def simulate_quadrotor(action, state, dt=0.02):
     # set final state
     state = torch.hstack((position, attitude, velocity, angular_velocity))
     return state.float()
+
+
+if __name__ == "__main__":
+    print("hi")
+    state = torch.tensor(
+        [[0.1, 0.2, 0.3, 0.5, -0.2, 0.35, 0.9, 1.3, 0, 0.05, 0.1, -0.23]]
+    )
+    action = torch.tensor([[0.5, 0.45, 0.48, 0.55]])
+    new_state = simulate_quadrotor(action, state, 0.1)
+    print(state)
+    print(new_state)
