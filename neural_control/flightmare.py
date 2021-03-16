@@ -60,7 +60,7 @@ class FlightmareWrapper(QuadRotorEnvBase):
         # action is normalized between 0 and 1 --> rescale
         act_fm = action.copy()
         # total_thrust
-        act_fm[0] = action[0] * 10 - 5 + 7
+        act_fm[0] = action[0] * 15 - 7.5 + 9.81
         # ang momentum
         act_fm[1:] = action[1:] - .5
         return np.expand_dims(act_fm, 0).astype(np.float32)
