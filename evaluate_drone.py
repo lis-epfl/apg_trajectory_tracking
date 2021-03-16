@@ -140,7 +140,6 @@ class QuadEvaluator():
             #     )
 
             # action = action_neural if is_in_control else action_mpc
-
             current_np_state, stable = self.eval_env.step(
                 action[0], thresh=thresh_stable
             )
@@ -359,7 +358,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": .25}
+    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": 1.25}
 
     # rendering
     if args.unity:
@@ -383,7 +382,7 @@ if __name__ == "__main__":
         "radius": 2,
         "direction": 1,
         "thresh_div": 5,
-        "thresh_stable": 1
+        "thresh_stable": 2
     }
     if args.points is not None:
         from neural_control.utils.predefined_trajectories import (
@@ -397,7 +396,7 @@ if __name__ == "__main__":
 
     # evaluator.run_mpc_ref(args.ref)
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=500, use_mpc_every=1000, **traj_args
+        args.ref, max_nr_steps=250, use_mpc_every=1000, **traj_args
     )
     # evaluator.render = 1
     # evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
@@ -406,7 +405,7 @@ if __name__ == "__main__":
         evaluator.eval_env.env.disconnectUnity()
 
     # EVAL
-    print("Speed:", evaluator.compute_speed(drone_traj[100:300, :3]))
+    print("Speed:", evaluator.compute_speed(drone_traj[100:200, :3]))
     plot_trajectory(
         reference_traj,
         drone_traj,

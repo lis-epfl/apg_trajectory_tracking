@@ -15,8 +15,8 @@ class Polynomial:
         max_drone_dist=0.25,
         horizon=10,
         hover_steps=50,
-        x_range=10,
-        degree=8,
+        x_range=20,
+        degree=5,
         dt=0.05,
         **kwargs
     ):
@@ -140,17 +140,18 @@ class Polynomial:
         next_positions = self.reference[self.current_ind:self.current_ind +
                                         self.horizon + 2]
         next_velocities = [
-            (next_positions[i + 1] - next_positions[i]) / self.dt * 2
+            (next_positions[i + 1] - next_positions[i]) / self.dt
             for i in range(self.horizon + 1)
         ]
-        next_accs = [
-            (next_velocities[i + 1] - next_velocities[i]) / self.dt
-            for i in range(self.horizon)
-        ]
+        # next_accs = [
+        #     (next_velocities[i + 1] - next_velocities[i]) / self.dt
+        #     for i in range(self.horizon)
+        # ]
         ref_out = np.hstack(
             (
-                next_positions[:self.horizon], next_velocities[:self.horizon],
-                next_accs[:self.horizon]
+                next_positions[:self.horizon],
+                next_velocities[:self.horizon],
+                # next_accs[:self.horizon]
             )
         )
         self.current_ind += 1

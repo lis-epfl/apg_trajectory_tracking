@@ -8,7 +8,8 @@ import torch.nn.functional as F
 
 from neural_control.dataset import DroneDataset
 from neural_control.drone_loss import (
-    drone_loss_function, simply_last_loss, reference_loss, mse_loss
+    drone_loss_function, simply_last_loss, reference_loss, mse_loss,
+    weighted_loss
 )
 from neural_control.environments.drone_dynamics import simulate_quadrotor
 from neural_control.controllers.network_wrapper import NetworkWrapper
@@ -36,8 +37,9 @@ NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
+MAX_STEPS = 250
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # "trained_models/drone/"
+BASE_MODEL = None  # "trained_models/drone/branch_faster_speed_3"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):
@@ -140,7 +142,7 @@ for epoch in range(NR_EPOCHS):
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
         suc_mean, suc_std = eval_env.eval_ref(
-            "rand", nr_test=5, max_steps=500, **param_dict
+            "rand", nr_test=10, max_steps=MAX_STEPS, **param_dict
         )
 
         success_mean_list.append(suc_mean)
@@ -202,6 +204,7 @@ for epoch in range(NR_EPOCHS):
                 intermediate_states, ref_states[:, -1], printout=0
             )
 
+            # loss = weighted_loss(intermediate_states, ref_states, printout=0)
             # Backprop
             loss.backward()
             optimizer.step()

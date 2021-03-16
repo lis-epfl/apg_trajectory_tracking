@@ -72,6 +72,25 @@ def mse_loss(states, ref_states, action_seq, printout=0):
     return loss * .01
 
 
+def weighted_loss(states, ref_states, printout=0):
+    vel_factor = 0.05
+    pos_factor = 10
+
+    position_loss = 0
+    velocity_loss = 0
+    for k in range(states.size()[1]):
+        # the later, the more it is weighted
+        position_loss += k * torch.sum(
+            (states[:, k, :3] - ref_states[:, k, :3])**2
+        )
+        velocity_loss += k * torch.sum(
+            (states[:, k, 6:9] - ref_states[:, k, 3:6])**2
+        )
+
+    loss = (pos_factor * position_loss + vel_factor * velocity_loss)
+    return loss * .01
+
+
 def simply_last_loss(states, ref_states, printout=0):
     angvel_factor = 2e-2
     vel_factor = 0.05
