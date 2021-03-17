@@ -20,7 +20,7 @@ from neural_control.environments.rendering import (
 from neural_control.environments.copter import (
     copter_params, DynamicsState, Euler
 )
-from neural_control.environments.drone_dynamics import (
+from neural_control.environments.flightmare_dynamics import (
     simulate_quadrotor, linear_dynamics
 )
 from neural_control.utils.generate_trajectory import generate_trajectory

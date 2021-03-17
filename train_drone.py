@@ -19,7 +19,7 @@ from neural_control.utils.plotting import (
     plot_loss_episode_len, print_state_ref_div
 )
 
-DELTA_T = 0.05
+DELTA_T = 0.1
 EPOCH_SIZE = 500
 SELF_PLAY = 1.5
 SELF_PLAY_EVERY_X = 2
@@ -37,9 +37,9 @@ NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
-MAX_STEPS = 250
+MAX_STEPS = 333
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None  # "trained_models/drone/branch_faster_speed_3"
+BASE_MODEL = "trained_models/drone/branch_faster_speed_3"
 BASE_MODEL_NAME = 'model_quad'
 
 if not os.path.exists(SAVE):
@@ -201,7 +201,7 @@ for epoch in range(NR_EPOCHS):
             # exit()
 
             loss = simply_last_loss(
-                intermediate_states, ref_states[:, -1], printout=0
+                intermediate_states, ref_states[:, -1], action_seq, printout=0
             )
 
             # loss = weighted_loss(intermediate_states, ref_states, printout=0)
