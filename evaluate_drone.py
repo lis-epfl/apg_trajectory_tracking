@@ -39,6 +39,7 @@ class QuadEvaluator():
         max_drone_dist=0.1,
         render=0,
         dt=0.02,
+        test_time=0,
         **kwargs
     ):
         self.controller = controller
@@ -48,6 +49,7 @@ class QuadEvaluator():
         self.render = render
         self.dt = dt
         self.action_counter = 0
+        self.test_time = test_time
         # self.mpc_helper = MPC(horizon, dt, dynamics="simple_quad")
 
     def help_render(self, sleep=.05):
@@ -168,8 +170,8 @@ class QuadEvaluator():
             #     is_in_control = 1
             # # take over control with the mpc
             if div > thresh_div or not stable:
-                if self.render:
-                    print(len(drone_trajectory))
+                if self.test_time:
+                    print("diverged at", len(drone_trajectory))
                     break
                 # is_in_control and (div > thresh_div or not stable):
                 #     if self.render:
@@ -369,7 +371,7 @@ if __name__ == "__main__":
     controller = load_model(model_path, epoch=args.epoch, **params)
 
     # define evaluation environment
-    evaluator = QuadEvaluator(controller, **params)
+    evaluator = QuadEvaluator(controller, test_time=1, **params)
 
     # FLIGHTMARE
     if args.flightmare:
@@ -396,7 +398,7 @@ if __name__ == "__main__":
 
     # evaluator.run_mpc_ref(args.ref)
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=250, use_mpc_every=1000, **traj_args
+        args.ref, max_nr_steps=333, use_mpc_every=1000, **traj_args
     )
     # evaluator.render = 0
     # evaluator.eval_ref(args.ref, max_steps=250, **traj_args)
@@ -405,7 +407,7 @@ if __name__ == "__main__":
         evaluator.eval_env.env.disconnectUnity()
 
     # EVAL
-    print("Speed:", evaluator.compute_speed(drone_traj[100:200, :3]))
+    print("Speed:", evaluator.compute_speed(drone_traj[:200, :3]))
     plot_trajectory(
         reference_traj,
         drone_traj,

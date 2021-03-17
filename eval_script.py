@@ -19,19 +19,19 @@ eval_dict = {
         "nr_test": 0,
         "max_steps": 1000
     },
-    "poly": {
+    "rand": {
         "nr_test": 50,
-        "max_steps": 1000
+        "max_steps": 333
     }
 }
-thresh_stable = 1.5
+thresh_stable = 2
 thresh_divergence = 3
 
 config = {"render": 0, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
 
 if __name__ == "__main__":
-    models_to_evaluate = ["current_model", "mpc"]
-    names = ["neural controller", "MPC"]
+    models_to_evaluate = ["branch_faster_speed_3", "mpc"]
+    names = ["neural_faster", "MPC"]
 
     for model_name, save_name in zip(models_to_evaluate, names):
         for use_flightmare in [0, 1]:
@@ -57,12 +57,12 @@ if __name__ == "__main__":
             model_path = os.path.join("trained_models", "drone", model_name)
             controller = load_model(model_path, epoch=epoch, **config)
 
-            for speed in [0.5, 1]:
+            for speed in [1]:
                 max_drone_dist = speed * config["dt"] * config["horizon"]
                 config["max_drone_dist"] = max_drone_dist
 
                 # define evaluation environment
-                evaluator = QuadEvaluator(controller, **config)
+                evaluator = QuadEvaluator(controller, test_time=1, **config)
 
                 if use_flightmare:
                     evaluator.eval_env = FlightmareWrapper(config["dt"], False)
