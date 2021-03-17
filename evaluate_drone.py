@@ -48,7 +48,7 @@ class QuadEvaluator():
         self.render = render
         self.dt = dt
         self.action_counter = 0
-        self.mpc_helper = MPC(horizon, dt, dynamics="simple_quad")
+        # self.mpc_helper = MPC(horizon, dt, dynamics="simple_quad")
 
     def help_render(self, sleep=.05):
         """
@@ -398,8 +398,8 @@ if __name__ == "__main__":
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
         args.ref, max_nr_steps=250, use_mpc_every=1000, **traj_args
     )
-    # evaluator.render = 1
-    # evaluator.eval_ref(args.ref, max_steps=500, use_mpc_every=10, thresh_div=2)
+    # evaluator.render = 0
+    # evaluator.eval_ref(args.ref, max_steps=250, **traj_args)
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
