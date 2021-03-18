@@ -4,30 +4,20 @@ import os
 import pandas as pd
 
 from evaluate_drone import QuadEvaluator, load_model
+from neural_control.controllers.mpc import MPC
 from neural_control.dataset import DroneDataset
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
     pass
 
-eval_dict = {
-    "straight": {
-        "nr_test": 0,
-        "max_steps": 1000
-    },
-    "circle": {
-        "nr_test": 0,
-        "max_steps": 1000
-    },
-    "rand": {
-        "nr_test": 50,
-        "max_steps": 333
-    }
-}
+eval_dict = {"rand": {"nr_test": 50, "max_steps": 333}}
 thresh_stable = 2
 thresh_divergence = 3
 
-config = {"render": 0, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
+config = {"render": 0}
+# mpc parameters:
+time_model_params = {"horizon": 20, "dt": .05, "dynamics": "simple_quad"}
 
 if __name__ == "__main__":
     models_to_evaluate = ["branch_faster_speed_3", "mpc"]
@@ -38,12 +28,9 @@ if __name__ == "__main__":
             env_name = "flightmare" if use_flightmare else "simple env"
             print(f"---------------- {model_name} in env {env_name} --------")
 
-            # model_name = "current_model"
-            epoch = ""
             out_path = "outputs"
             save_model_name = save_name + f" ({env_name})"
             print("save_model_name", save_model_name)
-            # use_flightmare = True
 
             df = pd.DataFrame(
                 columns=[
@@ -55,7 +42,15 @@ if __name__ == "__main__":
 
             # load model
             model_path = os.path.join("trained_models", "drone", model_name)
-            controller = load_model(model_path, epoch=epoch, **config)
+
+            if model_path.split(os.sep)[-1] == "mpc":
+                controller = MPC(**time_model_params)
+            # Neural controller
+            else:
+                controller, time_model_params = load_model(model_path)
+
+            # define evaluation environment
+            config.update(time_model_params)
 
             for speed in [1]:
                 max_drone_dist = speed * config["dt"] * config["horizon"]

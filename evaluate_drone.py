@@ -133,9 +133,9 @@ class QuadEvaluator():
             action = self.controller.predict_actions(
                 current_np_state, trajectory
             )
-            if self.test_time:
-                np.set_printoptions(suppress=1)
-                print(action)
+            # if self.test_time:
+            #     np.set_printoptions(suppress=1)
+            #     print(action)
             # EXPERT
             # action_mpc = 1
             # if is_in_control == 0:  # (i + 1) % use_mpc_every == 0:
@@ -196,14 +196,14 @@ class QuadEvaluator():
         Compute speed, given a trajectory of drone positions
         """
         if len(drone_traj) == 0:
-            return 0
-        dist = 0
+            return [0]
+        dist = []
         for j in range(len(drone_traj) - 1):
-            dist += np.linalg.norm(drone_traj[j, :3] - drone_traj[j + 1, :3])
-
-        time_passed = len(drone_traj) * self.dt
-        speed = dist / time_passed
-        return speed
+            dist.append(
+                (np.linalg.norm(drone_traj[j, :3] - drone_traj[j + 1, :3])) /
+                self.dt
+            )
+        return [round(d, 2) for d in dist]
 
     def sample_circle(self):
         possible_planes = [[0, 1], [0, 2], [1, 2]]
@@ -309,21 +309,17 @@ def load_model_params(model_path, name="model_quad", epoch=""):
     return net, param_dict
 
 
-def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
+def load_model(model_path, epoch=""):
     """
     Load model and corresponding parameters
     """
-    if model_path.split(os.sep)[-1] != "mpc":
-        # load std or other parameters from json
-        net, param_dict = load_model_params(
-            model_path, "model_quad", epoch=epoch
-        )
-        dataset = DroneDataset(1, 1, **param_dict)
+    # load std or other parameters from json
+    net, param_dict = load_model_params(model_path, "model_quad", epoch=epoch)
+    dataset = DroneDataset(1, 1, **param_dict)
 
-        controller = NetworkWrapper(net, dataset, **param_dict)
-    else:
-        controller = MPC(horizon, dt, dynamics="simple_quad")
-    return controller
+    controller = NetworkWrapper(net, dataset, **param_dict)
+
+    return controller, param_dict
 
 
 if __name__ == "__main__":
@@ -362,17 +358,31 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.1, "horizon": 10, "max_drone_dist": 1.25}
+    params = {"render": 1, "max_drone_dist": 1.25}
 
     # rendering
     if args.unity:
         params["render"] = 0
 
-    # load model
+    # define and load controller
     model_path = os.path.join("trained_models", "drone", args.model)
-    controller = load_model(model_path, epoch=args.epoch, **params)
+    # MPC
+    if model_path.split(os.sep)[-1] == "mpc":
+        # mpc parameters:
+        time_model_params = {
+            "horizon": 20,
+            "dt": .05,
+            "dynamics": "simple_quad"
+        }
+        controller = MPC(**time_model_params)
+    # Neural controller
+    else:
+        controller, time_model_params = load_model(
+            model_path, epoch=args.epoch
+        )
 
     # define evaluation environment
+    params.update(time_model_params)
     evaluator = QuadEvaluator(controller, test_time=1, **params)
 
     # FLIGHTMARE
@@ -409,7 +419,12 @@ if __name__ == "__main__":
         evaluator.eval_env.env.disconnectUnity()
 
     # EVAL
-    print("Speed:", evaluator.compute_speed(drone_traj[:200, :3]))
+    speed = evaluator.compute_speed(drone_traj[:, :3])
+    print(
+        "Speed: max:", round(np.max(speed), 2), ", mean:",
+        round(np.mean(speed), 2)
+    )
+    # print(speed)
     plot_trajectory(
         reference_traj,
         drone_traj,
