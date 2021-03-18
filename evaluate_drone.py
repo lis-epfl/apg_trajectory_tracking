@@ -133,7 +133,9 @@ class QuadEvaluator():
             action = self.controller.predict_actions(
                 current_np_state, trajectory
             )
-
+            if self.test_time:
+                np.set_printoptions(suppress=1)
+                print(action)
             # EXPERT
             # action_mpc = 1
             # if is_in_control == 0:  # (i + 1) % use_mpc_every == 0:
@@ -360,7 +362,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "dt": 0.05, "horizon": 10, "max_drone_dist": 1.25}
+    params = {"render": 1, "dt": 0.1, "horizon": 10, "max_drone_dist": 1.25}
 
     # rendering
     if args.unity:

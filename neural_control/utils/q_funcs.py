@@ -90,6 +90,13 @@ def q_to_rot_mat(q):
     return rot_mat
 
 
+def q_dot_new(q, w):
+    t0 = -0.5 * (w[0] * q[1] + w[1] * q[2] + w[2] * q[3])
+    t1 = 0.5 * (w[0] * q[0] + w[1] * q[3] - w[2] * q[2])
+    t2 = 0.5 * (w[1] * q[0] + w[2] * q[1] - w[0] * q[3])
+    t3 = 0.5 * (w[2] * q[0] + w[0] * q[2] - w[1] * q[1])
+    return np.array([t0, t1, t2, t3])
+
 def q_dot_q(q, r):
     """
     Applies the rotation of quaternion r to quaternion q. In order words,
