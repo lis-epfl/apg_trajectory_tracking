@@ -128,6 +128,13 @@ def run_flight_control(thrust, av, body_rates, cross_prod):
     return motor_thrusts_des[:, :, 0]
 
 
+def pretty_print(varname, torch_var):
+    np.set_printoptions(suppress=1, precision=7)
+    if len(torch_var) > 1:
+        print("ERR: batch size larger 1", torch_var.size())
+    print(varname, torch_var[0].detach().numpy())
+
+
 def simulate_quadrotor(action, state, dt):
 
     # extract state
@@ -139,7 +146,6 @@ def simulate_quadrotor(action, state, dt):
     # action is normalized between 0 and 1 --> rescale
     total_thrust = action[:, 0] * 15 - 7.5 + 9.81
     body_rates = action[:, 1:] - .5
-    # get att and av TODO
 
     # ctl_dt ist simulation time,
     # remainer wird immer -sim_dt gemacht in jedem loop
@@ -165,10 +171,8 @@ def simulate_quadrotor(action, state, dt):
     force = torch.cat(
         (torch.zeros(f_s), torch.zeros(f_s), force_expanded), dim=1
     )
-    # print("force (should be ?, 3)", force.size())
 
     acceleration = linear_dynamics(force, attitude, velocity)
-    # print("acceleration", acceleration.size())
 
     position = position + 0.5 * dt * dt * acceleration + 0.5 * dt * velocity
     velocity = velocity + dt * acceleration
@@ -178,19 +182,46 @@ def simulate_quadrotor(action, state, dt):
     angular_acc = torch.matmul(
         copter_params.inertia_J_inv, torch.unsqueeze((tau - cross_prod), 2)
     )[:, :, 0]
-    angular_velocity = angular_velocity + dt * angular_acc
+    new_angular_velocity = angular_velocity + dt * angular_acc
+
+    # other option: use quaternion
+    # --> also slight error to flightmare, even when using euler, no idea why
+    # from neural_control.utils.q_funcs import (
+    #     q_dot_new, euler_to_quaternion, quaternion_to_euler
+    # )
+    # quaternion = euler_to_quaternion(
+    #     attitude[0, 0].item(), attitude[0, 1].item(), attitude[0, 2].item()
+    # )
+    # print("quaternion", quaternion)
+    # np.set_printoptions(suppress=1, precision=7)
+    # av_test = angular_velocity[0].numpy()
+    # quaternion_omega = np.array([av_test[0], av_test[1], av_test[2]])
+    # print("quaternion_omega", quaternion_omega)
+    # q_dot = q_dot_new(quaternion, quaternion_omega)
+    # print("q dot", q_dot)
+    # # integrate
+    # new_quaternion = quaternion + dt * q_dot
+    # print("new_quaternion", new_quaternion)
+    # new_quaternion = new_quaternion / np.linalg.norm(new_quaternion)
+    # print("new_quaternion", new_quaternion)
+    # new_euler = quaternion_to_euler(new_quaternion)
+    # print("new euler", new_euler)
+
+    # pretty_print("attitude before", attitude)
+
     attitude = attitude + dt * euler_rate(attitude, angular_velocity)
 
     # set final state
-    state = torch.hstack((position, attitude, velocity, angular_velocity))
+    state = torch.hstack((position, attitude, velocity, new_angular_velocity))
     return state.float()
 
 
 if __name__ == "__main__":
-    state = torch.tensor(
-        [[0.1, 0.2, 0.3, 0.5, -0.2, 0.35, 0.9, 1.3, 0, 0.05, 0.1, -0.23]]
-    )
-    action = torch.tensor([[0.5, 0.45, 0.48, 0.55]])
-    new_state = simulate_quadrotor_new(action, state, 0.1)
-    print(state)
-    print(new_state)
+    action = torch.tensor([[0.45, 0.46, 0.3, 0.6]])
+
+    state = [
+        -0.203302, -8.12219, 0.484883, -0.15613, -0.446313, 0.25728, -4.70952,
+        0.627684, -2.506545, -0.039999, -0.200001, 0.1
+    ]
+    # state = [2, 3, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    new_state = simulate_quadrotor(action, torch.tensor([state]), 0.05)
