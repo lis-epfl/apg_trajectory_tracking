@@ -561,8 +561,19 @@ def compute_geometric_trajectory(quad, duration=30.0, dt=0.001):
 
 
 def generate_trajectory(
-    duration, dt, mode="random", freq_x=2, freq_y=2, freq_z=2
+    duration,
+    dt,
+    speed_factor=.6,
+    mode="random",
+    freq_x=2,
+    freq_y=2,
+    freq_z=2
 ):
+    """
+    speed factor: between 0 and 1, 0.6 would mean that it's going at 0.6 of the
+    actual speed (but discrete steps! if dt=0.05 then speed_factor can only be
+    0.8, 0.6, 0.4, etc)
+    """
     quad = Quad(10.0)
 
     # the arena bounds
@@ -575,7 +586,7 @@ def generate_trajectory(
         duration, 0.01
     )
     # dt for trajectory generation is 0.01, then transform back
-    take_every_nth = 3  # int(dt / 0.01)
+    take_every_nth = int(dt / 0.01 * speed_factor)
     taken_every = trajectory[::take_every_nth, :]
 
     freq_x = 0.29
@@ -591,8 +602,8 @@ def generate_trajectory(
     # only use pos and vel
     transformed_ref = np.hstack(
         (
-            taken_every[:, :3], taken_every[:, 7:10] / 5 * take_every_nth,
-            euler_angles / 5 * take_every_nth
+            taken_every[:, :3], taken_every[:, 7:10] * speed_factor,
+            euler_angles * speed_factor
         )
     )
     # print("transformed shape", transformed_ref.shape)
