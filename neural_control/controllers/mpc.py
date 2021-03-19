@@ -51,12 +51,11 @@ class MPC(object):
     """
 
     def __init__(
-        self, horizon=20, dt=0.05, dynamics="high_mpc", so_path='./nmpc.so'
+        self, horizon=20, dt=0.05, dynamics="high_mpc", **kwargs
     ):
         """
         Nonlinear MPC for quadrotor control        
         """
-        self.so_path = so_path
 
         self.dynamics_model = dynamics
 

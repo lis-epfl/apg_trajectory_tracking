@@ -16,11 +16,9 @@ thresh_stable = 2
 thresh_divergence = 3
 
 config = {"render": 0}
-# mpc parameters:
-time_model_params = {"horizon": 20, "dt": .05, "dynamics": "simple_quad"}
 
 if __name__ == "__main__":
-    models_to_evaluate = ["branch_faster_speed_3", "mpc"]
+    models_to_evaluate = ["branch_faster_3_horizon1", "mpc"]
     names = ["neural_faster", "MPC"]
 
     for model_name, save_name in zip(models_to_evaluate, names):
@@ -44,6 +42,10 @@ if __name__ == "__main__":
             model_path = os.path.join("trained_models", "drone", model_name)
 
             if model_path.split(os.sep)[-1] == "mpc":
+                # mpc parameters:
+                time_model_params = {
+                    "horizon": 20, "dt": .05, "dynamics": "simple_quad"
+                }
                 controller = MPC(**time_model_params)
             # Neural controller
             else:
@@ -91,7 +93,8 @@ if __name__ == "__main__":
                         if reference == "poly" and len(drone_ref) > 500:
                             drone_ref = drone_ref[100:-500]
                         try:
-                            speed = evaluator.compute_speed(drone_ref)
+                            speed_all = evaluator.compute_speed(drone_ref)
+                            speed = np.max(speed_all)
                         except ZeroDivisionError:
                             speed = np.nan
 
