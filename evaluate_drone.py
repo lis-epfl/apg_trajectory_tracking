@@ -40,6 +40,8 @@ class QuadEvaluator():
         render=0,
         dt=0.02,
         test_time=0,
+        dynamics="flightmare",
+        speed_factor=.6,
         **kwargs
     ):
         self.controller = controller
@@ -50,7 +52,8 @@ class QuadEvaluator():
         self.dt = dt
         self.action_counter = 0
         self.test_time = test_time
-        # self.mpc_helper = MPC(horizon, dt, dynamics="simple_quad")
+        self.dynamics = dynamics
+        self.speed_factor = speed_factor
 
     def help_render(self, sleep=.05):
         """
@@ -111,6 +114,7 @@ class QuadEvaluator():
             self.render,
             self.eval_env.renderer,
             max_drone_dist=self.max_drone_dist,
+            speed_factor=self.speed_factor,
             horizon=self.horizon,
             dt=self.dt,
             **traj_args
@@ -145,7 +149,7 @@ class QuadEvaluator():
 
             # action = action_neural if is_in_control else action_mpc
             current_np_state, stable = self.eval_env.step(
-                action[0], thresh=thresh_stable
+                action[0], thresh=thresh_stable, dynamics=self.dynamics
             )
             # np.set_printoptions(suppress=1, precision=3)
             # print(
@@ -358,7 +362,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "max_drone_dist": 1.25}
+    params = {"render": 1, "max_drone_dist": 1.25, "dynamics": "flightmare"}
 
     # rendering
     if args.unity:
@@ -369,12 +373,8 @@ if __name__ == "__main__":
     # MPC
     if model_path.split(os.sep)[-1] == "mpc":
         # mpc parameters:
-        time_model_params = {
-            "horizon": 20,
-            "dt": .05,
-            "dynamics": "simple_quad"
-        }
-        controller = MPC(**time_model_params)
+        time_model_params = {"horizon": 20, "dt": .05}
+        controller = MPC(dynamics="simple_quad", **time_model_params)
     # Neural controller
     else:
         controller, time_model_params = load_model(

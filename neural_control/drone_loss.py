@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from neural_control.utils.plotting import print_state_ref_div
-from neural_control.environments.drone_dynamics import simulate_quadrotor, device
+from neural_control.environments.drone_dynamics import device
 torch.autograd.set_detect_anomaly(True)
 zero_tensor = torch.zeros(3).to(device)
 

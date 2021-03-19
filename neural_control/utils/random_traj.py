@@ -9,9 +9,9 @@ class Random:
         drone_state,
         render=False,
         renderer=None,
-        max_drone_dist=0.25,
+        speed_factor=.6,
         horizon=10,
-        duration=10,
+        duration=None,
         dt=0.05,
         **kwargs
     ):
@@ -19,14 +19,17 @@ class Random:
         Create random trajectory
         """
         self.horizon = horizon
-        self.max_drone_dist = max_drone_dist
         self.dt = dt
         # make variable whether we are already finished with the trajectory
         self.finished = False
         if render and renderer is None:
             raise ValueError("if render is true, need to input renderer")
 
-        points_3d = generate_trajectory(duration, dt)
+        if duration is None:
+            duration = 10 / 0.05 * dt
+        points_3d = generate_trajectory(
+            duration, dt, speed_factor=speed_factor
+        )
         self.full_ref = points_3d
         self.initial_pos = points_3d[0, :3]
         # all_training_data = np.load("training_data.npy")

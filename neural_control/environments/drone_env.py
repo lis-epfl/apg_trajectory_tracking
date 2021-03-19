@@ -21,8 +21,9 @@ from neural_control.environments.copter import (
     copter_params, DynamicsState, Euler
 )
 from neural_control.environments.flightmare_dynamics import (
-    simulate_quadrotor, linear_dynamics
+    flightmare_dynamics_function
 )
+from neural_control.environments.drone_dynamics import simple_dynamics_function
 from neural_control.utils.generate_trajectory import generate_trajectory
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -81,7 +82,7 @@ class QuadRotorEnvBase(gym.Env):
         acc = (self._state.velocity - self._state._last_velocity) / self.dt
         return acc
 
-    def step(self, action, thresh=.4):
+    def step(self, action, thresh=.4, dynamics="flightmare"):
         """
         Apply action to the current drone state
         Returns:
@@ -95,6 +96,13 @@ class QuadRotorEnvBase(gym.Env):
         torch_state = torch.from_numpy(np.array([self._state.as_np])
                                        ).to(device)
         torch_action = torch.from_numpy(np.array([action])).float().to(device)
+
+        # specify which dynamics function to use
+        simulate_quadrotor = (
+            flightmare_dynamics_function
+            if dynamics == "flightmare" else simple_dynamics_function
+        )
+        # dynamics
         new_state_arr = simulate_quadrotor(
             torch_action, torch_state, dt=self.dt
         )

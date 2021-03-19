@@ -4,7 +4,7 @@ import contextlib
 import torch.optim as optim
 
 from neural_control.drone_loss import reference_loss
-from neural_control.environments.drone_dynamics import simulate_quadrotor
+from neural_control.environments.drone_dynamics import simple_dynamics_function
 
 
 @contextlib.contextmanager
@@ -51,12 +51,12 @@ class NetworkWrapper:
         in_state, current_state, ref, _ = self.dataset.get_and_add_eval_data(
             current_np_state.copy(), ref_states, add_to_dataset=add_to_dataset
         )
-        # TODO merge: ref_states also .copy()?
         #  check if we want to train on this sample
-        do_training = (
-            (self.optimizer is not None)
-            and np.random.rand() < 1 / self.take_every_x
-        )
+        do_training = False
+        # (
+        #     (self.optimizer is not None)
+        #     and np.random.rand() < 1 / self.take_every_x
+        # )
         with dummy_context() if do_training else torch.no_grad():
             # if self.render:
             #     self.check_ood(current_np_state, ref_world)
@@ -82,7 +82,7 @@ class NetworkWrapper:
             for k in range(self.horizon):
                 # extract action
                 action = suggested_action[:, k]
-                current_state = simulate_quadrotor(
+                current_state = simple_dynamics_function(
                     action, current_state, dt=self.dt
                 )
                 intermediate_states[:, k] = current_state

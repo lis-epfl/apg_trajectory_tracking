@@ -11,7 +11,10 @@ from neural_control.drone_loss import (
     drone_loss_function, simply_last_loss, reference_loss, mse_loss,
     weighted_loss
 )
-from neural_control.environments.drone_dynamics import simulate_quadrotor
+from neural_control.environments.drone_dynamics import simple_dynamics_function
+from neural_control.environments.flightmare_dynamics import (
+    flightmare_dynamics_function
+)
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
@@ -19,6 +22,7 @@ from neural_control.utils.plotting import (
     plot_loss_episode_len, print_state_ref_div
 )
 
+DYNAMICS = "flightmare"
 DELTA_T = 0.1
 EPOCH_SIZE = 500
 SELF_PLAY = 1.5
@@ -37,10 +41,16 @@ NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.001
-MAX_STEPS = 333
+SPEED_FACTOR = .6
+MAX_STEPS = int(1000 / int(5 * SPEED_FACTOR))
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/branch_faster_speed_3"
+BASE_MODEL = "trained_models/drone/branch_faster_3_horizon1"
 BASE_MODEL_NAME = 'model_quad'
+
+simulate_quadrotor = (
+    flightmare_dynamics_function
+    if DYNAMICS == "flightmare" else simple_dynamics_function
+)
 
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
@@ -116,6 +126,7 @@ param_dict["dt"] = DELTA_T
 param_dict["take_every_x"] = SELF_PLAY_EVERY_X
 param_dict["thresh_stable"] = THRESH_STABLE
 param_dict["use_mpc_every"] = USE_MPC_EVERY
+param_dict["dynamics"] = DYNAMICS
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)

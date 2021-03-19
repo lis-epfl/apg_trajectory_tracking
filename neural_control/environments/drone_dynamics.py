@@ -147,7 +147,7 @@ def action_to_body_torques(av, body_rates):
     return body_torque_des
 
 
-def simulate_quadrotor(action, state, dt=0.02):
+def simple_dynamics_function(action, state, dt=0.02):
     """
     Simulate the dynamics of the quadrotor for the timestep given
     in `dt`. First the rotor speeds are updated according to the desired
@@ -190,6 +190,6 @@ if __name__ == "__main__":
         [[0.1, 0.2, 0.3, 0.5, -0.2, 0.35, 0.9, 1.3, 0, 0.05, 0.1, -0.23]]
     )
     action = torch.tensor([[0.5, 0.45, 0.48, 0.55]])
-    new_state = simulate_quadrotor(action, state, 0.1)
+    new_state = simple_dynamics_function(action, state, 0.1)
     print(state)
     print(new_state)

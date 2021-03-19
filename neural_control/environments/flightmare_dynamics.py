@@ -135,8 +135,10 @@ def pretty_print(varname, torch_var):
     print(varname, torch_var[0].detach().numpy())
 
 
-def simulate_quadrotor(action, state, dt):
-
+def flightmare_dynamics_function(action, state, dt):
+    """
+    Pytorch implementation of the dynamics in Flightmare simulator
+    """
     # extract state
     position = state[:, :3]
     attitude = state[:, 3:6]
@@ -224,4 +226,6 @@ if __name__ == "__main__":
         0.627684, -2.506545, -0.039999, -0.200001, 0.1
     ]
     # state = [2, 3, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    new_state = simulate_quadrotor(action, torch.tensor([state]), 0.05)
+    new_state = flightmare_dynamics_function(
+        action, torch.tensor([state]), 0.05
+    )
