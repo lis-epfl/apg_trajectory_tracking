@@ -14,11 +14,29 @@ from types import SimpleNamespace
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 copter_params = SimpleNamespace(**copter_params)
 # estimate intertia as in flightmare
-inertia_vector = ca.SX(
+inertia_vector_np = (
     copter_params.mass / 12.0 * copter_params.arm_length**2 *
     np.array([4.5, 4.5, 7])
 )
+inertia_vector = ca.SX(inertia_vector_np)
+inertia_vector_inv = ca.SX(1 / inertia_vector_np)
 kinv_ang_vel_tau = ca.SX(np.array([16.6, 16.6, 5.0]))
+
+t_BM_np = (
+    copter_params.arm_length * np.sqrt(0.5) *
+    np.array([[1, -1, -1, 1], [-1, -1, 1, 1], [0, 0, 0, 0]])
+)
+t_BM_ = ca.SX(t_BM_np)
+kappa_ = 0.016
+motor_tau_inv_ = 1 / 0.05
+b_allocation_np = np.array(
+    [[1, 1, 1, 1], t_BM_np[0], t_BM_np[1], kappa_ * np.array([1, -1, 1, -1])]
+)
+print(b_allocation_np.shape)
+b_allocation = ca.SX(b_allocation_np)
+b_allocation_inv = ca.SX(np.linalg.inv(b_allocation_np))
+motor_tau = 0.0001
+motor_tau_inv = 1 / motor_tau
 
 # ------------------ constants ---------------------
 m = 1.01
@@ -50,9 +68,7 @@ class MPC(object):
     Nonlinear MPC
     """
 
-    def __init__(
-        self, horizon=20, dt=0.05, dynamics="high_mpc", **kwargs
-    ):
+    def __init__(self, horizon=20, dt=0.05, dynamics="high_mpc", **kwargs):
         """
         Nonlinear MPC for quadrotor control        
         """
@@ -541,6 +557,96 @@ class MPC(object):
         inertia_times_av = inertia_vector * av
         second_part = ca.cross(av, inertia_times_av)  # dim??
         body_torques = (first_part + second_part) / inertia_vector
+
+        # angular_velocity = angular_velocity + dt * angular_acc
+        avx_new = avx + dt * body_torques[0]
+        avy_new = avy + dt * body_torques[1]
+        avz_new = avz + dt * body_torques[2]
+
+        # attitude = attitude + dt * euler_rate(attitude, new angular_velocity)
+        euler_rate_x = avx_new - ca.sin(ay) * avz_new
+        euler_rate_y = ca.cos(ax) * avy_new + ca.cos(ay) * ca.sin(ax) * avz_new
+        euler_rate_z = -ca.sin(ax) * avy_new + ca.cos(ay
+                                                      ) * ca.cos(ax) * avz_new
+        ax_new = ax + dt * euler_rate_x
+        ay_new = ay + dt * euler_rate_y
+        az_new = az + dt * euler_rate_z
+
+        # stack together
+        X = ca.vertcat(
+            px_new, py_new, pz_new, ax_new, ay_new, az_new, vx_new, vy_new,
+            vz_new, avx_new, avy_new, avz_new
+        )
+        # Fold
+        F = ca.Function('F', [self._x, self._u], [X], ['x', 'u'], ['ode'])
+        return F
+
+    def quad_dynamics_flightmare(self, dt):
+
+        # # # # # # # # # # # # # # # # # # #
+        # --------- State ------------
+        # # # # # # # # # # # # # # # # # # #
+
+        # position
+        px, py, pz = ca.SX.sym('px'), ca.SX.sym('py'), ca.SX.sym('pz')
+        # attitude
+        ax, ay, az = ca.SX.sym('ax'), ca.SX.sym('ay'), ca.SX.sym('az')
+        # vel
+        vx, vy, vz = ca.SX.sym('vx'), ca.SX.sym('vy'), ca.SX.sym('vz')
+        # angular velocity
+        avx, avy, avz = ca.SX.sym('avx'), ca.SX.sym('avy'), ca.SX.sym('avz')
+
+        # -- conctenated vector
+        self._x = ca.vertcat(px, py, pz, ax, ay, az, vx, vy, vz, avx, avy, avz)
+
+        # # # # # # # # # # # # # # # # # # #
+        # --------- Control Command ------------
+        # # # # # # # # # # # # # # # # # # #
+
+        thrust, wx, wy, wz = ca.SX.sym('thrust'), ca.SX.sym('wx'), \
+            ca.SX.sym('wy'), ca.SX.sym('wz')
+
+        # -- conctenated vector
+        self._u = ca.vertcat(thrust, wx, wy, wz)
+
+        thrust_scaled = thrust * 15 - 7.5 + 9.81
+        body_rates = ca.vertcat(wx - .5, wy - .5, wz - .5)
+
+        # compute cross product (needed at two steps)
+        av = ca.vertcat(avx, avy, avz)
+        inertia_times_av = inertia_vector * av
+        cross_prod = ca.cross(av, inertia_times_av)
+
+        # run flight control
+        force_tmp = thrust_scaled * copter_params.mass
+        # action to body torques
+        omega_change = body_rates - av
+        first_part = inertia_vector * kinv_ang_vel_tau * omega_change
+        body_torques = first_part + cross_prod
+
+        thrust_and_torque = ca.vertcat(force_tmp, body_torques)
+        motor_thrusts_des = b_allocation_inv @ thrust_and_torque
+
+        # linear dynamics
+        Cy = ca.cos(az)
+        Sy = ca.sin(az)
+        Cp = ca.cos(ay)
+        Sp = ca.sin(ay)
+        Cr = ca.cos(ax)
+        Sr = ca.sin(ax)
+
+        acc_x = (Cy * Sp * Cr + Sr * Sy) * force
+        acc_y = (Cr * Sy * Sp - Cy * Sr) * force
+        acc_z = (Cr * Cp) * force - 9.81
+
+        px_new = px + 0.5 * dt * dt * acc_x + 0.5 * dt * vx
+        py_new = py + 0.5 * dt * dt * acc_y + 0.5 * dt * vy
+        pz_new = pz + 0.5 * dt * dt * acc_z + 0.5 * dt * vz
+        vx_new = vx + dt * acc_x
+        vy_new = vy + dt * acc_y
+        vz_new = vz + dt * acc_z
+
+        # angular dynamics
 
         # angular_velocity = angular_velocity + dt * angular_acc
         avx_new = avx + dt * body_torques[0]
