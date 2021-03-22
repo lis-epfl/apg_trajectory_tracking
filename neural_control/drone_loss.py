@@ -1,5 +1,7 @@
 import torch
-from neural_control.environments.drone_dynamics import simulate_quadrotor, device
+import numpy as np
+from neural_control.utils.plotting import print_state_ref_div
+from neural_control.environments.drone_dynamics import device
 torch.autograd.set_detect_anomaly(True)
 zero_tensor = torch.zeros(3).to(device)
 
@@ -46,7 +48,73 @@ def drone_loss_function(current_state, start_state=None, printout=0):
     return torch.sum(loss)
 
 
-def reference_loss(states, ref_states, printout=0, delta_t=0.02):
+weighting = torch.ones(12)
+weighting[3:6] = .1
+weighting[6:9] = .5
+weighting[9:] = .05
+
+drone_action_prior = torch.tensor([.5, .5, .5, .5])
+action_loss_mpc = torch.tensor([50, 1, 1, 1])
+state_loss_mpc = torch.tensor([1000, 1000, 1000, 0, 0, 0, 10, 10, 10, 1, 1, 1])
+
+
+def mse_loss(states, ref_states, action_seq, printout=0):
+    action_diff = (action_seq - drone_action_prior)**2 * action_loss_mpc
+    state_diff = (states - ref_states)**2 * state_loss_mpc
+
+    loss = torch.sum(action_diff) + torch.sum(state_diff)
+    # (ref_states - states)**2 * weighting
+    if printout:
+        np_state = states[0].detach().numpy()
+        np_ref = ref_states[0].detach().numpy()
+        print_state_ref_div(np_ref, np_state)
+        exit()
+    return loss * .01
+
+
+def weighted_loss(states, ref_states, printout=0):
+    vel_factor = 0.05
+    pos_factor = 10
+
+    position_loss = 0
+    velocity_loss = 0
+    for k in range(states.size()[1]):
+        # the later, the more it is weighted
+        position_loss += k * torch.sum(
+            (states[:, k, :3] - ref_states[:, k, :3])**2
+        )
+        velocity_loss += k * torch.sum(
+            (states[:, k, 6:9] - ref_states[:, k, 3:6])**2
+        )
+
+    loss = (pos_factor * position_loss + vel_factor * velocity_loss)
+    return loss * .01
+
+
+def simply_last_loss(states, ref_states, action_seq, printout=0):
+    angvel_factor = 2e-2
+    vel_factor = 0.05
+    pos_factor = 10
+    yaw_factor = 10
+    action_factor = .1
+
+    action_loss = torch.sum((action_seq[:, :, 0] - .5)**2)
+
+    position_loss = torch.sum((states[:, -1, :3] - ref_states[:, :3])**2)
+    velocity_loss = torch.sum((states[:, -1, 6:9] - ref_states[:, 3:6])**2)
+
+    ang_vel_error = torch.sum(states[:, :, 9:11]**2
+                              ) + yaw_factor * torch.sum(states[:, :, 11]**2)
+    # TODO: do on all intermediate states again?
+
+    loss = (
+        angvel_factor * ang_vel_error + pos_factor * position_loss +
+        vel_factor * velocity_loss + action_factor * action_loss
+    )
+    return loss
+
+
+def reference_loss(states, ref_states, printout=0):
     """
     Compute loss with respect to reference trajectory
     """
@@ -55,21 +123,14 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
     # TODO: include attitude in reference
     angle_factor = 0.01
     angvel_factor = 2e-2
-    vel_factor = 0.05
+    vel_factor = .5
     pos_factor = 10
-    yaw_factor = 10
+    yaw_factor = 1
 
     position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)
-    velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 3:6])**2)
+    velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 6:9])**2)
 
     angle_error = 0
-    for k in range(states.size()[1] - 2):
-        # approximate acceleration
-        acc = (states[:, k + 1, 6:9] - states[:, k, 6:9]) / delta_t
-        acc_ref = ref_states[:, k, 6:9]
-        # subtract from desired acceleration
-        angle_error += torch.sum((acc_ref - acc)**2)
-
     ang_vel_error = torch.sum(states[:, :, 9:11]**2
                               ) + yaw_factor * torch.sum(states[:, :, 11]**2)
 
@@ -85,6 +146,25 @@ def reference_loss(states, ref_states, printout=0, delta_t=0.02):
         print("velocity loss", (velocity_loss * vel_factor).item())
         print("position loss", (pos_factor * position_loss).item())
     return loss
+
+
+weighting = torch.ones(12)
+weighting[3:6] = .1
+weighting[6:9] = .5
+weighting[9:] = .05
+
+
+def mse(states, ref_states, printout=0):
+    loss = (ref_states - states)**2 * weighting
+    # loss1 = (ref_states[:, :, 3:] - states[:, :, 3:])**2
+    # loss2 = (ref_states[:, :, :3] - states[:, :, :3] * 2)**2
+    # loss = (torch.sum(loss1) + torch.sum(loss2))
+    if printout:
+        np_state = states[0].detach().numpy()
+        np_ref = ref_states[0].detach().numpy()
+        print_state_ref_div(np_ref, np_state)
+        exit()
+    return torch.sum(loss) * 10
 
 
 def project_to_line(a_on_line, b_on_line, p):

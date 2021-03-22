@@ -15,8 +15,8 @@ class Polynomial:
         max_drone_dist=0.25,
         horizon=10,
         hover_steps=50,
-        x_range=10,
-        degree=8,
+        x_range=20,
+        degree=5,
         dt=0.05,
         **kwargs
     ):
@@ -47,7 +47,7 @@ class Polynomial:
 
         self.reference = np.vstack([start_hover, points_3d, end_hover])
         self.ref_len = len(self.reference)
-        self.target_ind = 0
+        self.target_ind = self.horizon
         self.current_ind = 0
 
         # draw trajectory on renderer
@@ -125,7 +125,7 @@ class Polynomial:
         points_3d = points_2d_ext @ rot
         return points_3d
 
-    def get_fixed_ref(self, drone_state, drone_acc):
+    def get_ref_traj(self, drone_state, drone_acc):
         """
         Return directly the points on the reference, and not the relative min
         snap
@@ -140,17 +140,18 @@ class Polynomial:
         next_positions = self.reference[self.current_ind:self.current_ind +
                                         self.horizon + 2]
         next_velocities = [
-            (next_positions[i + 1] - next_positions[i]) / self.dt * 2
+            (next_positions[i + 1] - next_positions[i]) / self.dt
             for i in range(self.horizon + 1)
         ]
-        next_accs = [
-            (next_velocities[i + 1] - next_velocities[i]) / self.dt
-            for i in range(self.horizon)
-        ]
+        # next_accs = [
+        #     (next_velocities[i + 1] - next_velocities[i]) / self.dt
+        #     for i in range(self.horizon)
+        # ]
         ref_out = np.hstack(
             (
-                next_positions[:self.horizon], next_velocities[:self.horizon],
-                next_accs[:self.horizon]
+                next_positions[:self.horizon],
+                next_velocities[:self.horizon],
+                # next_accs[:self.horizon]
             )
         )
         self.current_ind += 1
@@ -159,7 +160,7 @@ class Polynomial:
         # print(ref_out)
         return ref_out
 
-    def get_ref_traj(self, drone_state, drone_acc):
+    def get_min_snap_ref(self, drone_state, drone_acc):
         """
         Given the current position, compute a min snap trajectory to the next
         target
@@ -170,18 +171,17 @@ class Polynomial:
         # if we are close enough to the next point, set it as the next target,
         # otherwise stick with the current target
         if self.target_ind < self.ref_len - 2:
-            dist_from_next = np.linalg.norm(
-                drone_pos - self.reference[self.target_ind + 1]
-            )
-            if dist_from_next < self.max_drone_dist:
-                self.target_ind += 1
+            self.target_ind += 1
+            self.current_ind += 1
         else:
             self.finished = True
         goal_pos = self.reference[self.target_ind]
 
         # TODO: is the velocity simply the two subtracted? or times dt or so?
-        goal_vel = self.reference[self.target_ind +
-                                  1] - self.reference[self.target_ind]
+        goal_vel = (
+            self.reference[self.target_ind + 1] -
+            self.reference[self.target_ind]
+        ) / self.dt
 
         reference = get_reference(
             drone_pos,
@@ -192,21 +192,17 @@ class Polynomial:
             ref_length=self.horizon,
             delta_t=self.dt
         )
+        # ref_zero = np.zeros((self.horizon, 9))
+        # ref_zero[:, :3] = goal_pos
+        # ref_zero[:, 3:6] = goal_vel
+        # reference = ref_zero
         return reference
 
     def project_on_ref(self, drone_state):
         """
         Project drone state onto the trajectory
         """
-        start = max([self.target_ind - 20, 0])
-        end = max([self.target_ind, 2])
-        possible_locs = self.reference[start:end]
-        # compute distance to each of them
-        distances = [
-            np.linalg.norm(drone_state[:3] - loc) for loc in possible_locs
-        ]
-        # return the closest one
-        return possible_locs[np.argmin(distances)]
+        return self.reference[self.current_ind]
 
 
 class PolyObject():
@@ -215,7 +211,7 @@ class PolyObject():
         self.points = np.array(
             [
                 reference_arr[i] for i in range(len(reference_arr))
-                if i % 20 == 0
+                if i % 10 == 0
             ]
         )
         self.points[:, 2] += 1

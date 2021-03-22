@@ -20,9 +20,11 @@ from neural_control.environments.rendering import (
 from neural_control.environments.copter import (
     copter_params, DynamicsState, Euler
 )
-from neural_control.environments.drone_dynamics import (
-    simulate_quadrotor, linear_dynamics
+from neural_control.environments.flightmare_dynamics import (
+    flightmare_dynamics_function
 )
+from neural_control.environments.drone_dynamics import simple_dynamics_function
+from neural_control.utils.generate_trajectory import generate_trajectory
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -80,7 +82,7 @@ class QuadRotorEnvBase(gym.Env):
         acc = (self._state.velocity - self._state._last_velocity) / self.dt
         return acc
 
-    def step(self, action, thresh=.4):
+    def step(self, action, thresh=.4, dynamics="flightmare"):
         """
         Apply action to the current drone state
         Returns:
@@ -94,6 +96,13 @@ class QuadRotorEnvBase(gym.Env):
         torch_state = torch.from_numpy(np.array([self._state.as_np])
                                        ).to(device)
         torch_action = torch.from_numpy(np.array([action])).float().to(device)
+
+        # specify which dynamics function to use
+        simulate_quadrotor = (
+            flightmare_dynamics_function
+            if dynamics == "flightmare" else simple_dynamics_function
+        )
+        # dynamics
         new_state_arr = simulate_quadrotor(
             torch_action, torch_state, dt=self.dt
         )
@@ -139,6 +148,7 @@ class QuadRotorEnvBase(gym.Env):
         state_arr[3:] = 0
         self._state._velocity = np.zeros(3)
         self._state.from_np(state_arr)
+        return self._state.as_np
 
     def render_reset(self, strength=.8):
         """
@@ -164,7 +174,7 @@ class QuadRotorEnvBase(gym.Env):
         # self.randomize_rotor_speeds(200, 500)
         # yaw control typically expects slower velocities
         self._state.angular_velocity[2] *= 0.5  # * strength
-        self.randomize_velocity(2)
+        self.randomize_velocity(3)
 
         # self.renderer.set_center(None)
 
@@ -227,10 +237,90 @@ def random_angle(random_state, max_pitch_roll):
 
 # --------------------- Auxilary functions ----------------------
 
+# data = np.load("training_data.npy")
+# rand_inds = np.random.permutation(len(data))
+# # remove problematic ones
+# rand_inds = (rand_inds[np.logical_and(rand_inds % 501 < 490,
+#             rand_inds % 501 > 30)])
+
+
+def load_training_data(len_data, ref_length=5, reset_strength=0, **kwargs):
+    np.set_printoptions(precision=2, suppress=True)
+    # print((np.random.rand(3) - .5) * reset_strength)
+    some_point = np.random.randint(0, len(rand_inds) - len_data, 1)[0]
+    use_start_inds = rand_inds[some_point:some_point + len_data]
+    drone_states, ref_states = [], []
+    for start in use_start_inds:
+        next_ref = np.array(data[start + 1:start + 1 + ref_length])
+        ref_states.append(next_ref)
+        # drone_states.append(data[start])
+        # noise_applied = (
+        #     np.ones(12) + reset_strength * (np.random.rand(12) - .5)
+        # )
+        # print("not noisy drone state", data[start])
+        random_direction = np.random.rand(12) - .5
+        div_vector = (
+            next_ref[1] - next_ref[0]
+        ) * random_direction * reset_strength
+        # print("div_vector", div_vector)
+        noisy_drone_state = data[start] + div_vector
+        # noisy_drone_state[:3] += (np.random.rand(3) - .5) * reset_strength
+
+        drone_states.append(noisy_drone_state)
+
+        # print(noisy_drone_state)
+        # print("ref_states")
+        # print(ref_states)
+        # print()
+
+    drone_states = np.array(drone_states)
+    ref_states = np.array(ref_states)
+    return drone_states[:len_data], ref_states[:len_data]
+
+
+def full_state_training_data(
+    len_data, ref_length=5, reset_strength=0, dt=0.02, **kwargs
+):
+    """
+    Use trajectory generation of Elia to generate random trajectories and then
+    position the drone randomly around the start
+    Arguments:
+        reset_strength: how much the drone diverges from its desired state
+    """
+    ref_size = 6
+    sample_freq = ref_length * 2
+    # TODO: might want to sample less frequently
+    drone_states = np.zeros((len_data + 200, 12))
+    ref_states = np.zeros((len_data + 200, ref_length, ref_size))
+
+    counter = 0
+    while counter < len_data:
+        traj = generate_trajectory(10, dt)[:, :ref_size]
+        # TODO: freq of trajectory?
+        traj_cut = traj[:-ref_length]
+        # select every xth sample as the current drone state
+        selected_starts = traj_cut[::sample_freq, :]
+        nr_states_added = len(selected_starts)
+
+        full_drone_state = np.hstack(
+            (
+                selected_starts[:, :3], np.zeros((len(selected_starts), 3)),
+                selected_starts[:, 3:6], np.zeros((len(selected_starts), 3))
+            )
+        )
+        # add drone states
+        drone_states[counter:counter + nr_states_added, :] = full_drone_state
+        # add ref states
+        for i in range(ref_length):
+            ref_states[counter:counter + nr_states_added,
+                       i] = (traj[i::sample_freq])[:nr_states_added]
+        counter += nr_states_added
+
+    return drone_states[:len_data], ref_states[:len_data]
+
 
 def trajectory_training_data(
     len_data,
-    step_size=0,
     max_drone_dist=0.1,
     ref_length=5,
     reset_strength=1,
@@ -242,7 +332,6 @@ def trajectory_training_data(
     Generate training dataset for trajectories as input
     Arguments:
         len_data: int, how much data to generate
-        step_size: Distance between two points on the trajectory
         max_drone_dist: Maximum distance of the drone from the first state
         ref_length: Number of states sampled from reference traj
         reset_strength: How much to reset the model
@@ -307,7 +396,7 @@ def trajectory_training_data(
 if __name__ == "__main__":
     env = QuadRotorEnvBase(0.02)
     env.reset()
-    states, ref = trajectory_training_data(1000)
+    states, ref = full_state_training_data(1000)
     # np.save("drone_states.npy", a1)
     # np.save("ref_states.npy", a2)
     # env = gym.make("QuadrotorStabilizeAttitude-MotorCommands-v0")

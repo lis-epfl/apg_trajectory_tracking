@@ -4,46 +4,31 @@ import os
 import pandas as pd
 
 from evaluate_drone import QuadEvaluator, load_model
+from neural_control.controllers.mpc import MPC
 from neural_control.dataset import DroneDataset
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
     pass
 
-eval_dict = {
-    "straight": {
-        "nr_test": 0,
-        "max_steps": 1000
-    },
-    "circle": {
-        "nr_test": 0,
-        "max_steps": 1000
-    },
-    "poly": {
-        "nr_test": 50,
-        "max_steps": 1000
-    }
-}
-thresh_stable = 1.5
+eval_dict = {"rand": {"nr_test": 50, "max_steps": 333}}
+thresh_stable = 2
 thresh_divergence = 3
 
-config = {"render": 0, "dt": 0.05, "horizon": 10, "max_drone_dist": .5}
+config = {"render": 0}
 
 if __name__ == "__main__":
-    models_to_evaluate = ["current_model", "mpc"]
-    names = ["neural controller", "MPC"]
+    models_to_evaluate = ["branch_faster_3_horizon1", "mpc"]
+    names = ["neural_faster", "MPC"]
 
     for model_name, save_name in zip(models_to_evaluate, names):
         for use_flightmare in [0, 1]:
             env_name = "flightmare" if use_flightmare else "simple env"
             print(f"---------------- {model_name} in env {env_name} --------")
 
-            # model_name = "current_model"
-            epoch = ""
             out_path = "outputs"
             save_model_name = save_name + f" ({env_name})"
             print("save_model_name", save_model_name)
-            # use_flightmare = True
 
             df = pd.DataFrame(
                 columns=[
@@ -55,14 +40,26 @@ if __name__ == "__main__":
 
             # load model
             model_path = os.path.join("trained_models", "drone", model_name)
-            controller = load_model(model_path, epoch=epoch, **config)
 
-            for speed in [0.5, 1]:
+            if model_path.split(os.sep)[-1] == "mpc":
+                # mpc parameters:
+                time_model_params = {
+                    "horizon": 20, "dt": .05, "dynamics": "simple_quad"
+                }
+                controller = MPC(**time_model_params)
+            # Neural controller
+            else:
+                controller, time_model_params = load_model(model_path)
+
+            # define evaluation environment
+            config.update(time_model_params)
+
+            for speed in [1]:
                 max_drone_dist = speed * config["dt"] * config["horizon"]
                 config["max_drone_dist"] = max_drone_dist
 
                 # define evaluation environment
-                evaluator = QuadEvaluator(controller, **config)
+                evaluator = QuadEvaluator(controller, test_time=1, **config)
 
                 if use_flightmare:
                     evaluator.eval_env = FlightmareWrapper(config["dt"], False)
@@ -96,7 +93,8 @@ if __name__ == "__main__":
                         if reference == "poly" and len(drone_ref) > 500:
                             drone_ref = drone_ref[100:-500]
                         try:
-                            speed = evaluator.compute_speed(drone_ref)
+                            speed_all = evaluator.compute_speed(drone_ref)
+                            speed = np.max(speed_all)
                         except ZeroDivisionError:
                             speed = np.nan
 
