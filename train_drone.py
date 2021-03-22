@@ -40,11 +40,11 @@ STATE_SIZE = 12
 NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
-LEARNING_RATE = 0.001
-SPEED_FACTOR = .6
+LEARNING_RATE = 0.0001
+SPEED_FACTOR = .8
 MAX_STEPS = int(1000 / int(5 * SPEED_FACTOR))
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/branch_faster_3_horizon1"
+BASE_MODEL = "trained_models/drone/branch_faster_3_fullfli"
 BASE_MODEL_NAME = 'model_quad'
 
 simulate_quadrotor = (
@@ -127,6 +127,7 @@ param_dict["take_every_x"] = SELF_PLAY_EVERY_X
 param_dict["thresh_stable"] = THRESH_STABLE
 param_dict["use_mpc_every"] = USE_MPC_EVERY
 param_dict["dynamics"] = DYNAMICS
+param_dict["speed_factor"] = SPEED_FACTOR
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)

@@ -53,6 +53,11 @@ class QuadEvaluator():
         self.action_counter = 0
         self.test_time = test_time
         self.dynamics = dynamics
+        if self.test_time:
+            print(
+                "evaluate in dynamics", dynamics, "with speed factor",
+                speed_factor
+            )
         self.speed_factor = speed_factor
 
     def help_render(self, sleep=.05):
@@ -75,7 +80,6 @@ class QuadEvaluator():
         max_nr_steps=200,
         thresh_stable=.4,
         thresh_div=3,
-        use_mpc_every=2,
         **traj_args
     ):
         """
@@ -362,7 +366,12 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {"render": 1, "max_drone_dist": 1.25, "dynamics": "flightmare"}
+    params = {
+        "render": 1,
+        "max_drone_dist": 1.25,
+        "dynamics": "flightmare",
+        "speed_factor": 1
+    }
 
     # rendering
     if args.unity:
@@ -383,6 +392,8 @@ if __name__ == "__main__":
 
     # define evaluation environment
     params.update(time_model_params)
+    # CHANGE params here
+    # params["dynamics"] = "sim"
     evaluator = QuadEvaluator(controller, test_time=1, **params)
 
     # FLIGHTMARE
