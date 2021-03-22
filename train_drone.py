@@ -55,29 +55,6 @@ simulate_quadrotor = (
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
 
-eval_dict = {
-    "straight": {
-        "nr_test": 0,
-        "max_steps": 200
-    },
-    "circle": {
-        "nr_test": 0,
-        "max_steps": 200
-    },
-    "hover": {
-        "nr_test": 0,
-        "max_steps": 200
-    },
-    "poly": {
-        "nr_test": 0,
-        "max_steps": 200
-    },
-    "rand": {
-        "nr_test": 10,
-        "max_steps": 500
-    }
-}
-
 # Load model or initialize model
 if BASE_MODEL is not None:
     net = torch.load(os.path.join(BASE_MODEL, BASE_MODEL_NAME))
@@ -216,7 +193,6 @@ for epoch in range(NR_EPOCHS):
                 intermediate_states, ref_states[:, -1], action_seq, printout=0
             )
 
-            # loss = weighted_loss(intermediate_states, ref_states, printout=0)
             # Backprop
             loss.backward()
             optimizer.step()
