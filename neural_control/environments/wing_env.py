@@ -24,9 +24,11 @@ class SimpleWingEnv(gym.Env):
         self.renderer.add_object(self.drone_render_object)
 
     def zero_reset(self):
-        self._state = np.array([0, 0, 10, 0.615, 0, 0])
+        self._state = np.zeros(12)
+        self._state[3] = 11.5
 
     def reset(self):
+        # TODO: wrong at the moment
         # no need to randomize because relative position used anyway
         x_pos = 0
         z_pos = 0
@@ -44,17 +46,16 @@ class SimpleWingEnv(gym.Env):
         """
         action: tuple / list/np array of two values, between 0 and 1 (sigmoid)
         """
-        thrust, del_e = action
 
-        action_torch = torch.tensor([[thrust, del_e]]).float()
+        action_torch = torch.tensor([action.tolist()]).float()
         state_torch = torch.tensor([self._state.tolist()]).float()
 
         new_state = long_dynamics(state_torch, action_torch, self.dt)
         self._state = new_state[0].numpy()
 
-        is_stable = -.7 < self._state[4] < .7
-        if not is_stable:
-            print("unstable!")
+        is_stable = np.all(np.absolute(self._state[6:8]) < .7)
+        # if not is_stable:
+        #     print("unstable!", self._state[6:9])
         return self._state, is_stable
 
     def render(self, mode='human', close=False):
@@ -72,14 +73,21 @@ class SimpleWingEnv(gym.Env):
 
 def run_wing_flight(env, traj_len=1000, render=0, **kwargs):
 
+    # define action prior here
+    action_prior = np.array([.25, .5, .5, .5])
     env.zero_reset()
     sampled_states = []
     for j in range(traj_len):
         if j % 100 == 0:
             # always keep same action for 10 steps
-            T = np.clip(np.random.normal(scale=.1) + .25, 0, 1)
-            del_e = np.clip(np.random.normal(scale=.1) + .5, 0, 1)
-        new_state, stable = env.step((T, del_e))
+            sampled_action = np.random.normal(scale=.02, size=4)
+            scaled_action = np.clip(sampled_action + action_prior, 0, 1)
+            # print("ACTION")
+            # print(scaled_action)
+            # scaled_action = np.array([1.9 / 7, 0.5, 0.5, 0.5])
+        new_state, stable = env.step(scaled_action)
+        # np.set_printoptions(suppress=1, precision=3)
+        # print(new_state[:3])
         if not stable:
             break
         if render:
@@ -88,12 +96,12 @@ def run_wing_flight(env, traj_len=1000, render=0, **kwargs):
     return np.array(sampled_states)
 
 
-def generate_unit_vecs(num_vecs, mean_vec=[1, 0], std=.15):
+def generate_unit_vecs(num_vecs, mean_vec=[1, 0, 0], std=.15):
     """
     Generate unit vectors that are normal distributed around mean_vec
     """
     gauss_vecs = np.random.multivariate_normal(
-        mean_vec, [[std, 0], [0, std]], size=num_vecs
+        mean_vec, [[std, 0, 0], [0, std, 0], [0, 0, std]], size=num_vecs
     )
     gauss_vecs[gauss_vecs[:, 0] < 0.01, 0] = 1
     # gauss_vecs = np.array(
@@ -120,7 +128,7 @@ def sample_training_data(
     leftover = np.inf
     while leftover > 0:
         # sample trajectory
-        traj = run_wing_flight(env, num_traj=1, traj_len=1000, **kwargs)
+        traj = run_wing_flight(env, traj_len=200, **kwargs)
         # sample states from trajectory
         nr_samples = min([len(traj) // take_every, leftover])
         for i in range(nr_samples):
@@ -129,7 +137,7 @@ def sample_training_data(
             drone_state = traj[curr_ind]
 
             # sample gauss vec
-            drone_ref = drone_state[:2] + gauss_vecs[counter]
+            drone_ref = drone_state[:3] + gauss_vecs[counter]
             # print(gauss_vecs[counter] / np.linalg.norm(gauss_vecs[counter]))
             training_states.append(drone_state)
             training_refs.append(drone_ref)
@@ -141,47 +149,10 @@ def sample_training_data(
     return training_states, training_refs
 
 
-def sample_point_and_waypoint(
-    num_samples, num_points_per_traj=20, len_per_trajectory=350, **kwargs
-):
-    """
-    first training data sampling: take states and random waypoints from the
-    trajectory
-    """
-    # training data: only a state and a position --> one that is reachable
-    start_way, end_way = (200, 350)
-    start_state, end_state = (0, 150)
-
-    # compute number of trajectories required given the above
-    num_flights = int(num_samples / num_points_per_traj)
-
-    sampled_trajectories = run_wing_flight(
-        num_traj=num_flights, traj_len=len_per_trajectory, **kwargs
-    )
-
-    training_states = []
-    training_refs = []
-    for i in range(len(sampled_trajectories)):
-        current_flight = sampled_trajectories[i]
-        # for each trajectory, sample x states
-        rand_perm = np.random.permutation(np.arange(start_state, end_state, 1))
-        take_states = rand_perm[:num_points_per_traj]
-        # for each trajectory, sample x reference points
-        rand_perm = np.random.permutation(np.arange(start_way, end_way, 1))
-        take_way = rand_perm[:num_points_per_traj]
-        # print(take_states, take_way)
-        # print(current_flight[take_states].shape)
-        training_states.extend(current_flight[take_states].tolist())
-        training_refs.extend(current_flight[take_way, :2].tolist())
-    training_states = np.array(training_states)
-    training_refs = np.array(training_refs)
-    return training_states, training_refs
-
-
 if __name__ == "__main__":
     # states, refs = sample_training_data(1000)
     # print(states.shape, refs.shape)
     # np.save("states.npy", states)
     # np.save("ref.npy", refs)
-    env = SimpleWingEnv(0.01)
+    env = SimpleWingEnv(0.05)
     run_wing_flight(env, traj_len=1000, dt=0.01, render=1)

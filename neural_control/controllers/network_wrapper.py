@@ -144,7 +144,7 @@ class FixedWingNetWrapper:
         self.net = model
         self.dataset = dataset
         self.horizon = horizon
-        self.action_dim = 2
+        self.action_dim = 4
 
     def predict_actions(self, state, ref_state):
         normed_state, _, normed_ref, _ = self.dataset.prepare_data(

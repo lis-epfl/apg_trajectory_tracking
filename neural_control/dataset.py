@@ -254,7 +254,7 @@ class WingDataset(torch.utils.data.Dataset):
             # sample states
             mean = np.mean(states, axis=0)
             std = np.std(states, axis=0)
-            pos_diff = ref_states[:, :2] - states[:, :2]
+            pos_diff = ref_states[:, :3] - states[:, :3]
             ref_mean = np.mean(pos_diff, axis=0)
             ref_std = np.std(pos_diff, axis=0)
 
@@ -324,14 +324,14 @@ class WingDataset(torch.utils.data.Dataset):
 
         # 1) Normalized state and remove position
         states = self.to_torch(states)
-        normed_states = ((states - self.mean) / self.std)[:, 2:]
+        normed_states = ((states - self.mean) / self.std)[:, 3:]
 
         # TODO: transorm euler angle?
 
         # 3) Reference trajectory to torch and relative to drone position
         ref_states = self.to_torch(ref_states)
         # normalize
-        relative_ref = ref_states - states[:, :2]
+        relative_ref = ref_states - states[:, :3]
         ref_vec_norm = torch.sqrt(torch.sum(relative_ref**2, axis=1))
         normed_ref_states = (relative_ref.t() / ref_vec_norm).t()
 

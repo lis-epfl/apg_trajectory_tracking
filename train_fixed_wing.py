@@ -16,19 +16,20 @@ from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.utils.plotting import plot_loss_episode_len
 
+DEBUG = 0
 DELTA_T = 0.05
-EPOCH_SIZE = 3000
+EPOCH_SIZE = 3000 if not DEBUG else 300
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 VEC_STD = 0.15
 BATCH_SIZE = 8
-STATE_SIZE = 6
+STATE_SIZE = 12
 NR_ACTIONS = 10
-REF_DIM = 2
-ACTION_DIM = 2
+REF_DIM = 3
+ACTION_DIM = 4
 LEARNING_RATE = 0.00001
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = None  # "trained_models/wing/corrected_lastoneloss_good"
+BASE_MODEL = None  #  "trained_models/wing/first_lateral_test"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
@@ -74,6 +75,7 @@ for epoch in range(NR_EPOCHS):
 
     try:
         # EVALUATE
+        # if not DEBUG:
         print(f"Epoch {epoch} (before)")
         controller = FixedWingNetWrapper(net, state_data, **param_dict)
         eval_env = FixedWingEvaluator(controller, **param_dict)
@@ -107,12 +109,15 @@ for epoch in range(NR_EPOCHS):
             # order to correctly apply the action
             in_state, current_state, in_ref_state, _ = data
 
+            if DEBUG:
+                print()
+                print(current_state[0, :3])
             # # GIVE LINEAR TRAJECTORY FOR LOSS
-            speed = torch.sqrt(current_state[:, 2]**2 + current_state[:, 3]**2)
+            speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
             vec_len_per_step = speed * DELTA_T * NR_ACTIONS
             # form auxiliary array with linear reference for loss computation
-            target_pos = torch.zeros((in_state.size()[0], 2))
-            for j in range(2):
+            target_pos = torch.zeros((in_state.size()[0], 3))
+            for j in range(3):
                 target_pos[:, j] = current_state[:, j] + (
                     in_ref_state[:, j] * vec_len_per_step
                 )
@@ -132,12 +137,16 @@ for epoch in range(NR_EPOCHS):
                     current_state, action, dt=DELTA_T
                 )
 
-            loss = fixed_wing_loss(current_state, target_pos, printout=0)
+            loss = fixed_wing_loss(
+                current_state, target_pos, action_seq, printout=0
+            )
 
             # Backprop
             loss.backward()
-            # print(net.fc_out.weight.grad.size(), net.fc_out.weight.grad)
             optimizer.step()
+            if DEBUG:
+                print(current_state[0, :3])
+                print(target_pos[0])
 
             running_loss += loss.item()
 

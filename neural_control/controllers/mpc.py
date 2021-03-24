@@ -32,7 +32,6 @@ motor_tau_inv_ = 1 / 0.05
 b_allocation_np = np.array(
     [[1, 1, 1, 1], t_BM_np[0], t_BM_np[1], kappa_ * np.array([1, -1, 1, -1])]
 )
-print(b_allocation_np.shape)
 b_allocation = ca.SX(b_allocation_np)
 b_allocation_inv = ca.SX(np.linalg.inv(b_allocation_np))
 motor_tau = 0.0001

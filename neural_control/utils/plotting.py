@@ -103,6 +103,20 @@ def plot_wing_pos(states, targets, save_path=None):
         plt.savefig(save_path)
 
 
+def plot_wing_pos_3d(states, targets, save_path=None):
+    plt.figure(figsize=(10, 5))
+    plt.plot(states[:, 0], states[:, 1], label="y position", c="red")
+    plt.plot(states[:, 0], states[:, 2], label="z position", c="blue")
+    for target in targets:
+        plt.scatter(target[0], target[1], label="target y", c="orange")
+        plt.scatter(target[0], target[2], label="target z", c="green")
+    plt.legend(fontsize=20)
+    if save_path is None:
+        plt.show()
+    else:
+        plt.savefig(save_path)
+
+
 def plot_drone_ref_coords(
     drone_trajectory, reference_trajectory, save_path=None
 ):

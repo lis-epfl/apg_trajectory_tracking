@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from neural_control.environments.wing_env import SimpleWingEnv, run_wing_flight
-from neural_control.utils.plotting import plot_wing_pos
+from neural_control.utils.plotting import plot_wing_pos_3d
 from neural_control.dataset import WingDataset
 from evaluate_drone import load_model_params
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
@@ -42,7 +42,7 @@ class FixedWingEvaluator:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
             # print(action[0])
-            state, stable = self.eval_env.step(tuple(action[0]))
+            state, stable = self.eval_env.step(action[0])
             # print(state[2])
             if self.render:
                 self.eval_env.render()
@@ -59,10 +59,11 @@ class FixedWingEvaluator:
         min_dists = []
         for i in range(nr_test):
             target_point = [
-                np.random.rand(2) * np.array([60, 10]) + np.array([30, -5])
+                np.random.rand(3) * np.array([60, 10, 10]) +
+                np.array([30, -5, -5])
             ]
             drone_traj = self.fly_to_point(target_point)
-            last_x_points = drone_traj[-20:, :2]
+            last_x_points = drone_traj[-20:, :3]
             last_x_dists = [
                 np.linalg.norm(target_point - p) for p in last_x_points
             ]
@@ -132,15 +133,15 @@ if __name__ == "__main__":
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    target_point = [[70, 4], [140, -4]]
+    target_point = [[70, 5, 10]]  # , [140, -4, -3]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point, max_steps=1000)
     print(drone_traj.shape)
-    np.save("drone_traj.npy", drone_traj)
+    np.save(os.path.join(model_path, "drone_traj.npy"), drone_traj)
 
     # EVAL
-    plot_wing_pos(
+    plot_wing_pos_3d(
         drone_traj,
         target_point,
         save_path=os.path.join(model_path, "coords.png")
