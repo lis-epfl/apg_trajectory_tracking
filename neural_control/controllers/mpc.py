@@ -321,6 +321,7 @@ class MPC(object):
         #     len(self.nlp_w0), len(self.lbw), len(self.ubw), len(ref_states),
         #     len(self.lbg), len(self.ubg)
         # )
+        # tic = time.time()
         self.sol = self.solver(
             x0=self.nlp_w0,
             lbx=self.lbw,
@@ -329,6 +330,7 @@ class MPC(object):
             lbg=self.lbg,
             ubg=self.ubg
         )
+        # print(time.time() - tic)
         #
         sol_x0 = self.sol['x'].full()
         opt_u = sol_x0[self._s_dim:self._s_dim + self._u_dim]

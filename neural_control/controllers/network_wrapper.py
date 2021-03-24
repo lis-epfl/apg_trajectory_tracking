@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import contextlib
+import time
 import torch.optim as optim
 
 from neural_control.drone_loss import reference_loss
@@ -62,6 +63,7 @@ class NetworkWrapper:
             #     self.check_ood(current_np_state, ref_world)
             # np.set_printoptions(suppress=True, precision=0)
             # print(current_np_state)
+            # tic = time.time()
             suggested_action = self.net(in_state, ref)
 
             suggested_action = torch.sigmoid(suggested_action)[0]
@@ -71,6 +73,7 @@ class NetworkWrapper:
                 suggested_action,
                 (1, self.horizon, self.action_dim)
             )
+            # print(time.time()-tic)
 
         if do_training:
             self.optimizer.zero_grad()

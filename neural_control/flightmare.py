@@ -20,7 +20,19 @@ class FlightmareWrapper(QuadRotorEnvBase):
 
     def __init__(self, dt, unity_render=False):
         super().__init__(dt)
-        # load config
+        # modify dt in env config
+        cfg_env_path = (os.environ["FLIGHTMARE_PATH"] +
+                "/flightlib/configs/quadrotor_env.yaml")
+        cfg_env = YAML().load(
+            open(
+                cfg_env_path, 'r'
+            )
+        )
+        cfg_env['quadrotor_env']["sim_dt"] = dt
+        with open(cfg_env_path, 'w') as fp:
+            dump(cfg_env, fp, Dumper=RoundTripDumper)
+
+        # load other config for vec env
         cfg = YAML().load(
             open(
                 os.environ["FLIGHTMARE_PATH"] +
