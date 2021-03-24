@@ -21,8 +21,12 @@ from neural_control.models.hutter_model import Net
 from neural_control.utils.plotting import (
     plot_loss_episode_len, print_state_ref_div
 )
+try:
+    from neural_control.flightmare import FlightmareWrapper
+except ModuleNotFoundError:
+    pass
 
-DYNAMICS = "flightmare"
+DYNAMICS = "simple"
 DELTA_T = 0.1
 EPOCH_SIZE = 500
 SELF_PLAY = 1.5
@@ -41,10 +45,10 @@ NR_ACTIONS = 10
 REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
-SPEED_FACTOR = .8
+SPEED_FACTOR = .6
 MAX_STEPS = int(1000 / int(5 * SPEED_FACTOR))
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = "trained_models/drone/branch_faster_3_fullfli"
+BASE_MODEL = None #"trained_models/drone/branch_faster_3"
 BASE_MODEL_NAME = 'model_quad'
 
 simulate_quadrotor = (
@@ -127,6 +131,9 @@ for epoch in range(NR_EPOCHS):
         print(f"Epoch {epoch} (before)")
         controller = NetworkWrapper(net, state_data, **param_dict)
         eval_env = QuadEvaluator(controller, **param_dict)
+        # flightmare
+        if DYNAMICS=="real_flightmare":
+            eval_env.eval_env = FlightmareWrapper(param_dict["dt"])
         # run with mpc to collect data
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
@@ -143,7 +150,7 @@ for epoch in range(NR_EPOCHS):
             print(f"Sampled new data ({state_data.num_sampled_states})")
         print(f"self play counter: {state_data.get_eval_index()}")
 
-        if epoch % 5 == 0 and param_dict["thresh_div"] < .8:
+        if epoch % 5 == 0 and param_dict["thresh_div"] < 2:
             param_dict["thresh_div"] += .05
             print("increased thresh div", param_dict["thresh_div"])
 

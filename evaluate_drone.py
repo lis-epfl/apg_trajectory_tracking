@@ -141,24 +141,13 @@ class QuadEvaluator():
             action = self.controller.predict_actions(
                 current_np_state, trajectory
             )
-            # if self.test_time:
-            #     np.set_printoptions(suppress=1)
-            #     print(action)
-            # EXPERT
-            # action_mpc = 1
-            # if is_in_control == 0:  # (i + 1) % use_mpc_every == 0:
-            #     action_mpc = self.mpc_helper.predict_actions(
-            #         current_np_state, trajectory
-            #     )
-
-            # action = action_neural if is_in_control else action_mpc
             current_np_state, stable = self.eval_env.step(
                 action[0], thresh=thresh_stable, dynamics=self.dynamics
             )
             # np.set_printoptions(suppress=1, precision=3)
             # print(
-            #     np.sum(np.abs(current_np_state[3:5])),
-            #     np.sum(np.abs(trajectory[0, 3:5]))
+            #     current_np_state[:3],
+            #     trajectory[:, :3]
             # )
             if states is not None:
                 self.eval_env._state.from_np(states[i])
@@ -181,7 +170,8 @@ class QuadEvaluator():
             # # take over control with the mpc
             if div > thresh_div or not stable:
                 if self.test_time:
-                    print("diverged at", len(drone_trajectory))
+                    # TODO: must always be down for flightmare train
+                    # print("diverged at", len(drone_trajectory))
                     break
                 # is_in_control and (div > thresh_div or not stable):
                 #     if self.render:
@@ -393,7 +383,9 @@ if __name__ == "__main__":
     # define evaluation environment
     params.update(time_model_params)
     # CHANGE params here
-    # params["dynamics"] = "sim"
+    # params["max_drone_dist"] = 1
+    # params["speed_factor"] = .4
+    # params["dynamics"] = "flightmare"
     evaluator = QuadEvaluator(controller, test_time=1, **params)
 
     # FLIGHTMARE
@@ -421,7 +413,7 @@ if __name__ == "__main__":
 
     # evaluator.run_mpc_ref(args.ref)
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=333, use_mpc_every=1000, **traj_args
+        args.ref, max_nr_steps=800, use_mpc_every=1000, **traj_args
     )
     # evaluator.render = 0
     # evaluator.eval_ref(args.ref, max_steps=250, **traj_args)

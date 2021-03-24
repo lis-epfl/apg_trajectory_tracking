@@ -135,7 +135,7 @@ class Polynomial:
         # if already at end, return zero velocities and accelerations
         if self.current_ind >= len(self.reference) - self.horizon - 2:
             out_reference[:, :3] = self.reference[self.current_ind]
-            return out_reference
+            return out_reference[:, :6]
         # else: compute next velocities and accs
         next_positions = self.reference[self.current_ind:self.current_ind +
                                         self.horizon + 2]
