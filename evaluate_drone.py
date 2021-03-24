@@ -181,6 +181,8 @@ class QuadEvaluator():
                 self.eval_env._state.from_np(current_np_state)
             # if div > 3 * thresh_div:
             #     break
+            if i >= reference.ref_len:
+                break
         if self.render:
             self.eval_env.close()
         # return trajectorie and divergences
@@ -383,9 +385,10 @@ if __name__ == "__main__":
     # define evaluation environment
     params.update(time_model_params)
     # CHANGE params here
+    # params["dt"] = .025
     # params["max_drone_dist"] = 1
-    # params["speed_factor"] = .4
-    # params["dynamics"] = "flightmare"
+    # params["speed_factor"] = .5
+    # params["dynamics"] = "simple"
     evaluator = QuadEvaluator(controller, test_time=1, **params)
 
     # FLIGHTMARE
@@ -399,7 +402,8 @@ if __name__ == "__main__":
         "radius": 2,
         "direction": 1,
         "thresh_div": 5,
-        "thresh_stable": 2
+        "thresh_stable": 2,
+        "duration": 30
     }
     if args.points is not None:
         from neural_control.utils.predefined_trajectories import (
@@ -413,7 +417,7 @@ if __name__ == "__main__":
 
     # evaluator.run_mpc_ref(args.ref)
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=800, use_mpc_every=1000, **traj_args
+        args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
     # evaluator.render = 0
     # evaluator.eval_ref(args.ref, max_steps=250, **traj_args)
@@ -425,7 +429,7 @@ if __name__ == "__main__":
     speed = evaluator.compute_speed(drone_traj[:, :3])
     print(
         "Speed: max:", round(np.max(speed), 2), ", mean:",
-        round(np.mean(speed), 2)
+        round(np.mean(speed), 2), "stopped at", len(drone_traj)
     )
     # print(speed)
     plot_trajectory(
