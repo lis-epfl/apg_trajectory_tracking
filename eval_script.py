@@ -6,6 +6,9 @@ import pandas as pd
 from evaluate_drone import QuadEvaluator, load_model
 from neural_control.controllers.mpc import MPC
 from neural_control.dataset import DroneDataset
+from neural_control.environments.drone_dynamics import SimpleDynamics
+from neural_control.environments.flightmare_dynamics import FlightmareDynamics
+from neural_control.environments.drone_env import QuadRotorEnvBase
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -14,12 +17,17 @@ except ModuleNotFoundError:
 eval_dict = {"rand": {"nr_test": 50, "max_steps": 1000}}
 thresh_stable = 2
 thresh_divergence = 3
-
-config = {"render": 0, "dynamics": "flightmare"}
+env_params_mismatch = {"down_drag": .75}
 
 if __name__ == "__main__":
-    models_to_evaluate = ["baseline_flightmare", "mpc"]
-    names = ["neural_075thrust", "MPC_bl_075thrust"]
+    models_to_evaluate = [
+        "baseline_flightmare", "mpc", "bl_fm_sample_finetuned",
+        "bl_fm_sample_finetuned_2"
+    ]
+    names = [
+        "neural_D1", "MPC_D1", "sample_finetuned_20000",
+        "sample_finetuned_15000"
+    ]
 
     for model_name, save_name in zip(models_to_evaluate, names):
         for use_flightmare in [0]:
@@ -27,7 +35,7 @@ if __name__ == "__main__":
             print(f"---------------- {model_name} in env {env_name} --------")
 
             out_path = "outputs"
-            save_model_name = save_name + f" ({env_name})"
+            save_model_name = save_name  # + f" ({env_name})"
             print("save_model_name", save_model_name)
 
             df = pd.DataFrame(
@@ -42,26 +50,29 @@ if __name__ == "__main__":
 
             if model_path.split(os.sep)[-1] == "mpc":
                 # mpc parameters:
-                time_model_params = {
-                    "horizon": 30,
-                    "dt": .05,
-                    "dynamics": "flightmare"
-                }
-                controller = MPC(**time_model_params)
+                params = {"horizon": 30, "dt": .05, "dynamics": "flightmare"}
+                controller = MPC(**params)
             # Neural controller
             else:
-                controller, time_model_params = load_model(model_path)
-
-            # define evaluation environment
-            config.update(time_model_params)
+                controller, params = load_model(model_path)
 
             for speed_factor in [0.6]:
-
                 # define evaluation environment
-                evaluator = QuadEvaluator(controller, test_time=1, **config)
+                params["speed_factor"] = speed_factor
+                params["render"] = 0
 
                 if use_flightmare:
-                    evaluator.eval_env = FlightmareWrapper(config["dt"], False)
+                    environment = FlightmareWrapper(params["dt"], False)
+                else:
+                    dynamics = FlightmareDynamics(
+                        modified_params=env_params_mismatch
+                    )
+                environment = QuadRotorEnvBase(dynamics, params["dt"])
+
+                # define evaluation environment
+                evaluator = QuadEvaluator(
+                    controller, environment, test_time=1, **params
+                )
 
                 for reference, ref_params in eval_dict.items():
                     # run x times
@@ -81,11 +92,8 @@ if __name__ == "__main__":
                         steps_until_fail = len(drone_traj)
                         if reference == "poly" and len(drone_traj) > 500:
                             drone_traj = drone_traj[100:-500]
-                        try:
-                            speed_all = evaluator.compute_speed(drone_traj)
-                            speed = np.max(speed_all)
-                        except ZeroDivisionError:
-                            speed = np.nan
+                        speed_all = evaluator.compute_speed(drone_traj)
+                        speed = np.max(speed_all)
                         # divergence in z direction
                         z_div = ref_traj[:, 2] - drone_traj[1:, 2]
                         z_divergence = np.mean(z_div)

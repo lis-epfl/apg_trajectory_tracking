@@ -53,9 +53,19 @@ SAVE = os.path.join("trained_models/drone/test_model")
 BASE_MODEL = "trained_models/drone/baseline_flightmare"
 BASE_MODEL_NAME = 'model_quad'
 
-dynamics = (
+TrainDynamics = (
     FlightmareDynamics() if DYNAMICS == "flightmare" else SimpleDynamics()
 )
+EvalDynamics = TrainDynamics
+
+# FINE TUNING:
+# THRESH_DIV_START = 1
+# SELF_PLAY = 1.5
+# EPOCH_SIZE = 500
+# MAX_STEPS = 1000
+# SELF_PLAY_EVERY_X = 5
+# LEARNING_RATE = 0.0001
+# EvalDynamics = FlightmareDynamics(modified_params={"down_drag": .75})
 
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
@@ -134,7 +144,7 @@ for epoch in range(NR_EPOCHS):
         if DYNAMICS == "real_flightmare":
             eval_env = FlightmareWrapper(param_dict["dt"])
         else:
-            eval_env = QuadRotorEnvBase(dynamics, param_dict["dt"])
+            eval_env = QuadRotorEnvBase(EvalDynamics, param_dict["dt"])
 
         evaluator = QuadEvaluator(controller, eval_env, **param_dict)
         # run with mpc to collect data
@@ -151,7 +161,7 @@ for epoch in range(NR_EPOCHS):
             # renew the sampled data
             state_data.resample_data()
             print(f"Sampled new data ({state_data.num_sampled_states})")
-        print(f"self play counter: {state_data.get_eval_index()}")
+        print(f"self play counter: {state_data.eval_counter}")
 
         if epoch % 5 == 0 and param_dict["thresh_div"] < THRESH_DIV_END:
             param_dict["thresh_div"] += .05
@@ -188,7 +198,7 @@ for epoch in range(NR_EPOCHS):
             for k in range(NR_ACTIONS):
                 # extract action
                 action = action_seq[:, k]
-                current_state = dynamics.simulate_quadrotor(
+                current_state = TrainDynamics.simulate_quadrotor(
                     action, current_state, dt=DELTA_T
                 )
                 intermediate_states[:, k] = current_state
