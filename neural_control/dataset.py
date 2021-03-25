@@ -6,7 +6,7 @@ from neural_control.environments.drone_env import (
 )
 from neural_control.environments.wing_env import sample_training_data
 from neural_control.environments.cartpole_env import construct_states
-from neural_control.environments.drone_dynamics import world_to_body_matrix
+from neural_control.environments.dynamics import Dynamics
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -167,7 +167,7 @@ class DroneDataset(torch.utils.data.Dataset):
 
         # get rotation matrix
         drone_vel = drone_states[:, 6:9]
-        world_to_body = world_to_body_matrix(drone_states[:, 3:6])
+        world_to_body = Dynamics.world_to_body_matrix(drone_states[:, 3:6])
         drone_vel_body = self.rot_world_to_body(drone_vel, world_to_body)
         # first two columns of rotation matrix
         drone_rotation_matrix = torch.reshape(world_to_body[:, :, :2], (-1, 6))

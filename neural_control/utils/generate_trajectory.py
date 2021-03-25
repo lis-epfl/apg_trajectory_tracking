@@ -18,27 +18,21 @@ Autor: Elia Kaufmann
 Script for generating random and geometric quadrotor trajectories
 """
 
-from neural_control.environments.copter import copter_params
+from neural_control.environments.dynamics import Dynamics
 
 
-class Quad():
+class Quad(Dynamics):
 
     def __init__(self, max_thrust_per_motor):
         '''
-
         :param mass: mass of the quadrotor in [kg]
         :param max_thrust_per_motor: maximum thrust in [N] per motor
         '''
-        self.mass = copter_params["mass"]
+        super().__init__()
         self.max_thrust_per_motor = max_thrust_per_motor
 
-        self.J = (
-            copter_params["mass"] / 12.0 * copter_params["arm_length"]**2 *
-            np.array([4.5, 4.5, 7])
-        )
-        # np.array([.002, .002, .025])
-        arm_length = copter_params["arm_length"]
-        h = arm_length / np.sqrt(2.0)
+        self.J = self.inertia_vector
+        h = self.arm_length / np.sqrt(2.0)
         self.x_f = np.array([h, -h, -h, h])
         self.y_f = np.array([-h, -h, h, h])
 

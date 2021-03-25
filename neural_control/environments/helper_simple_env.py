@@ -1,20 +1,5 @@
 import numpy as np
 
-copter_params = {
-    "thrust_factor": 5.723e-6,
-    "drag_factor": 1.717e-7,
-    "mass": 0.723,
-    "rotational_drag": np.array([1, 1, 1]) * 1e-4,
-    "translational_drag": np.array([1, 1, 1]) * 1e-4,
-    "arm_length": 0.31,
-    "rotor_inertia": 7.321e-5,
-    # we assume a diagonal matrix
-    "frame_inertia": np.array([8.678, 8.678, 32.1]) * 1e-3,
-    "gravity": np.array([0.0, 0.0, -9.81]),
-    "max_rotor_speed": 1000.0,
-    "rotor_speed_half_time": 1.0 / 16,
-}
-
 
 class DynamicsState(object):
 

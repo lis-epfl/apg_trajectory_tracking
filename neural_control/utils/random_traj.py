@@ -30,6 +30,7 @@ class Random:
         points_3d = generate_trajectory(
             duration, dt, speed_factor=speed_factor
         )
+        points_3d[:, 2] = points_3d[:, 2] + 3
         self.full_ref = points_3d
         self.initial_pos = points_3d[0, :3]
         # all_training_data = np.load("training_data.npy")

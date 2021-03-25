@@ -20,7 +20,19 @@ class FlightmareWrapper(QuadRotorEnvBase):
 
     def __init__(self, dt, unity_render=False):
         super().__init__(dt)
-        # load config
+        # modify dt in env config
+        cfg_env_path = (os.environ["FLIGHTMARE_PATH"] +
+                "/flightlib/configs/quadrotor_env.yaml")
+        cfg_env = YAML().load(
+            open(
+                cfg_env_path, 'r'
+            )
+        )
+        cfg_env['quadrotor_env']["sim_dt"] = dt
+        with open(cfg_env_path, 'w') as fp:
+            dump(cfg_env, fp, Dumper=RoundTripDumper)
+
+        # load other config for vec env
         cfg = YAML().load(
             open(
                 os.environ["FLIGHTMARE_PATH"] +
@@ -86,34 +98,18 @@ class FlightmareWrapper(QuadRotorEnvBase):
         obs = self.env.zero_reset(position_x, position_y, position_z)
         return self._state.as_np
 
-    def step(self, action, thresh=.8):
+    def step(self, action, thresh=.8, dynamics="flightmare"):
         """
                 Overwrite step methods of drone_env
                 Use dynamics model implementde in flightmare instead
                 """
-        # TODO: convert action from model to flightmare input
-        np.set_printoptions(suppress=True, precision=2)
-        # print("state before", self._state.as_np)
-        # print("obs before", self.raw_obs)
-        # print("raw action", action)
+        # convert action from model to flightmare input
         action = self.action_to_fm(action)
-        # print("action", action)
-        # action = np.random.rand(*action.shape).astype(np.float32)
-        # action = np.ones(action.shape).astype(np.float32) * 2.5 + action
-        # print(action)
-        # np.zeros(action.shape).astype(np.float32) # TODO
-        # TODO: how to input dt into fm env?--> sim_dt_ variable
+        # run step in flightmare
         obs, rew, done, infos = self.env.step(action)
+        # convert obs to state
         self.raw_obs = obs
-        # print("obs after", obs)
-        # print("rew", rew) # TODO: how is reward computed?
-        # TODO: convert obs to numpy state as in my mode
         state = self.obs_to_np_state(obs)
         self._state.from_np(state)
-        # if state[8]>2:
-        #         print("action", action)
-        #         print("state", self._state.as_np)
-        # exit()
-        # check whether it is still stable
         stable = np.all(np.absolute(state[3:5]) < thresh)
         return state, stable
