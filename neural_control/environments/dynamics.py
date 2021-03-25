@@ -15,12 +15,12 @@ class Dynamics:
             "translational_drag": np.array([1, 1, 1]) * 1e-4,
             "arm_length": 0.31,
             "rotor_inertia": 7.321e-5,
-            # we assume a diagonal matrix
-            "frame_inertia": np.array([8.678, 8.678, 32.1]) * 1e-3,
+            "frame_inertia": np.array([4.5, 4.5, 7]),
             "gravity": np.array([0.0, 0.0, -9.81]),
             "max_rotor_speed": 1000.0,
             "rotor_speed_half_time": 1.0 / 16,
-            "kinv_ang_vel_tau": np.array([16.6, 16.6, 5.0])
+            "kinv_ang_vel_tau": np.array([16.6, 16.6, 5.0]),
+            "down_drag": 1
         }
         # change the parameters that should be motified
         dict_copter_params.update(modified_params)
@@ -36,7 +36,7 @@ class Dynamics:
         self.kinv_ang_vel_tau = self.copter_params.kinv_ang_vel_tau
         self.inertia_vector = (
             self.copter_params.mass / 12.0 * self.copter_params.arm_length**2 *
-            np.array([4.5, 4.5, 7])
+            self.copter_params.frame_inertia
         )
 
         # TORCH PARAMETERS
@@ -56,7 +56,7 @@ class Dynamics:
         self.torch_inertia_J = torch.diag(self.torch_inertia_vector)
         self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
         self.torch_kinv_ang_vel_tau = torch.diag(
-            torch.tensor([16.6, 16.6, 5.0]).float()
+            torch.tensor(self.copter_params.kinv_ang_vel_tau).float()
         )
 
         # CASADI PARAMETERS
