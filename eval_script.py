@@ -11,18 +11,18 @@ try:
 except ModuleNotFoundError:
     pass
 
-eval_dict = {"rand": {"nr_test": 50, "max_steps": 333}}
+eval_dict = {"rand": {"nr_test": 50, "max_steps": 1000}}
 thresh_stable = 2
 thresh_divergence = 3
 
-config = {"render": 0}
+config = {"render": 0, "dynamics": "flightmare"}
 
 if __name__ == "__main__":
-    models_to_evaluate = ["branch_faster_3_horizon1", "mpc"]
-    names = ["neural_faster", "MPC"]
+    models_to_evaluate = ["baseline_flightmare", "mpc"]
+    names = ["neural_075thrust", "MPC_bl_075thrust"]
 
     for model_name, save_name in zip(models_to_evaluate, names):
-        for use_flightmare in [0, 1]:
+        for use_flightmare in [0]:
             env_name = "flightmare" if use_flightmare else "simple env"
             print(f"---------------- {model_name} in env {env_name} --------")
 
@@ -32,9 +32,8 @@ if __name__ == "__main__":
 
             df = pd.DataFrame(
                 columns=[
-                    "Model", "max_drone_dist", "Trajectory", "Circle plane",
-                    "Circle radius", "Circle direction", "Stable steps",
-                    "Tracking error", "Speed", "Diverged"
+                    "Model", "speed_factor", "Trajectory", "Stable steps",
+                    "Tracking error", "Speed", "Diverged", "z div"
                 ]
             )
 
@@ -44,7 +43,9 @@ if __name__ == "__main__":
             if model_path.split(os.sep)[-1] == "mpc":
                 # mpc parameters:
                 time_model_params = {
-                    "horizon": 20, "dt": .05, "dynamics": "simple_quad"
+                    "horizon": 30,
+                    "dt": .05,
+                    "dynamics": "flightmare"
                 }
                 controller = MPC(**time_model_params)
             # Neural controller
@@ -54,9 +55,7 @@ if __name__ == "__main__":
             # define evaluation environment
             config.update(time_model_params)
 
-            for speed in [1]:
-                max_drone_dist = speed * config["dt"] * config["horizon"]
-                config["max_drone_dist"] = max_drone_dist
+            for speed_factor in [0.6]:
 
                 # define evaluation environment
                 evaluator = QuadEvaluator(controller, test_time=1, **config)
@@ -67,37 +66,30 @@ if __name__ == "__main__":
                 for reference, ref_params in eval_dict.items():
                     # run x times
                     for _ in range(ref_params["nr_test"]):
-                        # define circle specifications
-                        if reference == "circle":
-                            circle_args = evaluator.sample_circle()
-                            # if use_flightmare:
-                            #     circle_args["plane"] = [0,1]
-                        else:
-                            circle_args = {
-                                "plane": 0,
-                                "radius": 0,
-                                "direction": 0
-                            }
 
                         # run trajectory tracking
-                        _, drone_ref, divergence = evaluator.follow_trajectory(
-                            reference,
-                            max_nr_steps=ref_params["max_steps"],
-                            thresh_stable=thresh_stable,
-                            thresh_div=thresh_divergence,
-                            **circle_args
-                        )
+                        (ref_traj, drone_traj,
+                         divergence) = evaluator.follow_trajectory(
+                             reference,
+                             max_nr_steps=ref_params["max_steps"],
+                             thresh_stable=thresh_stable,
+                             thresh_div=thresh_divergence
+                         )
                         # compute results
                         avg_divergence = np.mean(divergence)
-                        steps_until_fail = len(drone_ref)
-                        if reference == "poly" and len(drone_ref) > 500:
-                            drone_ref = drone_ref[100:-500]
+                        # speed
+                        steps_until_fail = len(drone_traj)
+                        if reference == "poly" and len(drone_traj) > 500:
+                            drone_traj = drone_traj[100:-500]
                         try:
-                            speed_all = evaluator.compute_speed(drone_ref)
+                            speed_all = evaluator.compute_speed(drone_traj)
                             speed = np.max(speed_all)
                         except ZeroDivisionError:
                             speed = np.nan
-
+                        # divergence in z direction
+                        z_div = ref_traj[:, 2] - drone_traj[1:, 2]
+                        z_divergence = np.mean(z_div)
+                        # did it diverge?
                         was_diverged = int(
                             steps_until_fail < ref_params["max_steps"]
                             and divergence[-1] > thresh_divergence
@@ -106,14 +98,13 @@ if __name__ == "__main__":
                         # log
                         print(
                             reference, "len", steps_until_fail, "div",
-                            avg_divergence, "speed", speed, "diverged?",
-                            was_diverged
+                            avg_divergence, "speed", speed, "z div",
+                            z_divergence
                         )
                         df.loc[len(df)] = [
-                            save_model_name, max_drone_dist, reference,
-                            circle_args["plane"], circle_args["radius"],
-                            circle_args["direction"], steps_until_fail,
-                            avg_divergence, speed, was_diverged
+                            save_model_name, speed_factor, reference,
+                            steps_until_fail, avg_divergence, speed,
+                            was_diverged, z_divergence
                         ]
 
             print(df)
