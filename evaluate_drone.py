@@ -54,11 +54,6 @@ class QuadEvaluator():
         self.dt = dt
         self.action_counter = 0
         self.test_time = test_time
-        if self.test_time:
-            print(
-                "evaluate in dynamics", dynamics, "with speed factor",
-                speed_factor
-            )
         self.speed_factor = speed_factor
 
     def help_render(self, sleep=.05):
@@ -372,9 +367,10 @@ if __name__ == "__main__":
 
     # PARAMETERS
     params["render"] = RENDER if not args.unity else 0
-    # params["dt"] = .025
-    params["max_drone_dist"] = 1
+    # params["dt"] = .05
+    # params["max_drone_dist"] = 1
     params["speed_factor"] = .6
+    modified_params = {}  # {"frame_inertia": np.array([3, 4, 6])}
 
     # DEFINE ENVIRONMENT
     if args.flightmare:
@@ -382,7 +378,7 @@ if __name__ == "__main__":
     else:
         # DYNAMICS
         dynamics = (
-            FlightmareDynamics()
+            FlightmareDynamics(modified_params=modified_params)
             if DYNAMICS == "flightmare" else SimpleDynamics()
         )
         environment = QuadRotorEnvBase(dynamics, params["dt"])
