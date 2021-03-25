@@ -32,7 +32,6 @@ motor_tau_inv_ = 1 / 0.05
 b_allocation_np = np.array(
     [[1, 1, 1, 1], t_BM_np[0], t_BM_np[1], kappa_ * np.array([1, -1, 1, -1])]
 )
-print(b_allocation_np.shape)
 b_allocation = ca.SX(b_allocation_np)
 b_allocation_inv = ca.SX(np.linalg.inv(b_allocation_np))
 motor_tau = 0.0001
@@ -96,7 +95,7 @@ class MPC(object):
         # cost matrix for tracking the pendulum motion
         if self.dynamics_model == "high_mpc":
             self._initParamsHighMPC()
-        elif self.dynamics_model == "simple_quad":
+        elif self.dynamics_model in ["simple_quad", "flightmare"]:
             self._initParamsSimpleQuad()
         elif self.dynamics_model == "fixed_wing":
             self._initParamsFixedWing()
@@ -171,6 +170,8 @@ class MPC(object):
             F = self.drone_dynamics_high_mpc(self._dt)
         elif self.dynamics_model == "simple_quad":
             F = self.drone_dynamics_simple(self._dt)
+        elif self.dynamics_model == "flightmare":
+            F = self.drone_dynamics_flightmare(self._dt)
         elif self.dynamics_model == "fixed_wing":
             F = self.fixed_wing_dynamics(self._dt)
         fMap = F.map(self._N, "openmp")  # parallel
@@ -424,7 +425,7 @@ class MPC(object):
         return flattened_ref
 
     def predict_actions(self, current_state, ref_states):
-        if self.dynamics_model == "simple_quad":
+        if self.dynamics_model in ["simple_quad", "flightmare"]:
             preprocessed_ref = self.preprocess_simple_quad(
                 current_state, ref_states
             )
@@ -583,7 +584,7 @@ class MPC(object):
         F = ca.Function('F', [self._x, self._u], [X], ['x', 'u'], ['ode'])
         return F
 
-    def quad_dynamics_flightmare(self, dt):
+    def drone_dynamics_flightmare(self, dt):
 
         # # # # # # # # # # # # # # # # # # #
         # --------- State ------------
@@ -611,7 +612,7 @@ class MPC(object):
         # -- conctenated vector
         self._u = ca.vertcat(thrust, wx, wy, wz)
 
-        thrust_scaled = thrust * 15 - 7.5 + 9.81
+        force = thrust * 15 - 7.5 + 9.81
         body_rates = ca.vertcat(wx - .5, wy - .5, wz - .5)
 
         # compute cross product (needed at two steps)
@@ -620,14 +621,14 @@ class MPC(object):
         cross_prod = ca.cross(av, inertia_times_av)
 
         # run flight control
-        force_tmp = thrust_scaled * copter_params.mass
+        # force = thrust_scaled # TODO: why not using mass????
         # action to body torques
         omega_change = body_rates - av
         first_part = inertia_vector * kinv_ang_vel_tau * omega_change
         body_torques = first_part + cross_prod
 
-        thrust_and_torque = ca.vertcat(force_tmp, body_torques)
-        motor_thrusts_des = b_allocation_inv @ thrust_and_torque
+        # TODO simulate rotors?
+        # thrust_and_torque = ca.vertcat(force, body_torques)
 
         # linear dynamics
         Cy = ca.cos(az)
@@ -649,17 +650,16 @@ class MPC(object):
         vz_new = vz + dt * acc_z
 
         # angular dynamics
-
+        angular_acc = inertia_vector_inv * (body_torques - cross_prod)
         # angular_velocity = angular_velocity + dt * angular_acc
-        avx_new = avx + dt * body_torques[0]
-        avy_new = avy + dt * body_torques[1]
-        avz_new = avz + dt * body_torques[2]
+        avx_new = avx + dt * angular_acc[0]
+        avy_new = avy + dt * angular_acc[1]
+        avz_new = avz + dt * angular_acc[2]
 
         # attitude = attitude + dt * euler_rate(attitude, new angular_velocity)
-        euler_rate_x = avx_new - ca.sin(ay) * avz_new
-        euler_rate_y = ca.cos(ax) * avy_new + ca.cos(ay) * ca.sin(ax) * avz_new
-        euler_rate_z = -ca.sin(ax) * avy_new + ca.cos(ay
-                                                      ) * ca.cos(ax) * avz_new
+        euler_rate_x = avx - ca.sin(ay) * avz
+        euler_rate_y = ca.cos(ax) * avy + ca.cos(ay) * ca.sin(ax) * avz
+        euler_rate_z = -ca.sin(ax) * avy + ca.cos(ay) * ca.cos(ax) * avz
         ax_new = ax + dt * euler_rate_x
         ay_new = ay + dt * euler_rate_y
         az_new = az + dt * euler_rate_z

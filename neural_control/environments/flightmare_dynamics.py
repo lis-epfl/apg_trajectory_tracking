@@ -121,11 +121,7 @@ def run_flight_control(thrust, av, body_rates, cross_prod):
     thrust_and_torque = torch.unsqueeze(
         torch.cat((force, body_torque_des), dim=1), 2
     )
-    # print(thrust_and_torque.size())
-    motor_thrusts_des = torch.matmul(b_allocation_inv, thrust_and_torque)
-    # TODO: clamp?
-
-    return motor_thrusts_des[:, :, 0]
+    return thrust_and_torque[:, :, 0]
 
 
 def pretty_print(varname, torch_var):
@@ -158,14 +154,17 @@ def flightmare_dynamics_function(action, state, dt):
     )[:, :, 0]
     cross_prod = torch.cross(angular_velocity, inertia_av, dim=1)
 
-    motor_thrusts_des = run_flight_control(
+    force_torques = run_flight_control(
         total_thrust, angular_velocity, body_rates, cross_prod
     )
-    motor_thrusts = run_motors(dt, motor_thrusts_des)
-
-    force_torques = torch.matmul(
-        b_allocation, torch.unsqueeze(motor_thrusts, 2)
-    )[:, :, 0]
+    # # SIMULATE ROTORS
+    # motor_thrusts_des = torch.matmul(b_allocation_inv, thrust_and_torque)[:, :,
+    #                                                                       0]
+    # # TODO: clamp?
+    # motor_thrusts = run_motors(dt, motor_thrusts_des)
+    # force_torques = torch.matmul(
+    #     b_allocation, torch.unsqueeze(motor_thrusts, 2)
+    # )[:, :, 0]
 
     # 1) linear dynamics
     force_expanded = torch.unsqueeze(force_torques[:, 0], 1)
