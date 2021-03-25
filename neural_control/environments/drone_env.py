@@ -17,13 +17,13 @@ from neural_control.utils.straight import (
 from neural_control.environments.rendering import (
     Renderer, Ground, QuadCopter
 )
-from neural_control.environments.copter import (
-    copter_params, DynamicsState, Euler
+from neural_control.environments.helper_simple_env import (
+    DynamicsState, Euler
 )
 from neural_control.environments.flightmare_dynamics import (
-    flightmare_dynamics_function
+    FlightmareDynamics
 )
-from neural_control.environments.drone_dynamics import simple_dynamics_function
+from neural_control.environments.drone_dynamics import SimpleDynamics
 from neural_control.utils.generate_trajectory import generate_trajectory
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -42,15 +42,12 @@ class QuadRotorEnvBase(gym.Env):
     action_space = spaces.Box(0, 1, (4, ), dtype=np.float32)
     observation_space = spaces.Box(0, 1, (6, ), dtype=np.float32)
 
-    def __init__(self, dt):
+    def __init__(self, dynamics, dt):
 
         # set up the renderer
         self.renderer = Renderer()
         self.renderer.add_object(Ground())
         self.renderer.add_object(QuadCopter(self))
-
-        # set to supplied copter params, or to default value
-        self.setup = SimpleNamespace(**copter_params)
 
         # just initialize the state to default, the rest will be done by reset
         self._state = DynamicsState()
@@ -64,6 +61,7 @@ class QuadRotorEnvBase(gym.Env):
         #     1.0, attitude_error_transform=np.sqrt
         # )
         self.dt = dt
+        self.dynamics = dynamics
 
     @staticmethod
     def get_is_stable(np_state, thresh=.4):
@@ -82,7 +80,7 @@ class QuadRotorEnvBase(gym.Env):
         acc = (self._state.velocity - self._state._last_velocity) / self.dt
         return acc
 
-    def step(self, action, thresh=.4, dynamics="flightmare"):
+    def step(self, action, thresh=.4):
         """
         Apply action to the current drone state
         Returns:
@@ -97,13 +95,8 @@ class QuadRotorEnvBase(gym.Env):
                                        ).to(device)
         torch_action = torch.from_numpy(np.array([action])).float().to(device)
 
-        # specify which dynamics function to use
-        simulate_quadrotor = (
-            flightmare_dynamics_function
-            if dynamics == "flightmare" else simple_dynamics_function
-        )
         # dynamics
-        new_state_arr = simulate_quadrotor(
+        new_state_arr = self.dynamics.simulate_quadrotor(
             torch_action, torch_state, dt=self.dt
         )
         numpy_out_state = new_state_arr.cpu().numpy()[0]

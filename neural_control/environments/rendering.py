@@ -1,5 +1,5 @@
 import numpy as np
-from neural_control.environments.copter import Euler
+from neural_control.environments.helper_simple_env import Euler
 
 
 def body_to_world_matrix(euler):
@@ -169,7 +169,6 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
     def draw(self, renderer):
         status = self.source._state
-        setup = self.source.setup
 
         # transformed main axis
         trafo = status.attitude
@@ -180,19 +179,19 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
         self.draw_propeller(
             renderer, trafo, status.position, [1, 0, 0],
-            status.rotor_speeds[0] / setup.max_rotor_speed
+            status.rotor_speeds[0] / 1
         )
         self.draw_propeller(
             renderer, trafo, status.position, [0, 1, 0],
-            status.rotor_speeds[1] / setup.max_rotor_speed
+            status.rotor_speeds[1] / 1
         )
         self.draw_propeller(
             renderer, trafo, status.position, [-1, 0, 0],
-            status.rotor_speeds[2] / setup.max_rotor_speed
+            status.rotor_speeds[2] / 1
         )
         self.draw_propeller(
             renderer, trafo, status.position, [0, -1, 0],
-            status.rotor_speeds[3] / setup.max_rotor_speed
+            status.rotor_speeds[3] / 1
         )
 
     @staticmethod

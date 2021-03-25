@@ -19,6 +19,8 @@ from neural_control.utils.random_traj import Random
 from neural_control.dataset import DroneDataset
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
+from neural_control.environments.flightmare_dynamics import FlightmareDynamics
+from neural_control.environments.drone_dynamics import SimpleDynamics
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -35,24 +37,23 @@ class QuadEvaluator():
     def __init__(
         self,
         controller,
+        environment,
         horizon=5,
         max_drone_dist=0.1,
         render=0,
         dt=0.02,
         test_time=0,
-        dynamics="flightmare",
         speed_factor=.6,
         **kwargs
     ):
         self.controller = controller
-        self.eval_env = QuadRotorEnvBase(dt)
+        self.eval_env = environment
         self.horizon = horizon
         self.max_drone_dist = max_drone_dist
         self.render = render
         self.dt = dt
         self.action_counter = 0
         self.test_time = test_time
-        self.dynamics = dynamics
         if self.test_time:
             print(
                 "evaluate in dynamics", dynamics, "with speed factor",
@@ -142,13 +143,10 @@ class QuadEvaluator():
                 current_np_state, trajectory
             )
             current_np_state, stable = self.eval_env.step(
-                action[0], thresh=thresh_stable, dynamics=self.dynamics
+                action[0], thresh=thresh_stable
             )
             # np.set_printoptions(suppress=1, precision=3)
-            # print(
-            #     current_np_state[:3],
-            #     trajectory[:, :3]
-            # )
+            # print(current_np_state[:3], trajectory[0, :3])
             if states is not None:
                 self.eval_env._state.from_np(states[i])
                 current_np_state = states[i]
@@ -358,42 +356,39 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    params = {
-        "render": 1,
-        "max_drone_dist": 1.25,
-        "dynamics": "flightmare",
-        "speed_factor": 1
-    }
+    DYNAMICS = "flightmare"
+    RENDER = 1
 
-    # rendering
-    if args.unity:
-        params["render"] = 0
-
-    # define and load controller
+    # CONTROLLER - define and load controller
     model_path = os.path.join("trained_models", "drone", args.model)
     # MPC
     if model_path.split(os.sep)[-1] == "mpc":
         # mpc parameters:
-        time_model_params = {"horizon": 20, "dt": .05}
-        controller = MPC(dynamics="simple_quad", **time_model_params)
+        params = {"horizon": 20, "dt": .05}
+        controller = MPC(dynamics=DYNAMICS, **params)
     # Neural controller
     else:
-        controller, time_model_params = load_model(
-            model_path, epoch=args.epoch
-        )
+        controller, params = load_model(model_path, epoch=args.epoch)
 
-    # define evaluation environment
-    params.update(time_model_params)
-    # CHANGE params here
+    # PARAMETERS
+    params["render"] = RENDER if not args.unity else 0
     # params["dt"] = .025
-    # params["max_drone_dist"] = 1
-    # params["speed_factor"] = .5
-    # params["dynamics"] = "simple"
-    evaluator = QuadEvaluator(controller, test_time=1, **params)
+    params["max_drone_dist"] = 1
+    params["speed_factor"] = .6
 
-    # FLIGHTMARE
+    # DEFINE ENVIRONMENT
     if args.flightmare:
-        evaluator.eval_env = FlightmareWrapper(params["dt"], args.unity)
+        environment = FlightmareWrapper(params["dt"], args.unity)
+    else:
+        # DYNAMICS
+        dynamics = (
+            FlightmareDynamics()
+            if DYNAMICS == "flightmare" else SimpleDynamics()
+        )
+        environment = QuadRotorEnvBase(dynamics, params["dt"])
+
+    # EVALUATOR
+    evaluator = QuadEvaluator(controller, environment, test_time=1, **params)
 
     # Specify arguments for the trajectory
     fixed_axis = 1
@@ -403,7 +398,7 @@ if __name__ == "__main__":
         "direction": 1,
         "thresh_div": 5,
         "thresh_stable": 2,
-        "duration": 30
+        "duration": 10
     }
     if args.points is not None:
         from neural_control.utils.predefined_trajectories import (

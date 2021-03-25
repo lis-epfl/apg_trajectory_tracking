@@ -11,11 +11,12 @@ from neural_control.drone_loss import (
     drone_loss_function, simply_last_loss, reference_loss, mse_loss,
     weighted_loss
 )
-from neural_control.environments.drone_dynamics import simple_dynamics_function
+from neural_control.environments.drone_dynamics import SimpleDynamics
 from neural_control.environments.flightmare_dynamics import (
-    flightmare_dynamics_function
+    FlightmareDynamics
 )
 from neural_control.controllers.network_wrapper import NetworkWrapper
+from neural_control.environments.drone_env import QuadRotorEnvBase
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
 from neural_control.utils.plotting import (
@@ -26,7 +27,7 @@ try:
 except ModuleNotFoundError:
     pass
 
-DYNAMICS = "simple"
+DYNAMICS = "flightmare"
 DELTA_T = 0.1
 EPOCH_SIZE = 500
 SELF_PLAY = 1.5
@@ -36,7 +37,8 @@ NR_EPOCHS = 200
 BATCH_SIZE = 8
 RESET_STRENGTH = 1.2
 MAX_DRONE_DIST = 0.25
-THRESH_DIV = .1
+THRESH_DIV_START = .1
+THRESH_DIV_END = 2
 THRESH_STABLE = 1.5
 USE_MPC_EVERY = 500
 NR_EVAL_ITERS = 5
@@ -46,14 +48,13 @@ REF_DIM = 9
 ACTION_DIM = 4
 LEARNING_RATE = 0.0001
 SPEED_FACTOR = .6
-MAX_STEPS = int(1000 / int(5 * SPEED_FACTOR))
+MAX_STEPS = 1000
 SAVE = os.path.join("trained_models/drone/test_model")
-BASE_MODEL = None #"trained_models/drone/branch_faster_3"
+BASE_MODEL = "trained_models/drone/baseline_flightmare"
 BASE_MODEL_NAME = 'model_quad'
 
-simulate_quadrotor = (
-    flightmare_dynamics_function
-    if DYNAMICS == "flightmare" else simple_dynamics_function
+dynamics = (
+    FlightmareDynamics() if DYNAMICS == "flightmare" else SimpleDynamics()
 )
 
 if not os.path.exists(SAVE):
@@ -102,12 +103,11 @@ param_dict["reset_strength"] = RESET_STRENGTH
 param_dict["max_drone_dist"] = MAX_DRONE_DIST
 param_dict["horizon"] = NR_ACTIONS
 param_dict["ref_length"] = NR_ACTIONS
-param_dict["thresh_div"] = THRESH_DIV
+param_dict["thresh_div"] = THRESH_DIV_START
 param_dict["dt"] = DELTA_T
 param_dict["take_every_x"] = SELF_PLAY_EVERY_X
 param_dict["thresh_stable"] = THRESH_STABLE
 param_dict["use_mpc_every"] = USE_MPC_EVERY
-param_dict["dynamics"] = DYNAMICS
 param_dict["speed_factor"] = SPEED_FACTOR
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
@@ -130,14 +130,17 @@ for epoch in range(NR_EPOCHS):
         # EVALUATE
         print(f"Epoch {epoch} (before)")
         controller = NetworkWrapper(net, state_data, **param_dict)
-        eval_env = QuadEvaluator(controller, **param_dict)
-        # flightmare
-        if DYNAMICS=="real_flightmare":
-            eval_env.eval_env = FlightmareWrapper(param_dict["dt"])
+        # specify dynamics to collect more data (exploration)
+        if DYNAMICS == "real_flightmare":
+            eval_env = FlightmareWrapper(param_dict["dt"])
+        else:
+            eval_env = QuadRotorEnvBase(dynamics, param_dict["dt"])
+
+        evaluator = QuadEvaluator(controller, eval_env, **param_dict)
         # run with mpc to collect data
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
-        suc_mean, suc_std = eval_env.eval_ref(
+        suc_mean, suc_std = evaluator.eval_ref(
             "rand", nr_test=10, max_steps=MAX_STEPS, **param_dict
         )
 
@@ -150,7 +153,7 @@ for epoch in range(NR_EPOCHS):
             print(f"Sampled new data ({state_data.num_sampled_states})")
         print(f"self play counter: {state_data.get_eval_index()}")
 
-        if epoch % 5 == 0 and param_dict["thresh_div"] < 2:
+        if epoch % 5 == 0 and param_dict["thresh_div"] < THRESH_DIV_END:
             param_dict["thresh_div"] += .05
             print("increased thresh div", param_dict["thresh_div"])
 
@@ -185,7 +188,7 @@ for epoch in range(NR_EPOCHS):
             for k in range(NR_ACTIONS):
                 # extract action
                 action = action_seq[:, k]
-                current_state = simulate_quadrotor(
+                current_state = dynamics.simulate_quadrotor(
                     action, current_state, dt=DELTA_T
                 )
                 intermediate_states[:, k] = current_state

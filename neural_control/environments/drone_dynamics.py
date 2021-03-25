@@ -1,195 +1,213 @@
 import torch
 import numpy as np
-from neural_control.environments.copter import copter_params
-from types import SimpleNamespace
-
-device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
-copter_params = SimpleNamespace(**copter_params)
-copter_params.translational_drag = torch.from_numpy(
-    copter_params.translational_drag
-).to(device)
-copter_params.gravity = torch.from_numpy(copter_params.gravity).to(device)
-copter_params.rotational_drag = torch.from_numpy(
-    copter_params.rotational_drag
-).to(device)
-# estimate intertia as in flightmare
-inertia_vector = (
-    copter_params.mass / 12.0 * copter_params.arm_length**2 *
-    torch.tensor([4.5, 4.5, 7])
-).float().to(device)
-copter_params.frame_inertia = torch.diag(inertia_vector)
-# torch.from_numpy(copter_params.frame_inertia
-#                                              ).float().to(device)
-kinv_ang_vel_tau = torch.diag(torch.tensor([16.6, 16.6, 5.0]).float())
+from neural_control.environments.dynamics import Dynamics
+import casadi as ca
 
 
-def world_to_body_matrix(attitude):
-    """
-    Creates a transformation matrix for directions from world frame
-    to body frame for a body with attitude given by `euler` Euler angles.
-    :param euler: The Euler angles of the body frame.
-    :return: The transformation matrix.
-    """
+class SimpleDynamics(Dynamics):
 
-    # check if we have a cached result already available
-    roll = attitude[:, 0]
-    pitch = attitude[:, 1]
-    yaw = attitude[:, 2]
+    def linear_dynamics(self, squared_rotor_speed, attitude, velocity):
+        """
+        Calculates the linear acceleration of a quadcopter with parameters
+        `copter_params` that is currently in the dynamics state composed of:
+        :param rotor_speed: current rotor speeds
+        :param attitude: current attitude
+        :param velocity: current velocity
+        :return: Linear acceleration in world frame.
+        """
+        m = self.mass
+        b = self.thrust_factor
+        Kt = self.torch_translational_drag
 
-    Cy = torch.cos(yaw)
-    Sy = torch.sin(yaw)
-    Cp = torch.cos(pitch)
-    Sp = torch.sin(pitch)
-    Cr = torch.cos(roll)
-    Sr = torch.sin(roll)
+        world_to_body = self.world_to_body_matrix(attitude)
+        body_to_world = torch.transpose(world_to_body, 1, 2)
 
-    # create matrix
-    m1 = torch.transpose(torch.vstack([Cy * Cp, Sy * Cp, -Sp]), 0, 1)
-    m2 = torch.transpose(
-        torch.vstack(
-            [Cy * Sp * Sr - Cr * Sy, Cr * Cy + Sr * Sy * Sp, Cp * Sr]
-        ), 0, 1
-    )
-    m3 = torch.transpose(
-        torch.vstack(
-            [Cy * Sp * Cr + Sr * Sy, Cr * Sy * Sp - Cy * Sr, Cr * Cp]
-        ), 0, 1
-    )
-    matrix = torch.stack((m1, m2, m3), dim=1)
+        constant_vec = torch.zeros(3)
+        constant_vec[2] = 1
 
-    return matrix
+        thrust = 1 / m * torch.mul(
+            torch.matmul(body_to_world, constant_vec).t(), squared_rotor_speed
+        ).t()
+        Ktw = torch.matmul(
+            body_to_world, torch.matmul(torch.diag(Kt).float(), world_to_body)
+        )
+        # drag = torch.squeeze(torch.matmul(Ktw, torch.unsqueeze(velocity, 2)) / m)
+        thrust_minus_drag = thrust + self.torch_gravity
+        # version for batch size 1 (working version)
+        # summed = torch.add(
+        #     torch.transpose(drag * (-1), 0, 1), thrust
+        # ) + copter_params.gravity
+        # print("output linear", thrust_minus_drag.size())
+        return thrust_minus_drag
 
+    def action_to_body_torques(self, av, body_rates):
+        """
+        omega is current angular velocity
+        thrust, body_rates: current command
+        """
+        # constants
+        omega_change = torch.unsqueeze(body_rates - av, 2)
+        kinv_times_change = torch.matmul(
+            self.torch_kinv_ang_vel_tau, omega_change
+        )
+        first_part = torch.matmul(self.torch_inertia_J, kinv_times_change)
+        # print("first_part", first_part.size())
+        inertia_av = torch.matmul(
+            self.torch_inertia_J, torch.unsqueeze(av, 2)
+        )[:, :, 0]
+        # print(inertia_av.size())
+        second_part = torch.cross(av, inertia_av, dim=1)
+        # print("second_part", second_part.size())
+        body_torque_des = first_part[:, :, 0] + second_part
+        # print("body_torque_des", body_torque_des.size())
+        return body_torque_des
 
-def linear_dynamics(squared_rotor_speed, attitude, velocity):
-    """
-    Calculates the linear acceleration of a quadcopter with parameters
-    `copter_params` that is currently in the dynamics state composed of:
-    :param rotor_speed: current rotor speeds
-    :param attitude: current attitude
-    :param velocity: current velocity
-    :return: Linear acceleration in world frame.
-    """
-    m = copter_params.mass
-    b = copter_params.thrust_factor
-    Kt = copter_params.translational_drag
+    def simulate_quadrotor(self, action, state, dt=0.02):
+        """
+        Simulate the dynamics of the quadrotor for the timestep given
+        in `dt`. First the rotor speeds are updated according to the desired
+        rotor speed, and then linear and angular accelerations are calculated
+        and integrated.
+        Arguments:
+            action: float tensor of size (BATCH_SIZE, 4) - rotor thrust
+            state: float tensor of size (BATCH_SIZE, 16) - drone state (see below)
+        Returns:
+            Next drone state (same size as state)
+        """
+        # extract state
+        position = state[:, :3]
+        attitude = state[:, 3:6]
+        velocity = state[:, 6:9]
+        angular_velocity = state[:, 9:]
 
-    world_to_body = world_to_body_matrix(attitude)
-    body_to_world = torch.transpose(world_to_body, 1, 2)
+        # action is normalized between 0 and 1 --> rescale
+        total_thrust = action[:, 0] * 15 - 7.5 + 9.81
+        body_rates = action[:, 1:] - .5
 
-    constant_vec = torch.zeros(3).to(device)
-    constant_vec[2] = 1
+        acceleration = self.linear_dynamics(total_thrust, attitude, velocity)
 
-    thrust = 1 / m * torch.mul(
-        torch.matmul(body_to_world, constant_vec).t(), squared_rotor_speed
-    ).t()
-    Ktw = torch.matmul(
-        body_to_world, torch.matmul(torch.diag(Kt).float(), world_to_body)
-    )
-    # drag = torch.squeeze(torch.matmul(Ktw, torch.unsqueeze(velocity, 2)) / m)
-    thrust_minus_drag = thrust + copter_params.gravity
-    # version for batch size 1 (working version)
-    # summed = torch.add(
-    #     torch.transpose(drag * (-1), 0, 1), thrust
-    # ) + copter_params.gravity
-    # print("output linear", thrust_minus_drag.size())
-    return thrust_minus_drag
-
-
-def to_euler_matrix(attitude):
-    # attitude is [roll, pitch, yaw]
-    pitch = attitude[:, 1]
-    roll = attitude[:, 0]
-    Cp = torch.cos(pitch)
-    Sp = torch.sin(pitch)
-    Cr = torch.cos(roll)
-    Sr = torch.sin(roll)
-
-    zero_vec_bs = torch.zeros(Sp.size()).to(device)
-    ones_vec_bs = torch.ones(Sp.size()).to(device)
-
-    # create matrix
-    m1 = torch.transpose(torch.vstack([ones_vec_bs, zero_vec_bs, -Sp]), 0, 1)
-    m2 = torch.transpose(torch.vstack([zero_vec_bs, Cr, Cp * Sr]), 0, 1)
-    m3 = torch.transpose(torch.vstack([zero_vec_bs, -Sr, Cp * Cr]), 0, 1)
-    matrix = torch.stack((m1, m2, m3), dim=1)
-
-    # matrix = torch.tensor([[1, 0, -Sp], [0, Cr, Cp * Sr], [0, -Sr, Cp * Cr]])
-    return matrix
-
-
-def euler_rate(attitude, angular_velocity):
-    euler_matrix = to_euler_matrix(attitude)
-    together = torch.matmul(
-        euler_matrix, torch.unsqueeze(angular_velocity.float(), 2)
-    )
-    # print("output euler rate", together.size())
-    return torch.squeeze(together)
+        ang_momentum = self.action_to_body_torques(
+            angular_velocity, body_rates
+        )
+        # angular_momentum_body_frame(rotor_speed, angular_velocity)
+        angular_acc = ang_momentum / self.torch_inertia_vector
+        # update state variables
+        position = position + 0.5 * dt * dt * acceleration + 0.5 * dt * velocity
+        velocity = velocity + dt * acceleration
+        angular_velocity = angular_velocity + dt * angular_acc
+        attitude = attitude + dt * self.euler_rate(attitude, angular_velocity)
+        # set final state
+        state = torch.hstack((position, attitude, velocity, angular_velocity))
+        return state.float()
 
 
-def action_to_body_torques(av, body_rates):
-    """
-    omega is current angular velocity
-    thrust, body_rates: current command
-    """
-    # constants
-    omega_change = torch.unsqueeze(body_rates - av, 2)
-    kinv_times_change = torch.matmul(kinv_ang_vel_tau, omega_change)
-    first_part = torch.matmul(copter_params.frame_inertia, kinv_times_change)
-    # print("first_part", first_part.size())
-    inertia_av = torch.matmul(
-        copter_params.frame_inertia, torch.unsqueeze(av, 2)
-    )[:, :, 0]
-    # print(inertia_av.size())
-    second_part = torch.cross(av, inertia_av, dim=1)
-    # print("second_part", second_part.size())
-    body_torque_des = first_part[:, :, 0] + second_part
-    # print("body_torque_des", body_torque_des.size())
-    return body_torque_des
+class SimpleDynamicsMPC(Dynamics):
 
+    def drone_dynamics_simple(self, dt):
+        """
+        Dynamics function in casadi for MPC optimization
+        """
+        # # # # # # # # # # # # # # # # # # #
+        # --------- State ------------
+        # # # # # # # # # # # # # # # # # # #
 
-def simple_dynamics_function(action, state, dt=0.02):
-    """
-    Simulate the dynamics of the quadrotor for the timestep given
-    in `dt`. First the rotor speeds are updated according to the desired
-    rotor speed, and then linear and angular accelerations are calculated
-    and integrated.
-    Arguments:
-        action: float tensor of size (BATCH_SIZE, 4) - rotor thrust
-        state: float tensor of size (BATCH_SIZE, 16) - drone state (see below)
-    Returns:
-        Next drone state (same size as state)
-    """
-    # extract state
-    position = state[:, :3]
-    attitude = state[:, 3:6]
-    velocity = state[:, 6:9]
-    angular_velocity = state[:, 9:]
+        # position
+        px, py, pz = ca.SX.sym('px'), ca.SX.sym('py'), ca.SX.sym('pz')
+        # attitude
+        ax, ay, az = ca.SX.sym('ax'), ca.SX.sym('ay'), ca.SX.sym('az')
+        # vel
+        vx, vy, vz = ca.SX.sym('vx'), ca.SX.sym('vy'), ca.SX.sym('vz')
+        # angular velocity
+        avx, avy, avz = ca.SX.sym('avx'), ca.SX.sym('avy'), ca.SX.sym('avz')
 
-    # action is normalized between 0 and 1 --> rescale
-    total_thrust = action[:, 0] * 15 - 7.5 + 9.81
-    body_rates = action[:, 1:] - .5
+        # -- conctenated vector
+        self._x = ca.vertcat(px, py, pz, ax, ay, az, vx, vy, vz, avx, avy, avz)
 
-    acceleration = linear_dynamics(total_thrust, attitude, velocity)
+        # # # # # # # # # # # # # # # # # # #
+        # --------- Control Command ------------
+        # # # # # # # # # # # # # # # # # # #
 
-    ang_momentum = action_to_body_torques(angular_velocity, body_rates)
-    # angular_momentum_body_frame(rotor_speed, angular_velocity)
-    angular_acc = ang_momentum / inertia_vector
-    # update state variables
-    position = position + 0.5 * dt * dt * acceleration + 0.5 * dt * velocity
-    velocity = velocity + dt * acceleration
-    angular_velocity = angular_velocity + dt * angular_acc
-    attitude = attitude + dt * euler_rate(attitude, angular_velocity)
-    # set final state
-    state = torch.hstack((position, attitude, velocity, angular_velocity))
-    return state.float()
+        thrust, wx, wy, wz = ca.SX.sym('thrust'), ca.SX.sym('wx'), \
+            ca.SX.sym('wy'), ca.SX.sym('wz')
+
+        # -- conctenated vector
+        self._u = ca.vertcat(thrust, wx, wy, wz)
+
+        thrust_scaled = thrust * 15 - 7.5 + 9.81
+
+        # linear dynamics
+        Cy = ca.cos(az)
+        Sy = ca.sin(az)
+        Cp = ca.cos(ay)
+        Sp = ca.sin(ay)
+        Cr = ca.cos(ax)
+        Sr = ca.sin(ax)
+
+        const = thrust_scaled / self.mass
+        acc_x = (Cy * Sp * Cr + Sr * Sy) * const
+        acc_y = (Cr * Sy * Sp - Cy * Sr) * const
+        acc_z = (Cr * Cp) * const - 9.81
+
+        px_new = px + 0.5 * dt * dt * acc_x + 0.5 * dt * vx
+        py_new = py + 0.5 * dt * dt * acc_y + 0.5 * dt * vy
+        pz_new = pz + 0.5 * dt * dt * acc_z + 0.5 * dt * vz
+        vx_new = vx + dt * acc_x
+        vy_new = vy + dt * acc_y
+        vz_new = vz + dt * acc_z
+
+        # angular dynamics
+
+        body_rates = ca.vertcat(wx - .5, wy - .5, wz - .5)
+        av = ca.vertcat(avx, avy, avz)
+
+        # action to body torques
+        omega_change = body_rates - av
+        first_part = (
+            self.ca_inertia_vector * self.ca_kinv_ang_vel_tau * omega_change
+        )
+        inertia_times_av = self.ca_inertia_vector * av
+        second_part = ca.cross(av, inertia_times_av)  # dim??
+        body_torques = (first_part + second_part) / self.ca_inertia_vector
+
+        # angular_velocity = angular_velocity + dt * angular_acc
+        avx_new = avx + dt * body_torques[0]
+        avy_new = avy + dt * body_torques[1]
+        avz_new = avz + dt * body_torques[2]
+
+        # attitude = attitude + dt * euler_rate(attitude, new angular_velocity)
+        euler_rate_x = avx_new - ca.sin(ay) * avz_new
+        euler_rate_y = ca.cos(ax) * avy_new + ca.cos(ay) * ca.sin(ax) * avz_new
+        euler_rate_z = -ca.sin(ax) * avy_new + ca.cos(ay
+                                                      ) * ca.cos(ax) * avz_new
+        ax_new = ax + dt * euler_rate_x
+        ay_new = ay + dt * euler_rate_y
+        az_new = az + dt * euler_rate_z
+
+        # stack together
+        X = ca.vertcat(
+            px_new, py_new, pz_new, ax_new, ay_new, az_new, vx_new, vy_new,
+            vz_new, avx_new, avy_new, avz_new
+        )
+        # Fold
+        F = ca.Function('F', [self._x, self._u], [X], ['x', 'u'], ['ode'])
+        return F
 
 
 if __name__ == "__main__":
-    print("hi")
-    state = torch.tensor(
-        [[0.1, 0.2, 0.3, 0.5, -0.2, 0.35, 0.9, 1.3, 0, 0.05, 0.1, -0.23]]
+    action = [0.45, 0.46, 0.3, 0.6]
+
+    state = [
+        -0.203302, -8.12219, 0.484883, -0.15613, -0.446313, 0.25728, -4.70952,
+        0.627684, -2.506545, -0.039999, -0.200001, 0.1
+    ]
+    # state = [2, 3, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    dyn = SimpleDynamics()
+    new_state = dyn.simple_dynamics_function(
+        torch.tensor([action]), torch.tensor([state]), 0.05
     )
-    action = torch.tensor([[0.5, 0.45, 0.48, 0.55]])
-    new_state = simple_dynamics_function(action, state, 0.1)
-    print(state)
-    print(new_state)
+    print("new state simple", new_state)
+
+    dyn_mpc = SimpleDynamicsMPC()
+    F = dyn_mpc.drone_dynamics_simple(0.05)
+    new_state_mpc = F(np.array(state), np.array(action))
+    print("new state mpc", new_state_mpc)
