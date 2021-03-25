@@ -10,7 +10,7 @@ from neural_control.dataset import WingDataset
 from neural_control.drone_loss import (
     trajectory_loss, fixed_wing_loss, angle_loss
 )
-from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
+from neural_control.environments.wing_3D_dynamics import long_dynamics
 from neural_control.models.hutter_model import Net
 from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper

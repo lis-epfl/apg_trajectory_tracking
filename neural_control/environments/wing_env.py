@@ -2,9 +2,7 @@ import gym
 import torch
 import numpy as np
 
-from neural_control.environments.wing_longitudinal_dynamics import (
-    long_dynamics
-)
+from neural_control.environments.wing_3D_dynamics import (long_dynamics)
 from neural_control.environments.rendering import (
     Renderer, Ground, RenderedObject, FixedWingDrone
 )

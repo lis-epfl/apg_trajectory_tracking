@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 
-from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
+from neural_control.environments.wing_3D_dynamics import long_dynamics
 from neural_control.utils.plotting import plot_wing_pos
 
 # # Changes after error correction

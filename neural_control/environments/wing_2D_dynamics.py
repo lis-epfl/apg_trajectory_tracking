@@ -30,7 +30,7 @@ alpha_bound = float(5 / 180 * np.pi)
 torch_pi = np.pi
 
 
-def long_dynamics(state, action, dt):
+def fixed_wing_dynamics_2D(state, action, dt):
     # extract variables
     # state
     x = state[:, 0]  # x position
