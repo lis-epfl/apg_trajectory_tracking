@@ -27,6 +27,7 @@ class Dynamics:
         self.copter_params = SimpleNamespace(**dict_copter_params)
         device = "cpu"
         # NUMPY PARAMETERS
+        self.down_drag = self.copter_params.down_drag
         self.mass = self.copter_params.mass
         self.arm_length = self.copter_params.arm_length
         self.thrust_factor = self.copter_params.thrust_factor

@@ -78,7 +78,7 @@ class FlightmareDynamics(Dynamics):
         body_to_world = torch.transpose(world_to_body, 1, 2)
 
         # print("force in ld ", force.size())
-        thrust = self.copter_params.down_drag * 1 / self.mass * torch.matmul(
+        thrust = self.down_drag * 1 / self.mass * torch.matmul(
             body_to_world, torch.unsqueeze(force, 2)
         )
         # print("thrust", thrust.size())
