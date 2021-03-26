@@ -278,7 +278,7 @@ if __name__ == "__main__":
     eval_dynamics = FlightmareDynamics(modified_params={"down_drag": .75})
 
     trainer = TrainDrone(train_dynamics, eval_dynamics)
-    base_model = "trained_models/drone/branch_faster_3_hor1_fullsim"
+    base_model = None  # "trained_models/drone/baseline_flightmare"
 
     trainer.initialize_model(base_model)
 
@@ -289,7 +289,7 @@ if __name__ == "__main__":
         for epoch in range(nr_epochs):
             model_to_train = (
                 "controller" if (epoch + 1) % train_model_every == 0
-                or epoch > 4 else "dynamics"
+                or epoch > 3 else "dynamics"
             )
 
             # EVALUATE
