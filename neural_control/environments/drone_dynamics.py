@@ -202,7 +202,7 @@ if __name__ == "__main__":
     ]
     # state = [2, 3, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
     dyn = SimpleDynamics()
-    new_state = dyn.simple_dynamics_function(
+    new_state = dyn.simulate_quadrotor(
         torch.tensor([action]), torch.tensor([state]), 0.05
     )
     print("new state simple", new_state)

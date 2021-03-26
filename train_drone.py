@@ -34,7 +34,7 @@ class TrainDrone:
     Train a controller for a quadrotor
     """
 
-    def __init__(self):
+    def __init__(self, train_dynamics, eval_dynamics):
         self.dynamics = "flightmare"
         self.delta_t = 0.1
         self.epoch_size = 500
@@ -58,7 +58,7 @@ class TrainDrone:
         self.save_path = os.path.join("trained_models/drone/test_model")
 
         # initialize as the original flightmare environment
-        self.train_dynamics = LearntDynamics()
+        self.train_dynamics = train_dynamics
         # FINE TUNING:
         # self.thresh_div_start = 1
         # self.self_play = 1.5
@@ -66,9 +66,7 @@ class TrainDrone:
         # self.max_steps = 1000
         # self.self_play_every_x = 5
         # self.learning_rate = 0.0001
-        self.eval_dynamics = FlightmareDynamics(
-            modified_params={"down_drag": .75}
-        )
+        self.eval_dynamics = eval_dynamics
 
         self.count_finetune_data = 0
 
@@ -276,38 +274,42 @@ if __name__ == "__main__":
     nr_epochs = 200
     train_model_every = 2
 
-    trainer = TrainDrone()
-    base_model = "trained_models/drone/baseline_flightmare"
+    train_dynamics = LearntDynamics()
+    eval_dynamics = FlightmareDynamics(modified_params={"down_drag": .75})
+
+    trainer = TrainDrone(train_dynamics, eval_dynamics)
+    base_model = "trained_models/drone/branch_faster_3_hor1_fullsim"
 
     trainer.initialize_model(base_model)
 
     loss_list, success_mean_list, success_std_list = list(), list(), list()
 
-    highest_success = 0  #  np.inf
-    for epoch in range(nr_epochs):
-        model_to_train = (
-            "controller" if
-            (epoch + 1) % train_model_every == 0 else "dynamics"
-        )
+    try:
+        highest_success = 0  #  np.inf
+        for epoch in range(nr_epochs):
+            model_to_train = (
+                "controller" if (epoch + 1) % train_model_every == 0
+                or epoch > 4 else "dynamics"
+            )
 
-        # EVALUATE
-        suc_mean, suc_std = trainer.evaluate_model(epoch, highest_success)
-        success_mean_list.append(suc_mean)
-        success_std_list.append(suc_std)
+            # EVALUATE
+            suc_mean, suc_std = trainer.evaluate_model(epoch, highest_success)
+            success_mean_list.append(suc_mean)
+            success_std_list.append(suc_std)
 
-        print("Counter of data to fine tune:", trainer.count_finetune_data)
-        # print("Params of dynamics model:")
-        # for param in trainer.train_dynamics.parameters():
-        #     print(param.data)
-        print()
+            print("Counter of data to fine tune:", trainer.count_finetune_data)
+            print("Params of dynamics model:")
+            for param in trainer.train_dynamics.parameters():
+                print(param.data)
+            print()
 
-        # RUN training
-        epoch_loss = trainer.run_epoch(train=model_to_train)
+            # RUN training
+            epoch_loss = trainer.run_epoch(train=model_to_train)
 
-        loss_list.append(epoch_loss)
+            loss_list.append(epoch_loss)
 
-        print(f"Loss ({model_to_train}): {round(epoch_loss, 2)}")
-        # print("time one epoch", time.time() - tic_epoch)
-
-    # Save model
-    trainer.finalize(success_mean_list, success_std_list, loss_list)
+            print(f"Loss ({model_to_train}): {round(epoch_loss, 2)}")
+            # print("time one epoch", time.time() - tic_epoch)
+    except KeyboardInterrupt:
+        # Save model
+        trainer.finalize(success_mean_list, success_std_list, loss_list)
