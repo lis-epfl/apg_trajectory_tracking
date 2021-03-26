@@ -58,10 +58,14 @@ class FixedWingEvaluator:
     def run_eval(self, nr_test, return_dists=False):
         min_dists = []
         for i in range(nr_test):
-            target_point = [
-                np.random.rand(3) * np.array([60, 10, 10]) +
-                np.array([30, -5, -5])
-            ]
+            # target_point = [
+            #     np.random.rand(3) * np.array([60, 10, 10]) +
+            #     np.array([30, -5, -5])
+            # ]
+            traj_test = run_wing_flight(
+                self.eval_env, traj_len=300, dt=self.dt, render=0
+            )
+            target_point = [traj_test[-1, :3]]
             drone_traj = self.fly_to_point(target_point)
             last_x_points = drone_traj[-20:, :3]
             last_x_dists = [

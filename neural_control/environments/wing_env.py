@@ -78,14 +78,15 @@ def run_wing_flight(env, traj_len=1000, render=0, **kwargs):
     for j in range(traj_len):
         if j % 100 == 0:
             # always keep same action for 10 steps
-            sampled_action = np.random.normal(scale=.02, size=4)
+            sampled_action = np.random.normal(scale=.1, size=4)
             scaled_action = np.clip(sampled_action + action_prior, 0, 1)
             # print("ACTION")
-            # print(scaled_action)
+            # print(scaled_action[2:])
             # scaled_action = np.array([1.9 / 7, 0.5, 0.5, 0.5])
         new_state, stable = env.step(scaled_action)
-        # np.set_printoptions(suppress=1, precision=3)
-        # print(new_state[:3])
+        # if (j % 100) == 0:
+        #     np.set_printoptions(suppress=1, precision=3)
+        #     print(new_state[:3])
         if not stable:
             break
         if render:
@@ -109,14 +110,16 @@ def generate_unit_vecs(num_vecs, mean_vec=[1, 0, 0], std=.15):
 
 
 def sample_training_data(
-    num_samples, dt=0.01, take_every=10, traj_len=1000, vec_std=.15, **kwargs
+    num_samples, dt=0.01, take_every=10, traj_len=500, vec_std=.15, **kwargs
 ):
     """
     Fly some trajectories in order to sample drone states
     Then add random unit vectors in all directions
     """
+    use_at_each = 20
+    # # sample unit vectors
+    # gauss_vecs = generate_unit_vecs(num_samples, std=vec_std)
     # sample random direction vectors
-    gauss_vecs = generate_unit_vecs(num_samples, std=vec_std)
     env = SimpleWingEnv(dt)
 
     # combine states and gauss_vecs
@@ -126,7 +129,8 @@ def sample_training_data(
     leftover = np.inf
     while leftover > 0:
         # sample trajectory
-        traj = run_wing_flight(env, traj_len=200, **kwargs)
+        traj = run_wing_flight(env, traj_len=traj_len, **kwargs)
+        curr_traj_len = len(traj)
         # sample states from trajectory
         nr_samples = min([len(traj) // take_every, leftover])
         for i in range(nr_samples):
@@ -134,12 +138,18 @@ def sample_training_data(
             curr_ind = int(i * take_every + np.random.rand() * 5)
             drone_state = traj[curr_ind]
 
+            # # sample gauss vec
+            # drone_ref = drone_state[:3] + gauss_vecs[counter]
+
+            select_from = np.arange(curr_ind + 10, curr_traj_len)
+            distances = np.random.permutation(select_from)[:use_at_each]
+
             # sample gauss vec
-            drone_ref = drone_state[:3] + gauss_vecs[counter]
-            # print(gauss_vecs[counter] / np.linalg.norm(gauss_vecs[counter]))
-            training_states.append(drone_state)
-            training_refs.append(drone_ref)
-            counter += 1
+            for k in range(len(distances)):
+                training_states.append(drone_state)
+                # print(curr_ind, curr_ind + distances[k])
+                training_refs.append(traj[distances[k], :3])
+                counter += 1
         leftover = num_samples - len(training_refs)
     # make arrays
     training_states = np.array(training_states)
@@ -153,4 +163,4 @@ if __name__ == "__main__":
     # np.save("states.npy", states)
     # np.save("ref.npy", refs)
     env = SimpleWingEnv(0.05)
-    run_wing_flight(env, traj_len=1000, dt=0.01, render=1)
+    traj = run_wing_flight(env, traj_len=300, dt=0.05, render=1)

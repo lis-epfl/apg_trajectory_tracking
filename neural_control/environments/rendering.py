@@ -213,7 +213,7 @@ class FixedWingDrone(RenderedObject):
         self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
-        self.targets = [[100, 0]]
+        self.targets = [[100, 0, 0]]
         self.x_normalize = 0.1
         self.z_offset = 5
 

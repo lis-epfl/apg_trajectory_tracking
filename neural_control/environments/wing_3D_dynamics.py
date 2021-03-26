@@ -129,7 +129,7 @@ def long_dynamics(state, action, dt):
     # CONTROL SIGNAl - must be scaled
     T = action[:, 0] * 7
     del_e = torch_pi * (action[:, 1] * 40 - 20) / 180
-    del_a = torch_pi * (action[:, 2] * 40 - 20) / 180
+    del_a = torch_pi * (action[:, 2] * 5 - 2.5) / 180
     del_r = torch_pi * (action[:, 3] * 40 - 20) / 180
 
     # # aerodynamic forces calculations
