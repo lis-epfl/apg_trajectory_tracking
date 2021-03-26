@@ -137,12 +137,15 @@ if __name__ == "__main__":
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    target_point = [[70, 5, 10]]  # , [140, -4, -3]]
+    target_point = [[70, 10, 0]]  # , [140, -4, -3]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point, max_steps=1000)
+    print(drone_traj[-1])
     print(drone_traj.shape)
-    np.save(os.path.join(model_path, "drone_traj.npy"), drone_traj)
+    # np.save(os.path.join(model_path, "drone_traj.npy"), drone_traj)
+
+    evaluator.eval_env.close()
 
     # EVAL
     plot_wing_pos_3d(
