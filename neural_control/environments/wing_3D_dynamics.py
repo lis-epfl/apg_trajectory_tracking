@@ -211,9 +211,6 @@ def long_dynamics(state, action, dt):
         inertial_body_function(eul_phi, eul_theta, eul_psi),
         torch.unsqueeze(vel, 2)
     )
-    print("body to inertia")
-    print(body_to_inertia)
-    print("gravity vec", gravity_vec)
 
     # # Body fixed accelerations
     # see Small Unmanned Aircraft, Beard et al., 2012, p.36
@@ -262,7 +259,7 @@ def long_dynamics(state, action, dt):
     return next_state
 
 
-def fixed_wing_dynamics_mpc(dt):
+def wing_3D_dynamics_mpc(dt):
     """
     Longitudinal dynamics for fixed wing
     """

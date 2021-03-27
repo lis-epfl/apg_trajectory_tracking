@@ -93,7 +93,7 @@ def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
 
         controller = FixedWingNetWrapper(net, dataset, **param_dict)
     else:
-        controller = MPC(horizon, dt, dynamics="fixed_wing")
+        controller = MPC(horizon, dt, dynamics="fixed_wing_3D")
     return controller
 
 
@@ -137,10 +137,11 @@ if __name__ == "__main__":
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    target_point = [[70, 10, 0]]  # , [140, -4, -3]]
+    target_point = [[70, -10, 0]]  # , [140, -4, -3]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point, max_steps=1000)
+    np.set_printoptions(suppress=True, precision=3)
     print(drone_traj[-1])
     print(drone_traj.shape)
     # np.save(os.path.join(model_path, "drone_traj.npy"), drone_traj)
