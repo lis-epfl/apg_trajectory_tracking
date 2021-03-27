@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import casadi as ca
 
 mass = 1.01
 I_xx = 0.04766  #  moment of inertia around x
@@ -10,6 +11,9 @@ I_xz = -0.00105  #  moment of inertia around xz
 # moment of inertia tensor
 I = torch.tensor([[I_xx, 0, -I_xz], [0, I_yy, 0], [-I_xz, 0, I_zz]])
 I_inv = torch.inverse(I)
+
+I_casadi = ca.SX(I.numpy())
+I_inv_casadi = ca.SX(I_inv.numpy())
 
 rho = 1.225  # air pressure [kg/m^3]
 S = 0.276  # wing surface
@@ -53,6 +57,8 @@ epsilon = 1 / 18 * np.pi
 
 # predefine vector
 gravity_vec = torch.unsqueeze(torch.tensor([0, 0, mass * g]), 1)
+gravity_vec_ca = ca.SX(gravity_vec.numpy())
+g_m = mass * g
 
 # lower and upper bounds:
 alpha_bound = float(5 / 180 * np.pi)
@@ -205,6 +211,9 @@ def long_dynamics(state, action, dt):
         inertial_body_function(eul_phi, eul_theta, eul_psi),
         torch.unsqueeze(vel, 2)
     )
+    print("body to inertia")
+    print(body_to_inertia)
+    print("gravity vec", gravity_vec)
 
     # # Body fixed accelerations
     # see Small Unmanned Aircraft, Beard et al., 2012, p.36
@@ -253,27 +262,154 @@ def long_dynamics(state, action, dt):
     return next_state
 
 
+def fixed_wing_dynamics_mpc(dt):
+    """
+    Longitudinal dynamics for fixed wing
+    """
+
+    # --------- state vector ----------------
+    (
+        px, py, pz, vel_u, vel_v, vel_w, eul_phi, eul_theta, eul_psi, ome_p,
+        ome_q, ome_r
+    ) = (
+        ca.SX.sym('px'), ca.SX.sym('py'), ca.SX.sym('pz'), ca.SX.sym('vel_u'),
+        ca.SX.sym('vel_v'), ca.SX.sym('vel_w'), ca.SX.sym('eul_phi'),
+        ca.SX.sym('eul_theta'), ca.SX.sym('eul_psi'), ca.SX.sym('ome_p'),
+        ca.SX.sym('ome_q'), ca.SX.sym('ome_r')
+    )
+    x_state = ca.vertcat(
+        px, py, pz, vel_u, vel_v, vel_w, eul_phi, eul_theta, eul_psi, ome_p,
+        ome_q, ome_r
+    )
+
+    # -----------control command ---------------
+    u_thrust, u_del_e, u_del_a, u_del_r = (
+        ca.SX.sym('thrust'), ca.SX.sym('del_e'), ca.SX.sym('del_a'),
+        ca.SX.sym('del_r')
+    )
+    u_control = ca.vertcat(u_thrust, u_del_e, u_del_a, u_del_r)
+
+    # input states
+    T = u_thrust * 7
+    # angle between -20 and 20 degrees
+    del_e = np.pi * (u_del_e * 40 - 20) / 180
+    del_a = np.pi * (u_del_a * 5 - 2.5) / 180  # TODO?
+    del_r = np.pi * (u_del_r * 40 - 20) / 180
+
+    ## aerodynamic forces calculations
+    # (see beard & mclain, 2012, p. 44 ff)
+    V = ca.sqrt(vel_u**2 + vel_v**2 + vel_w**2)  # velocity norm
+    alpha = ca.atan(vel_w / vel_u)  # angle of attack
+    # alpha = torch.clamp(alpha, -alpha_bound, alpha_bound) TODO
+    beta = ca.atan(vel_v / V)
+
+    # NOTE: usually all of Cl, Cd, Cm,... depend on alpha, q, delta_e
+    # lift coefficient
+    CL = CL0 + CL_alpha * alpha + CL_q * c / (2 * V) * ome_q + CL_del_e * del_e
+    # drag coefficient
+    CD = CD0 + CD_alpha * alpha + CD_q * c / (2 * V) * ome_q + CD_del_e * del_e
+    # lateral force coefficient
+    CY = CY0 + CY_beta * beta + CY_p * b / (2 * V) * ome_p + CY_r * b / (
+        2 * V
+    ) * ome_r + CY_del_a * del_a + CY_del_r * del_r
+    # roll moment coefficient
+    Cl = Cl0 + Cl_beta * beta + Cl_p * b / (2 * V) * ome_p + Cl_r * b / (
+        2 * V
+    ) * ome_r + Cl_del_a * del_a + Cl_del_r * del_r
+    # pitch moment coefficient
+    Cm = Cm0 + Cm_alpha * alpha + Cm_q * c / (2 * V) * ome_q + Cm_del_e * del_e
+    # yaw moment coefficient
+    Cn = Cn0 + Cn_beta * beta + Cn_p * b / (2 * V) * ome_p + Cn_r * b / (
+        2 * V
+    ) * ome_r + Cn_del_a * del_a + Cn_del_r * del_r
+
+    # resulting forces and moment
+    L = 1 / 2 * rho * V**2 * S * CL  # lift
+    D = 1 / 2 * rho * V**2 * S * CD  # drag
+    Y = 1 / 2 * rho * V**2 * S * CY  # lateral force
+    l = 1 / 2 * rho * V**2 * S * c * Cl  # roll moment
+    m = 1 / 2 * rho * V**2 * S * c * Cm  # pitch moment
+    n = 1 / 2 * rho * V**2 * S * c * Cn  # yaw moment
+
+    vec3 = ca.vertcat(T * ca.cos(epsilon), 0, T * ca.sin(epsilon))
+    # body wind function
+    sa = ca.sin(alpha)
+    sb = ca.sin(beta)
+    ca_ = ca.cos(alpha)
+    cb = ca.cos(beta)
+    vec1_multiplied = ca.vertcat(
+        ca_ * cb * (-D) + (-ca_) * sb * Y - sa * (-L),
+        sb * (-D) + cb * Y,
+        sa * cb * (-D) - sa * sb * Y + ca_ * (-L)
+    )
+    # inertia body function
+    sph = ca.sin(eul_phi)
+    cph = ca.cos(eul_phi)
+    sth = ca.sin(eul_theta)
+    cth = ca.cos(eul_theta)
+    sps = ca.sin(eul_psi)
+    cps = ca.cos(eul_psi)
+    vec2 = ca.vertcat(-g_m * sth, sph * cth * g_m, cph * cth * g_m)
+    f_xyz = vec1_multiplied + vec2 + vec3
+
+    moment_body_frame = ca.vertcat(l, m, n)
+
+    # position dot
+    px_dot = (
+        vel_u * (cth * cps) + vel_v * (-cph * sps + sph * sth * cps) + vel_w *
+        (sph * sps + cph * sth * cps)
+    )
+    py_dot = vel_u * cth * sps + vel_v * (
+        cph * cps + sph * sth * sps
+    ) + vel_w * (-sph * cps + cph * sth * sps)
+    pz_dot = -vel_u * sth + sph * cth * vel_v + vel_w * cth * cph
+
+    # uvw_dot
+    omega = ca.vertcat(ome_p, ome_q, ome_r)
+    vel = ca.vertcat(vel_u, vel_v, vel_w)
+    uvw_dot = (1 / mass) * f_xyz - ca.cross(omega, vel)
+    # pos[3] und uvw[3] ist falsch
+
+    # change in attitude
+    tth = ca.tan(eul_theta)
+    eul_phi_dot = ome_p + sph * tth * ome_q + cph * tth * ome_r
+    eul_theta_dot = cph * ome_q - sph * ome_r
+    eul_psi_dot = sph / cth * ome_q + cph / cth * ome_r
+
+    # Pitch acceleration
+    cross_prod = moment_body_frame - ca.cross(omega, I_casadi @ omega)
+    omega_dot = I_inv_casadi @ cross_prod
+
+    x_dot = ca.vertcat(
+        px_dot, py_dot, pz_dot, uvw_dot, eul_phi_dot, eul_theta_dot,
+        eul_psi_dot, omega_dot[0], omega_dot[1], omega_dot[2]
+    )
+
+    X = x_state + dt * x_dot
+
+    F = ca.Function(
+        'F', [x_state, u_control], [X], ['x', 'u'], ['ode']
+        # TODO FOR TESTING GIVE BACK PZ DOT
+    )
+    return F
+
+
 if __name__ == "__main__":
-    state_test = torch.tensor(
+    state_test_np = np.array(
         [
-            [
-                0.6933, -0.8747, 0.9757, -0.8422, 0.5494, -1.1936, 0.0368,
-                0.8417, -0.9412, -1.4291, 0.4538, -0.5257
-            ],
-            [
-                0.0947, -0.4377, -0.5699, -0.8684, -0.7914, -0.2026, -0.8172,
-                1.6205, 0.7867, -0.3465, -0.0789, -2.1874
-            ]
+            0.6933, -0.8747, 0.9757, -0.8422, 0.5494, -1.1936, 0.0368, 0.8417,
+            -0.9412, -1.4291, 0.4538, -0.5257
         ]
     )
-    action_test = torch.tensor(
-        [
-            [-0.5518, -2.9553, 0.0311, -0.6691],
-            [-1.1911, -0.6097, 0.8386, 1.6545]
-        ]
-    )
+    state_test = torch.unsqueeze(torch.from_numpy(state_test_np), 0).float()
+    action_test_np = np.array([-0.5518, -2.9553, 0.0311, -0.6691])
+    action_test = torch.unsqueeze(torch.from_numpy(action_test_np), 0).float()
     print(state_test[0])
     print(action_test[0])
     next_state = long_dynamics(state_test, action_test, 0.05)
     print("------------")
     print(next_state[0])
+    F = fixed_wing_dynamics_mpc(0.05)
+    mpc_state = F(state_test_np, action_test_np)
+    print("--------------------")
+    print(mpc_state)
