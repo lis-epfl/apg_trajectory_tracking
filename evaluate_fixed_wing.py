@@ -41,6 +41,7 @@ class FixedWingEvaluator:
         while stable and len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
+            # np.set_printoptions(suppress=1, precision=3)
             # print(action[0])
             state, stable = self.eval_env.step(action[0])
             # print(state[2])
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # parameters
-    params = {"render": 1, "dt": 0.05, "horizon": 10}
+    params = {"render": 1, "dt": 0.1, "horizon": 10}
 
     # load model
     model_name = args.model
@@ -132,12 +133,12 @@ if __name__ == "__main__":
     # tic = time.time()
     # out_path = "../presentations/intel_meeting_10_03"
     # evaluator.render = 0
-    # dists_from_target = evaluator.run_eval(nr_test=100, return_dists=True)
+    # dists_from_target = evaluator.run_eval(nr_test=10, return_dists=True)
     # np.save(os.path.join(out_path, "dists_mpc_last.npy"), dists_from_target)
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    target_point = [[70, -10, 0]]  # , [140, -4, -3]]
+    target_point = [[70, 2, 2.5]]  # , [140, -4, -3]]
 
     # RUN
     drone_traj = evaluator.fly_to_point(target_point, max_steps=1000)

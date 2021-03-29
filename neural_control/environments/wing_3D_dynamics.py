@@ -142,7 +142,7 @@ def long_dynamics(state, action, dt):
     # (see beard & mclain, 2012, p. 44 ff)
     V = torch.sqrt(vel_u**2 + vel_v**2 + vel_w**2)  # velocity norm
     alpha = torch.arctan(vel_w / vel_u)  # angle of attack
-    # alpha = torch.clamp(alpha, -alpha_bound, alpha_bound) # TODO
+    alpha = torch.clamp(alpha, -alpha_bound, alpha_bound)  # TODO
     beta = torch.arctan(vel_v / V)
     # TODO: clamp beta?
 

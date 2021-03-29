@@ -1,6 +1,7 @@
 import gym
 import torch
 import numpy as np
+import time
 
 from neural_control.environments.wing_3D_dynamics import (long_dynamics)
 from neural_control.environments.rendering import (
@@ -76,17 +77,17 @@ def run_wing_flight(env, traj_len=1000, render=0, **kwargs):
     env.zero_reset()
     sampled_states = []
     for j in range(traj_len):
-        if j % 100 == 0:
+        if j % 10 == 0:
             # always keep same action for 10 steps
-            sampled_action = np.random.normal(scale=.1, size=4)
+            sampled_action = np.random.normal(scale=.15, size=4)
             scaled_action = np.clip(sampled_action + action_prior, 0, 1)
             # print("ACTION")
-            # print(scaled_action[2:])
+            # print(scaled_action)
             # scaled_action = np.array([1.9 / 7, 0.5, 0.5, 0.5])
         new_state, stable = env.step(scaled_action)
-        # if (j % 100) == 0:
+        # if (j % 10) == 0:
         #     np.set_printoptions(suppress=1, precision=3)
-        #     print(new_state[:3])
+        #     print(new_state)
         if not stable:
             break
         if render:

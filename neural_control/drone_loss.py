@@ -216,16 +216,17 @@ def pos_traj_loss(start_state, drone_state):
     return divergence_loss, progress_loss
 
 
-action_prior = torch.tensor([.25, .5])
+action_prior = torch.tensor([.25, .5, .5, .5])
 div_weight = torch.tensor([1, 100, 100])
 
 
 def fixed_wing_loss(drone_states, linear_reference, action, printout=0):
-    action_loss = 0  # torch.sum((action[:, :, 0] - 0.25)**2)
+    action_loss = torch.sum((action - action_prior)**2)
     pos_loss = torch.sum(
-        (drone_states[:, :3] - linear_reference)**2 * div_weight
+        (drone_states[:, -1, :3] - linear_reference)**2 * div_weight
     )
-    loss = 0.01 * (action_loss + pos_loss)
+    av_loss = 0.01 * torch.sum(drone_states[:, :, 9:]**2)
+    loss = 0.01 * (.1 * action_loss + pos_loss + av_loss)
 
     if printout:
         import numpy as np
