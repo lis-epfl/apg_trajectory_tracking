@@ -18,7 +18,7 @@ from neural_control.utils.plotting import plot_loss_episode_len
 
 DEBUG = 0
 DELTA_T = 0.1
-EPOCH_SIZE = 3000 if not DEBUG else 300
+EPOCH_SIZE = 500 if not DEBUG else 300
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 VEC_STD = 0.15
@@ -27,9 +27,15 @@ STATE_SIZE = 12
 NR_ACTIONS = 10
 REF_DIM = 3
 ACTION_DIM = 4
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00001
+SELF_PLAY = 1.5
+TAKE_EVERY_X = 2
+THRESH_DIV_START = 4
+THRESH_DIV_END = 20
+THRESH_STABLE_START = .4
+THRESH_STABLE_END = .8
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = None  # "trained_models/wing/lateral_bad_next"
+BASE_MODEL = "trained_models/wing/lateral_works_abit"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
@@ -56,8 +62,11 @@ net = net.to(device)
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
 
 # init dataset
-state_data = WingDataset(EPOCH_SIZE, **param_dict)
+state_data = WingDataset(EPOCH_SIZE, self_play=SELF_PLAY, **param_dict)
 param_dict = state_data.get_means_stds(param_dict)
+param_dict["take_every_x"] = TAKE_EVERY_X
+param_dict["thresh_div"] = THRESH_DIV_START
+param_dict["thresh_stable"] = THRESH_STABLE_START
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
@@ -91,6 +100,14 @@ for epoch in range(NR_EPOCHS):
             # renew the sampled data
             state_data.resample_data()
             print(f"Sampled new data ({state_data.num_sampled_states})")
+
+        print("eval counter", state_data.eval_counter)
+
+        # increase thresholds
+        if param_dict["thresh_div"] < THRESH_DIV_END:
+            param_dict["thresh_div"] += 1
+        if param_dict["thresh_stable"] < THRESH_STABLE_END:
+            param_dict["thresh_stable"] += .05
 
         # save best model
         if epoch > 0 and suc_mean < highest_success:

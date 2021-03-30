@@ -41,7 +41,7 @@ class SimpleWingEnv(gym.Env):
             [x_pos, z_pos, vel[0], vel_up[0], pitch_angle[0], pitch_rate[0]]
         )
 
-    def step(self, action):
+    def step(self, action, thresh_stable=.7):
         """
         action: tuple / list/np array of two values, between 0 and 1 (sigmoid)
         """
@@ -52,7 +52,7 @@ class SimpleWingEnv(gym.Env):
         new_state = long_dynamics(state_torch, action_torch, self.dt)
         self._state = new_state[0].numpy()
 
-        is_stable = np.all(np.absolute(self._state[6:8]) < .7)
+        is_stable = np.all(np.absolute(self._state[6:8]) < thresh_stable)
         # if not is_stable:
         #     print("unstable!", self._state[6:9])
         return self._state, is_stable
@@ -153,8 +153,8 @@ def sample_training_data(
                 counter += 1
         leftover = num_samples - len(training_refs)
     # make arrays
-    training_states = np.array(training_states)
-    training_refs = np.array(training_refs)
+    training_states = np.array(training_states)[:num_samples]
+    training_refs = np.array(training_refs)[:num_samples]
     return training_states, training_refs
 
 

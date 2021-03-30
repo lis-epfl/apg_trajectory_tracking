@@ -11,6 +11,7 @@ from neural_control.dataset import WingDataset
 from evaluate_drone import load_model_params
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.controllers.mpc import MPC
+from neural_control.utils.q_funcs import project_to_line
 
 ACTION_DIM = 2
 
@@ -20,12 +21,24 @@ class FixedWingEvaluator:
     Evaluate performance of the fixed wing drone
     """
 
-    def __init__(self, controller, dt=0.01, horizon=1, render=0, **kwargs):
+    def __init__(
+        self,
+        controller,
+        dt=0.01,
+        horizon=1,
+        render=0,
+        thresh_div=10,
+        thresh_stable=0.8,
+        **kwargs
+    ):
         self.controller = controller
         self.dt = dt
         self.horizon = horizon
         self.render = render
+        self.thresh_div = thresh_div
+        self.thresh_stable = thresh_stable
         self.eval_env = SimpleWingEnv(dt)
+        self.des_speed = 11.5
 
     def fly_to_point(self, target_points, max_steps=1000):
         self.eval_env.zero_reset()
@@ -34,50 +47,82 @@ class FixedWingEvaluator:
 
         # first target
         current_target_ind = 0
+        # target trajectory
+        line_start = self.eval_env._state[:3]
 
         state = self.eval_env._state
         stable = True
-        drone_traj = []
-        while stable and len(drone_traj) < max_steps:
+        drone_traj, divergences = [], []
+        while len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
             # np.set_printoptions(suppress=1, precision=3)
             # print(action[0])
-            state, stable = self.eval_env.step(action[0])
-            # print(state[2])
+            # print()
+            state, stable = self.eval_env.step(
+                action[0], thresh_stable=self.thresh_stable
+            )
             if self.render:
                 self.eval_env.render()
                 time.sleep(.05)
+
+            # project drone onto line and compute divergence
+            drone_on_line = project_to_line(
+                line_start, current_target, state[:3]
+            )
+            div = np.linalg.norm(drone_on_line - state[:3])
+            divergences.append(div)
             drone_traj.append(np.concatenate((state, action[0])))
+
+            # set next target if we have passed one
             if state[0] > current_target[0]:
                 if current_target_ind < len(target_points) - 1:
                     current_target_ind += 1
+                    line_start = state[:3]
                 else:
                     break
-        return np.array(drone_traj)
+
+            if not stable or div > self.thresh_div:
+                if self.render:
+                    break
+                else:
+                    reset_state = np.zeros(12)
+                    reset_state[:3] = drone_on_line
+                    vec = current_target - drone_on_line
+                    reset_state[3:6
+                                ] = vec / np.linalg.norm(vec) * self.des_speed
+                    self.eval_env._state = reset_state
+        return np.array(drone_traj), np.array(divergences)
 
     def run_eval(self, nr_test, return_dists=False):
-        min_dists = []
+        mean_div, not_div_time = [], []
         for i in range(nr_test):
-            # target_point = [
-            #     np.random.rand(3) * np.array([60, 10, 10]) +
-            #     np.array([30, -5, -5])
-            # ]
-            traj_test = run_wing_flight(
-                self.eval_env, traj_len=300, dt=self.dt, render=0
-            )
-            target_point = [traj_test[-1, :3]]
-            drone_traj = self.fly_to_point(target_point)
-            last_x_points = drone_traj[-20:, :3]
-            last_x_dists = [
-                np.linalg.norm(target_point - p) for p in last_x_points
+            target_point = [
+                np.random.rand(3) * np.array([60, 10, 10]) +
+                np.array([30, -5, -5])
             ]
-            min_dists.append(np.min(last_x_dists))
-        mean_err = np.mean(min_dists)
-        std_err = np.std(min_dists)
+            # traj_test = run_wing_flight(
+            #     self.eval_env, traj_len=300, dt=self.dt, render=0
+            # )
+            # target_point = [traj_test[-1, :3]]
+            drone_traj, divergences = self.fly_to_point(target_point)
+            # last_x_points = drone_traj[-20:, :3]
+            # last_x_dists = [
+            #     np.linalg.norm(target_point - p) for p in last_x_points
+            # ]
+            # min_dists.append(np.min(last_x_dists))
+            not_diverged = np.sum(divergences < self.thresh_div)
+            mean_div.append(np.mean(divergences))
+            not_div_time.append(not_diverged)
+        mean_err = np.mean(mean_div)
+        std_err = np.std(mean_div)
+        print(
+            "Time not diverged: %3.2f (%3.2f)" %
+            (np.mean(not_div_time), np.std(not_div_time))
+        )
         print("Average error: %3.2f (%3.2f)" % (mean_err, std_err))
         if return_dists:
-            return np.array(min_dists)
+            return np.array(mean_div)
         return mean_err, std_err
 
 
@@ -117,7 +162,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # parameters
-    params = {"render": 1, "dt": 0.1, "horizon": 10}
+    params = {
+        "render": 1,
+        "dt": 0.1,
+        "horizon": 10,
+        "thresh_stable": .5,
+        "thresh_div": 5
+    }
 
     # load model
     model_name = args.model
@@ -138,10 +189,10 @@ if __name__ == "__main__":
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    target_point = [[70, 2, 2.5]]  # , [140, -4, -3]]
+    target_point = [[90, 5, -5]]  # , [140, -4, -3]]
 
     # RUN
-    drone_traj = evaluator.fly_to_point(target_point, max_steps=1000)
+    drone_traj, _ = evaluator.fly_to_point(target_point, max_steps=1000)
     np.set_printoptions(suppress=True, precision=3)
     print(drone_traj[-1])
     print(drone_traj.shape)
