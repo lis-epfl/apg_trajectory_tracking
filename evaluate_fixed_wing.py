@@ -56,10 +56,10 @@ class FixedWingEvaluator:
         while len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
-            if self.render:
-                np.set_printoptions(suppress=1, precision=3)
-                print(action[0])
-            # print()
+            # if self.render:
+            #     np.set_printoptions(suppress=1, precision=3)
+            #     print(action[0])
+            #     print()
             state, stable = self.eval_env.step(
                 action[0], thresh_stable=self.thresh_stable
             )
@@ -77,6 +77,9 @@ class FixedWingEvaluator:
 
             # set next target if we have passed one
             if state[0] > current_target[0]:
+                if self.render:
+                    np.set_printoptions(suppress=1, precision=3)
+                    print("target:", current_target, "pos:", state[:3])
                 if current_target_ind < len(target_points) - 1:
                     current_target_ind += 1
                     line_start = state[:3]
@@ -85,6 +88,7 @@ class FixedWingEvaluator:
 
             if not stable or div > self.thresh_div:
                 if self.render:
+                    print("diverged", div, "stable", stable)
                     break
                 else:
                     reset_state = np.zeros(12)
@@ -165,10 +169,10 @@ if __name__ == "__main__":
     # parameters
     params = {
         "render": 1,
-        "dt": 0.1,
+        "dt": 0.05,
         "horizon": 10,
         "thresh_stable": 1,
-        "thresh_div": 5
+        "thresh_div": 10
     }
 
     # load model
@@ -190,12 +194,13 @@ if __name__ == "__main__":
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 
-    target_point = [[90, 5, -5]]  # , [140, -4, -3]]
+    target_point = [[50, -3, -3], [100, 3, 3]]
 
     # RUN
     drone_traj, _ = evaluator.fly_to_point(target_point, max_steps=1000)
+
     np.set_printoptions(suppress=True, precision=3)
-    print(drone_traj[-1])
+    print("\n final state", drone_traj[-1])
     print(drone_traj.shape)
     # np.save(os.path.join(model_path, "drone_traj.npy"), drone_traj)
 

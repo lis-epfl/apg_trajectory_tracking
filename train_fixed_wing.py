@@ -17,7 +17,7 @@ from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.utils.plotting import plot_loss_episode_len
 
 DEBUG = 0
-DELTA_T = 0.1
+DELTA_T = 0.05
 EPOCH_SIZE = 500 if not DEBUG else 300
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
@@ -35,7 +35,7 @@ THRESH_DIV_END = 20
 THRESH_STABLE_START = .4
 THRESH_STABLE_END = .8
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = "trained_models/wing/lateral_works_abit"
+BASE_MODEL = "trained_models/wing/current_model"
 BASE_MODEL_NAME = 'model_wing'
 
 if not os.path.exists(SAVE):
@@ -146,20 +146,20 @@ for epoch in range(NR_EPOCHS):
             actions = net(in_state, in_ref_state)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-            intermediate_states = torch.zeros(
-                in_state.size()[0], NR_ACTIONS,
-                current_state.size()[1]
-            )
+            # intermediate_states = torch.zeros(
+            #     in_state.size()[0], NR_ACTIONS,
+            #     current_state.size()[1]
+            # )
             for k in range(NR_ACTIONS):
                 # extract action
                 action = action_seq[:, k]
                 current_state = long_dynamics(
                     current_state, action, dt=DELTA_T
                 )
-                intermediate_states[:, k] = current_state
+                # intermediate_states[:, k] = current_state
 
             loss = fixed_wing_loss(
-                intermediate_states, target_pos, action_seq, printout=0
+                current_state, target_pos, action_seq, printout=0
             )
 
             # Backprop
