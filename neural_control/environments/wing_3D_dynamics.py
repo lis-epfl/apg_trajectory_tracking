@@ -61,7 +61,7 @@ gravity_vec_ca = ca.SX(gravity_vec.numpy())
 g_m = mass * g
 
 # lower and upper bounds:
-alpha_bound = float(5 / 180 * np.pi)
+alpha_bound = float(10 / 180 * np.pi)
 torch_pi = np.pi
 
 
@@ -144,6 +144,7 @@ def long_dynamics(state, action, dt):
     alpha = torch.arctan(vel_w / vel_u)  # angle of attack
     alpha = torch.clamp(alpha, -alpha_bound, alpha_bound)  # TODO
     beta = torch.arctan(vel_v / V)
+    beta = torch.clamp(beta, -alpha_bound, alpha_bound)
     # TODO: clamp beta?
 
     # NOTE: usually all of Cl, Cd, Cm,... depend on alpha, q, delta_e

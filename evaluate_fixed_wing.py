@@ -56,8 +56,9 @@ class FixedWingEvaluator:
         while len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
-            # np.set_printoptions(suppress=1, precision=3)
-            # print(action[0])
+            if self.render:
+                np.set_printoptions(suppress=1, precision=3)
+                print(action[0])
             # print()
             state, stable = self.eval_env.step(
                 action[0], thresh_stable=self.thresh_stable
@@ -166,7 +167,7 @@ if __name__ == "__main__":
         "render": 1,
         "dt": 0.1,
         "horizon": 10,
-        "thresh_stable": .5,
+        "thresh_stable": 1,
         "thresh_div": 5
     }
 
