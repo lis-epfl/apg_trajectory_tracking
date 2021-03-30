@@ -17,13 +17,13 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
         self.linear_at = nn.Parameter(
             torch.diag(torch.ones(4)), requires_grad=True
         )
-        # non-linear transformation:
-        # self.action_layer1 = nn.Parameter(
-        #     torch.ones(4, 64), requires_grad=True
-        # )
-        # self.action_layer2 = nn.Parameter(
-        #     torch.ones(64, 4), requires_grad=True
-        # )
+        self.linear_state_1 = nn.Linear(16, 64)
+        torch.nn.init.constant_(self.linear_state_1.weight, 0)
+        torch.nn.init.constant_(self.linear_state_1.bias, 0)
+
+        self.linear_state_2 = nn.Linear(64, 12)
+        torch.nn.init.constant_(self.linear_state_2.weight, 0)
+        torch.nn.init.constant_(self.linear_state_2.bias, 0)
 
         # VARIABLES - dynamics parameters
         # self.torch_translational_drag = torch.Variable(torch.from_numpy(
@@ -57,9 +57,18 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
         # self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
         self.torch_kinv_ang_vel_tau = torch.diag(self.torch_kinv_vector)
 
+    def state_transformer(self, state, action):
+        state_action = torch.cat((state, action), dim=1)
+        print(state_action.size())
+        layer_1 = nn.ReLU(self.linear_state_1(state_action))
+        new_state = self.linear_state_2(layer_1)
+        # TODO: activation function?
+        return new_state
+
     def forward(self, state, action, dt):
         action_transformed = self.linear_at(action)
         # run through D1
         new_state = self.simulate_quadrotor(action_transformed, state, dt)
-        # TODO: state transformation?
-        return new_state
+        # run through T
+        added_new_state = self.state_transformer
+        return new_state + added_new_state(state, action_transformed)

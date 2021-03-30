@@ -278,7 +278,7 @@ if __name__ == "__main__":
     eval_dynamics = FlightmareDynamics(modified_params={"down_drag": .75})
 
     trainer = TrainDrone(train_dynamics, eval_dynamics)
-    base_model = None  # "trained_models/drone/baseline_flightmare"
+    base_model = "trained_models/drone/baseline_flightmare"
 
     trainer.initialize_model(base_model)
 
@@ -298,10 +298,10 @@ if __name__ == "__main__":
             success_std_list.append(suc_std)
 
             print("Counter of data to fine tune:", trainer.count_finetune_data)
-            print("Params of dynamics model:")
-            for param in trainer.train_dynamics.parameters():
-                print(param.data)
-            print()
+            # print("Params of dynamics model:")
+            # for param in trainer.train_dynamics.parameters():
+            #     print(param.data)
+            # print()
 
             # RUN training
             epoch_loss = trainer.run_epoch(train=model_to_train)
