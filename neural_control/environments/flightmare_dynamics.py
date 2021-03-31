@@ -83,7 +83,10 @@ class FlightmareDynamics(Dynamics):
         )
         # print("thrust", thrust.size())
         # drag = velocity * TODO: dynamics.drag_coeff??
-        thrust_min_grav = thrust[:, :, 0] + self.torch_gravity
+        thrust_min_grav = (
+            thrust[:, :, 0] + self.torch_gravity +
+            self.torch_translational_drag
+        )
         return thrust_min_grav  # - drag
 
     def run_flight_control(self, thrust, av, body_rates, cross_prod):

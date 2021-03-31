@@ -12,7 +12,7 @@ class Dynamics:
             "drag_factor": 1.717e-7,
             "mass": 0.723,
             "rotational_drag": np.array([1, 1, 1]) * 1e-4,
-            "translational_drag": np.array([1, 1, 1]) * 1e-4,
+            "translational_drag": np.array([0, 0, 0]),
             "arm_length": 0.31,
             "rotor_inertia": 7.321e-5,
             "frame_inertia": np.array([4.5, 4.5, 7]),
@@ -56,9 +56,10 @@ class Dynamics:
 
         self.torch_inertia_J = torch.diag(self.torch_inertia_vector)
         self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
-        self.torch_kinv_ang_vel_tau = torch.diag(
-            torch.tensor(self.copter_params.kinv_ang_vel_tau).float()
-        )
+        self.torch_kinv_vector = torch.tensor(
+            self.copter_params.kinv_ang_vel_tau
+        ).float()
+        self.torch_kinv_ang_vel_tau = torch.diag(self.torch_kinv_vector)
 
         # CASADI PARAMETERS
         self.ca_inertia_vector = ca.SX(self.inertia_vector)

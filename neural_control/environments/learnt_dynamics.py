@@ -59,16 +59,17 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
 
     def state_transformer(self, state, action):
         state_action = torch.cat((state, action), dim=1)
-        print(state_action.size())
-        layer_1 = nn.ReLU(self.linear_state_1(state_action))
+        layer_1 = torch.relu(self.linear_state_1(state_action))
         new_state = self.linear_state_2(layer_1)
         # TODO: activation function?
         return new_state
 
-    def forward(self, state, action, dt):
-        action_transformed = self.linear_at(action)
+    def forward(self, action, state, dt):
+        action_transformed = torch.matmul(
+            self.linear_at, torch.unsqueeze(action, 2)
+        )[:, :, 0]
         # run through D1
         new_state = self.simulate_quadrotor(action_transformed, state, dt)
         # run through T
-        added_new_state = self.state_transformer
-        return new_state + added_new_state(state, action_transformed)
+        added_new_state = self.state_transformer(state, action_transformed)
+        return new_state + added_new_state

@@ -359,7 +359,7 @@ if __name__ == "__main__":
     # MPC
     if model_path.split(os.sep)[-1] == "mpc":
         # mpc parameters:
-        params = {"horizon": 20, "dt": .05}
+        params = {"horizon": 30, "dt": .05}
         controller = MPC(dynamics=DYNAMICS, **params)
     # Neural controller
     else:
@@ -370,7 +370,16 @@ if __name__ == "__main__":
     # params["dt"] = .05
     # params["max_drone_dist"] = 1
     params["speed_factor"] = .6
-    modified_params = {}  # {"frame_inertia": np.array([3, 4, 6])}
+    modified_params = {"translational_drag": np.array([.3, .3, .3])}
+    # "mass": 50}
+    # {
+    #     "down_drag": 1,
+    #     "frame_inertia": np.array([2, 2, 3]),
+    #     "kinv_ang_vel_tau": np.array([21, 21, 3.0])
+    # }
+    # {"down_drag": .75}
+    print("MODIFIED: ", modified_params)
+    # {"frame_inertia": np.array([3, 4, 6])}
 
     # DEFINE ENVIRONMENT
     if args.flightmare:
@@ -407,11 +416,14 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     # evaluator.run_mpc_ref(args.ref)
-    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
-    )
-    # evaluator.render = 0
-    # evaluator.eval_ref(args.ref, max_steps=250, **traj_args)
+    # reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+    #     args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
+    # )
+    print(params)
+    print()
+    evaluator.render = 0
+    evaluator.eval_ref(args.ref, nr_test=30, max_steps=500, **traj_args)
+    exit()
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
