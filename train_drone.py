@@ -311,7 +311,8 @@ if __name__ == "__main__":
         sample_in = "train_env"
 
     train_dynamics = LearntDynamics()
-    eval_dynamics = FlightmareDynamics(modified_params=modified_params)
+
+    eval_dynamics = FlightmareDynamics(**modified_params)
 
     trainer = TrainDrone(train_dynamics, eval_dynamics, sample_in=sample_in)
 
@@ -325,8 +326,8 @@ if __name__ == "__main__":
 
             if epoch == train_dyn:
                 print("Params of dynamics model after training:")
-                for param in trainer.train_dynamics.parameters():
-                    print(param.data)
+                for k, v in trainer.train_dynamics.state_dict().items():
+                    print(k, v)
 
             # EVALUATE
             suc_mean, suc_std = trainer.evaluate_model(epoch)

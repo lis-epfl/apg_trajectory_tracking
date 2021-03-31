@@ -6,8 +6,8 @@ import casadi as ca
 
 class FlightmareDynamics(Dynamics):
 
-    def __init__(self, modified_params={}, simulate_rotors=False):
-        super().__init__(modified_params=modified_params)
+    def __init__(self, simulate_rotors=False, **kwargs):
+        super().__init__(**kwargs)
         # new parameters needed for flightmare simulation
         self.t_BM_ = self.arm_length * np.sqrt(0.5) * torch.tensor(
             [[1, -1, -1, 1], [-1, -1, 1, 1], [0, 0, 0, 0]]

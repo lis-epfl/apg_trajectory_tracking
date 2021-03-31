@@ -10,7 +10,7 @@ from neural_control.environments.flightmare_dynamics import (
 class LearntDynamics(nn.Module, FlightmareDynamics):
 
     def __init__(self, initial_params={}):
-        FlightmareDynamics.__init__(self, modified_params=initial_params)
+        FlightmareDynamics.__init__(self, **initial_params)
         super(LearntDynamics, self).__init__()
 
         # Action transformation parameters
@@ -47,7 +47,7 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
             # name="inertia"
         )
         self.torch_kinv_vector = nn.Parameter(
-            torch.tensor(self.copter_params.kinv_ang_vel_tau).float(),
+            torch.tensor(self.kinv_ang_vel_tau).float(),
             requires_grad=True,
             # name="kinv"
         )

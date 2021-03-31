@@ -377,7 +377,7 @@ if __name__ == "__main__":
     else:
         # DYNAMICS
         dynamics = (
-            FlightmareDynamics(modified_params=modified_params)
+            FlightmareDynamics(**modified_params)
             if DYNAMICS == "flightmare" else SimpleDynamics()
         )
         environment = QuadRotorEnvBase(dynamics, params["dt"])
