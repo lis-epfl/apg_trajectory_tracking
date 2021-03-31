@@ -46,10 +46,9 @@ class TrainDrone:
         self.batch_size = 8
         self.reset_strength = 1.2
         self.max_drone_dist = 0.25
-        self.thresh_div_start = 1
+        self.thresh_div_start = .1
         self.thresh_div_end = 2
         self.thresh_stable = 1.5
-        self.use_mpc_every = 500
         self.state_size = 12
         self.nr_actions = 10
         self.ref_dim = 9
@@ -294,17 +293,27 @@ class TrainDrone:
 
 if __name__ == "__main__":
 
-    nr_epochs = 200
-    train_model_every = 2
-    train_dyn = 3
+    method = "train_dyn"
     modified_params = {"translational_drag": np.array([.3, .3, .3])}
-    sample_in = "train_env"
+    base_model = "trained_models/drone/baseline_flightmare"
+
+    if method == "sample":
+        nr_epochs = 10
+        train_dyn = -1
+        sample_in = "eval_env"
+    elif method == "train_dyn":
+        nr_epochs = 200
+        train_dyn = 10
+        sample_in = "train_env"
+    elif method == "train_control":
+        nr_epochs = 200
+        train_dyn = -1
+        sample_in = "train_env"
 
     train_dynamics = LearntDynamics()
     eval_dynamics = FlightmareDynamics(modified_params=modified_params)
 
     trainer = TrainDrone(train_dynamics, eval_dynamics, sample_in=sample_in)
-    base_model = "trained_models/drone/baseline_flightmare"
 
     trainer.initialize_model(base_model, modified_params=modified_params)
 

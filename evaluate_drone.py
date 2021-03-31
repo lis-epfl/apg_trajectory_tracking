@@ -157,23 +157,15 @@ class QuadEvaluator():
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
 
-            # # give control back to the neural controller
-            # if is_in_control == 0 and div < 0.3:
-            #     is_in_control = 1
-            # # take over control with the mpc
+            # reset the state to the reference
             if div > thresh_div or not stable:
                 if self.test_time:
                     # TODO: must always be down for flightmare train
                     # print("diverged at", len(drone_trajectory))
                     break
-                # is_in_control and (div > thresh_div or not stable):
-                #     if self.render:
-                #         print("use mpc")
-                #     is_in_control = 0
                 current_np_state = reference.get_current_full_state()
                 self.eval_env._state.from_np(current_np_state)
-            # if div > 3 * thresh_div:
-            #     break
+
             if i >= reference.ref_len:
                 break
         if self.render:
@@ -232,7 +224,6 @@ class QuadEvaluator():
         max_steps: int = 200,
         thresh_div=1,
         thresh_stable=1,
-        use_mpc_every=2,
         **kwargs
     ):
         """
@@ -247,8 +238,7 @@ class QuadEvaluator():
                 reference,
                 max_nr_steps=max_steps,
                 thresh_div=thresh_div,
-                thresh_stable=thresh_stable,
-                use_mpc_every=use_mpc_every
+                thresh_stable=thresh_stable
                 # **circle_args
             )
             div.append(np.mean(divergences))
