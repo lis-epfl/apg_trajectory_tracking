@@ -349,7 +349,7 @@ if __name__ == "__main__":
     # MPC
     if model_path.split(os.sep)[-1] == "mpc":
         # mpc parameters:
-        params = {"horizon": 30, "dt": .05}
+        params = {"horizon": 10, "dt": .1}
         controller = MPC(dynamics=DYNAMICS, **params)
     # Neural controller
     else:
@@ -360,7 +360,8 @@ if __name__ == "__main__":
     # params["dt"] = .05
     # params["max_drone_dist"] = 1
     params["speed_factor"] = .6
-    modified_params = {"translational_drag": np.array([.3, .3, .3])}
+    modified_params = {}
+    # {"translational_drag": np.array([.3, .3, .3])}
     # "mass": 50}
     # {
     #     "down_drag": 1,

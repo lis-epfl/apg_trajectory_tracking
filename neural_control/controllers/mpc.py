@@ -11,31 +11,8 @@ from neural_control.environments.flightmare_dynamics import (
 )
 from neural_control.environments.drone_dynamics import SimpleDynamicsMPC
 from neural_control.environments.wing_2D_dynamics import fixed_wing_dynamics_mpc
-# ------------------ constants ---------------------
-m = 1.01
-I_xx = 0.04766
-rho = 1.225
-S = 0.276
-c = 0.185
-g = 9.81
-# linearized for alpha = 0 and u = 12 m/s
-Cl0 = 0.3900
-Cl_alpha = 4.5321
-Cl_q = 0.3180
-Cl_del_e = 0.527
-# drag coefficients
-Cd0 = 0.0765
-Cd_alpha = 0.3346
-Cd_q = 0.354
-Cd_del_e = 0.004
-# moment coefficients
-Cm0 = 0.0200
-Cm_alpha = -1.4037
-Cm_q = -0.1324
-Cm_del_e = -0.4236
 
 
-#
 class MPC(object):
     """
     Nonlinear MPC
@@ -338,7 +315,7 @@ class MPC(object):
         # exit()
         return opt_u, x0_array
 
-    def preprocess_simple_quad(self, current_state, ref_states):
+    def preprocess_quad(self, current_state, ref_states):
         """
         current_state: list / array of len 12
         ref_states: array of shape (horizon, 9) with pos, vel, acc
@@ -347,7 +324,7 @@ class MPC(object):
         # modify the reference traj to input it into mpc
         changed_middle_ref_states = np.zeros((self._N, len(current_state)))
         changed_middle_ref_states[:, :3] = ref_states[:, :3]
-        changed_middle_ref_states[:, 6:9] = ref_states[:, 3:6]
+        changed_middle_ref_states[:, 6:9] = ref_states[:, 3:6] * 2
 
         # no goal point for now
         # goal_state = changed_middle_ref_states[-1].copy().tolist()
@@ -402,9 +379,7 @@ class MPC(object):
 
     def predict_actions(self, current_state, ref_states):
         if self.dynamics_model in ["simple_quad", "flightmare"]:
-            preprocessed_ref = self.preprocess_simple_quad(
-                current_state, ref_states
-            )
+            preprocessed_ref = self.preprocess_quad(current_state, ref_states)
         elif self.dynamics_model == "fixed_wing":
             preprocessed_ref = self.preprocess_fixed_wing(
                 current_state, ref_states
