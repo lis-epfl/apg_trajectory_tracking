@@ -337,9 +337,6 @@ def compute_random_trajectory(
     assert dt == 0.01
 
     debug = False
-    seed = None  # 20
-    if seed is None:
-        seed = np.random.randint(0, 9999)
 
     # kernel to map functions that repeat exactly
     # print("seed is: %d" % seed)
@@ -568,7 +565,14 @@ def load_prepare_trajectory(
     actual speed (but discrete steps! if dt=0.05 then speed_factor can only be
     0.8, 0.6, 0.4, etc)
     """
-
+    # FOR TESTING: original version
+    # quad = Quad(10.0)
+    # arena_bound_max = np.array([6.5, 10, 10])  # np.array([8.0, 5.0, 5.0]) #
+    # arena_bound_min = np.array([-6.5, -10, 0])
+    # trajectory, _, _ = compute_random_trajectory(
+    #     quad, arena_bound_max, arena_bound_min, .9, .7, .7,
+    #     10, 0.01, seed=np.random.randint(10000)
+    # )
     folder = 'test' if test else "train"
     data_list = os.listdir(os.path.join(base_dir, folder))
     rand_traj = np.random.choice(data_list)

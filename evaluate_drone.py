@@ -245,14 +245,17 @@ class QuadEvaluator():
             div.append(np.mean(divergences))
             # before take over
             no_large_div = np.sum(np.array(divergences) < thresh_div)
+            # print(np.mean(divergences), no_large_div)
             # no_large_div = np.where(np.array(divergences) > thresh_div)[0][0]
             stable.append(no_large_div)
             # stable.append(len(drone_traj))
 
         # Output results
+        stable = np.array(stable)
+        div_of_full_runs = np.array(div)[stable == np.max(stable)]
         print(
             "%s: Average divergence: %3.2f (%3.2f)" %
-            (reference, np.mean(div), np.std(div))
+            (reference, np.mean(div_of_full_runs), np.std(div_of_full_runs))
         )
         print(
             "%s: Steps until divergence: %3.2f (%3.2f)" %
@@ -424,7 +427,8 @@ if __name__ == "__main__":
     speed = evaluator.compute_speed(drone_traj[:, :3])
     print(
         "Speed: max:", round(np.max(speed), 2), ", mean:",
-        round(np.mean(speed), 2), "stopped at", len(drone_traj)
+        round(np.mean(speed), 2), "stopped at", len(drone_traj),
+        "avg tracking error", np.mean(divergences)
     )
     # print(speed)
     plot_trajectory(
