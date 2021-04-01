@@ -157,11 +157,12 @@ class TrainDrone:
             lr=self.learning_rate_controller,
             momentum=0.9
         )
-        self.optimizer_dynamics = optim.SGD(
-            self.train_dynamics.parameters(),
-            lr=self.learning_rate_dynamics,
-            momentum=0.9
-        )
+        if isinstance(self.train_dynamics, LearntDynamics):
+            self.optimizer_dynamics = optim.SGD(
+                self.train_dynamics.parameters(),
+                lr=self.learning_rate_dynamics,
+                momentum=0.9
+            )
 
     def train_controller_model(self, current_state, action_seq, ref_states):
         # zero the parameter gradients
@@ -299,9 +300,9 @@ class TrainDrone:
 
 if __name__ == "__main__":
 
-    method = "train_dyn"
+    method = "train_control"
     modified_params = {"translational_drag": np.array([.3, .3, .3])}
-    base_model = "trained_models/drone/baseline_flightmare"
+    base_model = "trained_models/drone/master_flightmare_04speed"
 
     if method == "sample":
         nr_epochs = 10
@@ -316,9 +317,10 @@ if __name__ == "__main__":
         train_dyn = -1
         sample_in = "train_env"
 
-    train_dynamics = LearntDynamics()
+    train_dynamics = FlightmareDynamics()
+    # LearntDynamics()
 
-    eval_dynamics = FlightmareDynamics(**modified_params)
+    eval_dynamics = None # FlightmareDynamics(**modified_params)
 
     trainer = TrainDrone(train_dynamics, eval_dynamics, sample_in=sample_in)
 
