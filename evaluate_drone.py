@@ -308,6 +308,24 @@ def load_model(model_path, epoch=""):
 
     return controller, param_dict
 
+def analyze_mpc_mismatch(evaluator, param="down_drag", max_vary=1, steps=10):
+    evaluator.render = 0
+    current_param = getattr(evaluator.eval_env.dynamics, param)
+    print("default", current_param)
+
+    try:
+        len_add = len(current_param)
+    except TypeError:
+        len_add = 1
+
+    for i in range(steps):
+        mod_param = current_param + np.random.rand()
+        print("modified", i, mod_param)
+        if len(mod_param) == 1:
+            mod_param = mod_param[0]
+        evaluator.eval_env.dynamics.set_attributes({param: mod_param})
+        evaluator.eval_ref(args.ref, nr_test=10, max_steps=500, **traj_args)
+
 
 if __name__ == "__main__":
     # make as args:
