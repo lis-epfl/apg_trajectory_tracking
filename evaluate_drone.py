@@ -117,6 +117,7 @@ class QuadEvaluator():
             speed_factor=self.speed_factor,
             horizon=self.horizon,
             dt=self.dt,
+            test_time=self.test_time,
             **traj_args
         )
         if traj_type == "rand":

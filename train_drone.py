@@ -34,7 +34,13 @@ class TrainDrone:
     Train a controller for a quadrotor
     """
 
-    def __init__(self, train_dynamics, eval_dynamics, sample_in="train_env"):
+    def __init__(
+        self,
+        train_dynamics,
+        eval_dynamics,
+        speed_factor = .6,
+        sample_in="train_env"
+    ):
         """
         param sample_in: one of "train_env", "eval_env", "real_flightmare"
         """
@@ -55,7 +61,7 @@ class TrainDrone:
         self.action_dim = 4
         self.learning_rate_controller = 0.0001
         self.learning_rate_dynamics = 0.001
-        self.speed_factor = .6
+        self.speed_factor = speed_factor
         self.max_steps = 1000
         self.save_path = os.path.join("trained_models/drone/test_model")
 

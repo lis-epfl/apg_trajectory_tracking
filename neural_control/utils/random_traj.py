@@ -1,5 +1,5 @@
 import numpy as np
-from .generate_trajectory import generate_trajectory
+from .generate_trajectory import load_prepare_trajectory
 
 
 class Random:
@@ -13,6 +13,7 @@ class Random:
         horizon=10,
         duration=None,
         dt=0.05,
+        test_time=0,
         **kwargs
     ):
         """
@@ -27,8 +28,8 @@ class Random:
 
         if duration is None:
             duration = 10 / 0.05 * dt
-        points_3d = generate_trajectory(
-            duration, dt, speed_factor=speed_factor
+        points_3d = load_prepare_trajectory(
+            "data/traj_data_1", dt, speed_factor, test=test_time
         )
         points_3d[:, 2] = points_3d[:, 2] + 3
         self.full_ref = points_3d
