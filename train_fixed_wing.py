@@ -25,6 +25,8 @@ VEC_STD = 0.15
 BATCH_SIZE = 8
 STATE_SIZE = 12
 NR_ACTIONS = 10
+# for recurrent training, need to distinguish between nr input and nr loss
+NR_ACTIONS_RNN = 10
 REF_DIM = 3
 ACTION_DIM = 4
 LEARNING_RATE = 0.00001
@@ -124,14 +126,14 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, current_state, in_ref_state, _ = data
+            in_state, current_state, in_ref_state, ref_state = data
 
             if DEBUG:
                 print()
                 print(current_state[0, :3])
             # # GIVE LINEAR TRAJECTORY FOR LOSS
             speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
-            vec_len_per_step = speed * DELTA_T * NR_ACTIONS
+            vec_len_per_step = speed * DELTA_T * NR_ACTIONS_RNN
             # form auxiliary array with linear reference for loss computation
             target_pos = torch.zeros((in_state.size()[0], 3))
             for j in range(3):
@@ -150,9 +152,19 @@ for epoch in range(NR_EPOCHS):
             #     in_state.size()[0], NR_ACTIONS,
             #     current_state.size()[1]
             # )
-            for k in range(NR_ACTIONS):
+            for k in range(NR_ACTIONS_RNN):
                 # extract action
                 action = action_seq[:, k]
+
+                # ------------ VERSION 2: recurrent -------------------
+                # in_state, _, in_ref_state, _ = state_data.prepare_data(
+                #     current_state, ref_state
+                # )
+                # # print(k, "current state", current_state[0, :3])
+                # # print(k, "in_state", in_state[0])
+                # # print(k, "in ref", in_ref_state[0])
+                # action = torch.sigmoid(net(in_state, in_ref_state))
+
                 current_state = long_dynamics(
                     current_state, action, dt=DELTA_T
                 )
