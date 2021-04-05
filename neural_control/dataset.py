@@ -338,15 +338,16 @@ class WingDataset(torch.utils.data.Dataset):
         if len(states.shape) == 1:
             states = np.expand_dims(states, 0)
             ref_states = np.expand_dims(ref_states, 0)
+        if not isinstance(states, torch.Tensor):
+            states = self.to_torch(states)
+            ref_states = self.to_torch(ref_states)
 
         # 1) Normalized state and remove position
-        states = self.to_torch(states)
         normed_states = ((states - self.mean) / self.std)[:, 3:]
 
         # TODO: transorm euler angle?
 
         # 3) Reference trajectory to torch and relative to drone position
-        ref_states = self.to_torch(ref_states)
         # normalize
         relative_ref = ref_states - states[:, :3]
         ref_vec_norm = torch.sqrt(torch.sum(relative_ref**2, axis=1))
