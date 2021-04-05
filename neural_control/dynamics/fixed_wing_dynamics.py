@@ -29,15 +29,15 @@ class FixedWingDynamics:
         # update with modified parameters
         self.cfg.update(modified_params)
 
-        self.derive_parameters()
+        FixedWingDynamics.derive_parameters(self)
 
     def derive_parameters(self):
         """
         These parameters are actually not parameters, but derived from them
         """
         # gravity
-        self.cfg["g_m"] = self.cfg["g"] * self.cfg["mass"]
-        self.gravity_vec = [0, 0, self.cfg["g_m"]]
+        g_m = self.cfg["g"] * self.cfg["mass"]
+        self.gravity_vec = [0, 0, g_m]
 
         # moment of inertia tensor
         self.I = torch.tensor(
@@ -286,10 +286,12 @@ class LearntFixedWingDynamics(torch.nn.Module, FixedWingDynamics):
             )
         self.cfg = torch.nn.ParameterDict(dict_pytorch)
 
+        self.derive_parameters()
+
     def derive_parameters(self):
-        self.cfg["g_m"] = self.cfg["g"] * self.cfg["mass"]
+        g_m = self.cfg["g"] * self.cfg["mass"]
         zero = torch.zeros(1)
-        self.gravity_vec = torch.vstack([zero, zero, self.cfg["g_m"]])
+        self.gravity_vec = torch.vstack([zero, zero, g_m])
 
         # moment of inertia tensor
         self.I = torch.stack(

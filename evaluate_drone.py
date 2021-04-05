@@ -382,7 +382,7 @@ if __name__ == "__main__":
     params["render"] = RENDER if not args.unity else 0
     # params["dt"] = .05
     # params["max_drone_dist"] = 1
-    params["speed_factor"] = .6
+    params["speed_factor"] = .4
     modified_params = {}
     # {"translational_drag": np.array([.3, .3, .3])}
     # "mass": 50}
@@ -430,14 +430,14 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     # evaluator.run_mpc_ref(args.ref)
-    # reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-    #     args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
-    # )
-    print(params)
-    print()
-    evaluator.render = 0
-    evaluator.eval_ref(args.ref, nr_test=30, max_steps=500, **traj_args)
-    exit()
+    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+        args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
+    )
+    # print(params)
+    # print()
+    # evaluator.render = 0
+    # evaluator.eval_ref(args.ref, nr_test=30, max_steps=500, **traj_args)
+    # exit()
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

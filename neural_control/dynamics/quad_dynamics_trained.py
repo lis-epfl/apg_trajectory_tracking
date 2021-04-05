@@ -54,7 +54,7 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
 
         # derivations from params
         self.torch_inertia_J = torch.diag(self.torch_inertia_vector)
-        # self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
+        self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
         self.torch_kinv_ang_vel_tau = torch.diag(self.torch_kinv_vector)
 
     def state_transformer(self, state, action):

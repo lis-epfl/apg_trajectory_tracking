@@ -146,8 +146,8 @@ class TrainDrone:
         )
         # Init train loader
         self.trainloader = torch.utils.data.DataLoader(
-            trainer.state_data,
-            batch_size=trainer.batch_size,
+            self.state_data,
+            batch_size=self.batch_size,
             shuffle=True,
             num_workers=0
         )
@@ -221,11 +221,11 @@ class TrainDrone:
             )
 
             if train == "controller":
-                loss = trainer.train_controller_model(
+                loss = self.train_controller_model(
                     current_state, action_seq, ref_states
                 )
             else:
-                loss = trainer.train_dynamics_model(current_state, action_seq)
+                loss = self.train_dynamics_model(current_state, action_seq)
                 self.count_finetune_data += len(current_state)
 
             running_loss += loss.item() * 1000
@@ -302,7 +302,7 @@ if __name__ == "__main__":
 
     method = "train_control"
     modified_params = {"translational_drag": np.array([.3, .3, .3])}
-    base_model = "trained_models/drone/master_flightmare_04speed"
+    base_model = "trained_models/drone/baseline_flightmare"
 
     if method == "sample":
         nr_epochs = 10

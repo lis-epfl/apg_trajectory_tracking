@@ -11,6 +11,7 @@ from neural_control.dataset import WingDataset
 from evaluate_drone import load_model_params
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.controllers.mpc import MPC
+from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 from neural_control.trajectory.q_funcs import project_to_line
 
 
@@ -22,6 +23,7 @@ class FixedWingEvaluator:
     def __init__(
         self,
         controller,
+        env,
         dt=0.01,
         horizon=1,
         render=0,
@@ -35,7 +37,7 @@ class FixedWingEvaluator:
         self.render = render
         self.thresh_div = thresh_div
         self.thresh_stable = thresh_stable
-        self.eval_env = SimpleWingEnv(dt)
+        self.eval_env = env
         self.des_speed = 11.5
 
     def fly_to_point(self, target_points, max_steps=1000, average_action=0):
@@ -204,7 +206,9 @@ if __name__ == "__main__":
         model_path, epoch=args.epoch, name="model_wing", **params
     )
 
-    evaluator = FixedWingEvaluator(controller, **params)
+    dynamics = FixedWingDynamics()
+    eval_env = SimpleWingEnv(dynamics, params["dt"])
+    evaluator = FixedWingEvaluator(controller, eval_env, **params)
 
     # only run evaluation without render
     # tic = time.time()

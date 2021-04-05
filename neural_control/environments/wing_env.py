@@ -14,10 +14,10 @@ class SimpleWingEnv(gym.Env):
     Fixed wing drone environment
     """
 
-    def __init__(self, dt):
+    def __init__(self, dynamics, dt):
         self.dt = dt
         self.reset()
-        self.dyn = FixedWingDynamics()
+        self.dyn = dynamics
         self.renderer = Renderer(viewer_shape=(1000, 500), y_axis=7)
         self.renderer.add_object(Ground())
         self.drone_render_object = FixedWingDrone(self)
@@ -124,7 +124,8 @@ def sample_training_data(
     # # sample unit vectors
     # gauss_vecs = generate_unit_vecs(num_samples, std=vec_std)
     # sample random direction vectors
-    env = SimpleWingEnv(dt)
+    dyn = FixedWingDynamics()
+    env = SimpleWingEnv(dyn, dt)
 
     # combine states and gauss_vecs
     training_states = []
@@ -166,5 +167,6 @@ if __name__ == "__main__":
     # print(states.shape, refs.shape)
     # np.save("states.npy", states)
     # np.save("ref.npy", refs)
-    env = SimpleWingEnv(0.05)
+    dyn = FixedWingDynamics()
+    env = SimpleWingEnv(dyn, 0.05)
     traj = run_wing_flight(env, traj_len=300, dt=0.05, render=1)
