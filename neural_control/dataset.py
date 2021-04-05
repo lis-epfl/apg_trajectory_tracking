@@ -49,7 +49,6 @@ class DroneDataset(torch.utils.data.Dataset):
 
     def __init__(self, num_states, self_play, mean=None, std=None, **kwargs):
         # First constructor: New dataset for training
-        self.self_play = 0
         self.mean = mean
         self.std = std
         self.num_sampled_states = num_states
@@ -102,7 +101,6 @@ class DroneDataset(torch.utils.data.Dataset):
 
     def get_and_add_eval_data(self, states, ref_states, add_to_dataset=False):
         """
-        DEPRECATED - not used anymore
         While evaluating, add the data to the dataset with some probability
         to achieve self play
         """
@@ -239,6 +237,7 @@ class WingDataset(torch.utils.data.Dataset):
     def __init__(
         self,
         num_states,
+        self_play=0,
         mean=None,
         std=None,
         ref_mean=None,
@@ -247,14 +246,17 @@ class WingDataset(torch.utils.data.Dataset):
     ):
         # First constructor: New dataset for training
         self.num_sampled_states = num_states
+        self.num_self_play = int(self_play * num_states)
+        self.total_dataset_size = self.num_sampled_states + self.num_self_play
         states, ref_states = sample_training_data(
-            self.num_sampled_states, **kwargs
+            self.total_dataset_size, **kwargs
         )
+
         if mean is None:
             # sample states
             mean = np.mean(states, axis=0)
             std = np.std(states, axis=0)
-            pos_diff = ref_states[:, :2] - states[:, :2]
+            pos_diff = ref_states[:, :3] - states[:, :3]
             ref_mean = np.mean(pos_diff, axis=0)
             ref_std = np.std(pos_diff, axis=0)
 
@@ -279,6 +281,15 @@ class WingDataset(torch.utils.data.Dataset):
         param_dict["ref_std"] = self.ref_std.tolist()
         return param_dict
 
+    def get_eval_index(self):
+        """
+        compute current index where to add new data
+        """
+        if self.num_self_play > 0:
+            return (
+                self.eval_counter % self.num_self_play
+            ) + self.num_sampled_states
+
     def resample_data(self):
         """
         Sample new training data and replace dataset with it
@@ -286,10 +297,15 @@ class WingDataset(torch.utils.data.Dataset):
         states, ref_states = sample_training_data(
             self.num_sampled_states, **self.kwargs
         )
-        (
-            self.normed_states, self.states, self.normed_ref_states,
-            self.ref_states
-        ) = self.prepare_data(states, ref_states)
+        (prep_normed_states, prep_states, prep_in_ref_states,
+         prep_ref_states) = self.prepare_data(states, ref_states)
+
+        # add to first (the sampled) part of dataset
+        num = self.num_sampled_states
+        self.normed_states[:num] = prep_normed_states
+        self.states[:num] = prep_states
+        self.normed_ref_states[:num] = prep_in_ref_states
+        self.ref_states[:num] = prep_ref_states
 
     def get_and_add_eval_data(self, states, ref_states, add_to_dataset=False):
         """
@@ -304,6 +320,7 @@ class WingDataset(torch.utils.data.Dataset):
             self.normed_states[counter] = normed_states[0]
             self.states[counter] = states[0]
             self.ref_states[counter] = ref_states[0]
+            self.normed_ref_states[counter] = normed_ref_states[0]
             self.eval_counter += 1
 
         return normed_states, states, normed_ref_states, ref_states
@@ -321,17 +338,18 @@ class WingDataset(torch.utils.data.Dataset):
         if len(states.shape) == 1:
             states = np.expand_dims(states, 0)
             ref_states = np.expand_dims(ref_states, 0)
+        if not isinstance(states, torch.Tensor):
+            states = self.to_torch(states)
+            ref_states = self.to_torch(ref_states)
 
         # 1) Normalized state and remove position
-        states = self.to_torch(states)
-        normed_states = ((states - self.mean) / self.std)[:, 2:]
+        normed_states = ((states - self.mean) / self.std)[:, 3:]
 
         # TODO: transorm euler angle?
 
         # 3) Reference trajectory to torch and relative to drone position
-        ref_states = self.to_torch(ref_states)
         # normalize
-        relative_ref = ref_states - states[:, :2]
+        relative_ref = ref_states - states[:, :3]
         ref_vec_norm = torch.sqrt(torch.sum(relative_ref**2, axis=1))
         normed_ref_states = (relative_ref.t() / ref_vec_norm).t()
 

@@ -11,28 +11,7 @@ from neural_control.environments.flightmare_dynamics import (
 )
 from neural_control.environments.drone_dynamics import SimpleDynamicsMPC
 from neural_control.environments.wing_2D_dynamics import fixed_wing_dynamics_mpc
-# ------------------ constants ---------------------
-m = 1.01
-I_xx = 0.04766
-rho = 1.225
-S = 0.276
-c = 0.185
-g = 9.81
-# linearized for alpha = 0 and u = 12 m/s
-Cl0 = 0.3900
-Cl_alpha = 4.5321
-Cl_q = 0.3180
-Cl_del_e = 0.527
-# drag coefficients
-Cd0 = 0.0765
-Cd_alpha = 0.3346
-Cd_q = 0.354
-Cd_del_e = 0.004
-# moment coefficients
-Cm0 = 0.0200
-Cm_alpha = -1.4037
-Cm_q = -0.1324
-Cm_del_e = -0.4236
+from neural_control.environments.wing_3D_dynamics import FixedWingDynamicsMPC
 
 
 #
@@ -71,8 +50,10 @@ class MPC(object):
             self._initParamsHighMPC()
         elif self.dynamics_model in ["simple_quad", "flightmare"]:
             self._initParamsSimpleQuad()
-        elif self.dynamics_model == "fixed_wing":
-            self._initParamsFixedWing()
+        elif self.dynamics_model == "fixed_wing_2D":
+            self._initParamsFixedWing_2D()
+        elif self.dynamics_model == "fixed_wing_3D":
+            self._initParamsFixedWing_3D()
 
         # cost matrix for tracking the goal point
         self._Q_goal = np.zeros((self._s_dim, self._s_dim))
@@ -118,7 +99,7 @@ class MPC(object):
         # default u
         self._default_u = [.5, .5, .5, .5]
 
-    def _initParamsFixedWing(self):
+    def _initParamsFixedWing_2D(self):
         self._s_dim = 6
         self._u_dim = 2
         self._w_min_xy = 0
@@ -134,6 +115,22 @@ class MPC(object):
         # default u
         self._default_u = [.25, .5]
 
+    def _initParamsFixedWing_3D(self):
+        self._s_dim = 12
+        self._u_dim = 4
+        self._w_min_xy = 0
+        self._w_max_xy = 1
+        self._thrust_min = 0
+        self._thrust_max = 1
+        self._Q_u = np.diag([0, 10, 10, 10])
+        self._Q_pen = np.diag([1000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        # initial states
+        self._quad_s0 = np.zeros(12).tolist()
+        self._quad_s0[3] = 11
+        self._quad_u0 = [.25, .5, .5, .5]
+        # default u
+        self._default_u = [.25, .5, .5, .5]
+
     def _initDynamics(self, ):
         # # # # # # # # # # # # # # # # # # #
         # ---------- Input States -----------
@@ -148,8 +145,11 @@ class MPC(object):
         elif self.dynamics_model == "flightmare":
             dyn = FlightmareDynamicsMPC()
             F = dyn.drone_dynamics_flightmare(self._dt)
-        elif self.dynamics_model == "fixed_wing":
+        elif self.dynamics_model == "fixed_wing_2D":
             F = fixed_wing_dynamics_mpc(self._dt)
+        elif self.dynamics_model == "fixed_wing_3D":
+            dyn = FixedWingDynamicsMPC()
+            F = dyn.simulate_fixed_wing(self._dt)
         fMap = F.map(self._N, "openmp")  # parallel
 
         # # # # # # # # # # # # # # #
@@ -372,16 +372,16 @@ class MPC(object):
         Construct a reference as required by MPC from the current state and
         the desired ref
         """
-        vec_to_target = ref_states - current_state[:2]
+        vec_to_target = ref_states - current_state[:3]
         vec_norm = np.linalg.norm(vec_to_target)
-        speed = np.sqrt(current_state[2]**2 + current_state[3]**2)
+        speed = np.sqrt(np.sum(current_state[3:6]**2))
         vec_len_per_step = speed * self._dt
         vector_per_step = vec_to_target * (vec_len_per_step / vec_norm)
 
         middle_ref_states = np.zeros((self._N + 1, len(current_state)))
         for i in range(self._N + 1):
             middle_ref_states[
-                i, :2] = current_state[:2] + (i + 1) * vector_per_step
+                i, :3] = current_state[:3] + (i + 1) * vector_per_step
 
         # np.set_printoptions(suppress=True, precision=3)
         # # print(opt_u.tolist())
@@ -405,7 +405,7 @@ class MPC(object):
             preprocessed_ref = self.preprocess_simple_quad(
                 current_state, ref_states
             )
-        elif self.dynamics_model == "fixed_wing":
+        elif self.dynamics_model in ["fixed_wing_2D", "fixed_wing_3D"]:
             preprocessed_ref = self.preprocess_fixed_wing(
                 current_state, ref_states
             )

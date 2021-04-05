@@ -143,15 +143,20 @@ class NetworkWrapper:
 
 class FixedWingNetWrapper:
 
-    def __init__(self, model, dataset, horizon=1, **kwargs):
+    def __init__(self, model, dataset, horizon=1, take_every_x=1000, **kwargs):
         self.net = model
         self.dataset = dataset
         self.horizon = horizon
-        self.action_dim = 2
+        self.action_dim = 4
+        self.action_counter = 0
+        self.take_every_x = take_every_x
 
     def predict_actions(self, state, ref_state):
-        normed_state, _, normed_ref, _ = self.dataset.prepare_data(
-            state, ref_state
+        # determine whether we also add the sample to our train data
+        add_to_dataset = (self.action_counter + 1) % self.take_every_x == 0
+
+        normed_state, _, normed_ref, _ = self.dataset.get_and_add_eval_data(
+            state, ref_state, add_to_dataset=add_to_dataset
         )
         with torch.no_grad():
             suggested_action = self.net(normed_state, normed_ref)
@@ -160,4 +165,6 @@ class FixedWingNetWrapper:
             suggested_action = torch.reshape(
                 suggested_action, (self.horizon, self.action_dim)
             )
+
+        self.action_counter += 1
         return suggested_action.detach().numpy()

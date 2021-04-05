@@ -3,6 +3,21 @@ import pyquaternion
 import casadi as cs
 
 
+def project_to_line(a, b, p):
+    """
+    Project a n-dim position p onto a line spanned by a and b
+    """
+    # define points a and b on the line and p as the current position
+    if np.all(a == b):
+        return a
+    ap = p - a
+    ab = np.expand_dims(b - a, 1)
+    dot = np.dot(ab, ab.T)
+    norm = np.sum(ab**2)
+    result = a + np.dot(dot, ap) / norm
+    return result
+
+
 def euler_to_quaternion(roll, pitch, yaw):
     qx = np.sin(roll / 2) * np.cos(pitch / 2) * np.cos(yaw / 2) - np.cos(
         roll / 2
@@ -96,6 +111,7 @@ def q_dot_new(q, w):
     t2 = 0.5 * (w[1] * q[0] + w[2] * q[1] - w[0] * q[3])
     t3 = 0.5 * (w[2] * q[0] + w[0] * q[2] - w[1] * q[1])
     return np.array([t0, t1, t2, t3])
+
 
 def q_dot_q(q, r):
     """

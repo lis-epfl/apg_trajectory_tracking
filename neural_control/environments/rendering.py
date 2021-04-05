@@ -209,11 +209,11 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
 class FixedWingDrone(RenderedObject):
 
-    def __init__(self, source, draw_quad=False):
+    def __init__(self, source, draw_quad=True):
         self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
-        self.targets = [[100, 0]]
+        self.targets = [[100, 0, 0]]
         self.x_normalize = 0.1
         self.z_offset = 5
 
@@ -222,34 +222,35 @@ class FixedWingDrone(RenderedObject):
         self.x_normalize = 14 / self.targets[-1, 0]
 
     def draw(self, renderer):
-        status = self.source._state.copy()
+        state = self.source._state.copy()
 
         # transformed main axis
-        trafo = Euler(0, -status[4], 0)
+        euler_angles = state[6:9] * np.array([1, 1, -1])
+        trafo = Euler(*tuple(euler_angles))
 
         # normalize x to have drone between left and right bound
         # and set z to other way round
         position = [
-            -7 + status[0] * self.x_normalize, 0,
-            status[1] * self.x_normalize + self.z_offset
+            -7 + state[0] * self.x_normalize, state[1],
+            state[2] * self.x_normalize + self.z_offset
         ]
 
-        u = status[2]
-        w = status[3]
-        theta = status[4]
-        x_dot = u * np.cos(theta) + w * np.sin(theta)  # forward
-        h_dot = u * np.sin(theta) - w * np.cos(theta)  # upward
-        # theta_vec = np.array([1, 0, np.sin(theta)]) * 3
-        vel_vec = np.array([x_dot, 0, h_dot])
-        vel_vec = vel_vec / np.linalg.norm(vel_vec) * 3
-        renderer.draw_line_3d(position, position + vel_vec, color=(1, 0, 0))
+        # u = state[3]
+        # w = state[4]
+        # theta = state[4]
+        # x_dot = u * np.cos(theta) + w * np.sin(theta)  # forward
+        # h_dot = u * np.sin(theta) - w * np.cos(theta)  # upward
+        # # theta_vec = np.array([1, 0, np.sin(theta)]) * 3
+        # vel_vec = np.array([x_dot, 0, h_dot])
+        # vel_vec = vel_vec / np.linalg.norm(vel_vec) * 3
+        # renderer.draw_line_3d(position, position + vel_vec, color=(1, 0, 0))
 
         # draw target point
         for target in self.targets:
             renderer.draw_circle(
                 (
                     -7 + target[0] * self.x_normalize,
-                    target[1] * self.x_normalize + self.z_offset
+                    target[2] * self.x_normalize + self.z_offset
                 ),
                 .2, (0, 1, 0),
                 filled=True
@@ -266,7 +267,9 @@ class FixedWingDrone(RenderedObject):
         renderer.draw_line_3d(position, position + rotated)
 
         QuadCopter.draw_propeller(renderer, trafo, position, [1, 0, 0], 0)
+        QuadCopter.draw_propeller(renderer, trafo, position, [0, 1, 0], 0)
         QuadCopter.draw_propeller(renderer, trafo, position, [-1, 0, 0], 0)
+        QuadCopter.draw_propeller(renderer, trafo, position, [0, -1, 0], 0)
 
     @staticmethod
     def draw_airplane(renderer, position, euler):

@@ -10,26 +10,37 @@ from neural_control.dataset import WingDataset
 from neural_control.drone_loss import (
     trajectory_loss, fixed_wing_loss, angle_loss
 )
-from neural_control.environments.wing_longitudinal_dynamics import long_dynamics
+from neural_control.environments.wing_3D_dynamics import FixedWingDynamics
 from neural_control.models.hutter_model import Net
 from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.utils.plotting import plot_loss_episode_len
 
+DEBUG = 0
 DELTA_T = 0.05
-EPOCH_SIZE = 3000
+EPOCH_SIZE = 500 if not DEBUG else 300
 PRINT = (EPOCH_SIZE // 30)
 NR_EPOCHS = 200
 VEC_STD = 0.15
 BATCH_SIZE = 8
-STATE_SIZE = 6
+STATE_SIZE = 12
 NR_ACTIONS = 10
-REF_DIM = 2
-ACTION_DIM = 2
+# for recurrent training, need to distinguish between nr input and nr loss
+NR_ACTIONS_RNN = 10
+REF_DIM = 3
+ACTION_DIM = 4
 LEARNING_RATE = 0.00001
+SELF_PLAY = 1
+TAKE_EVERY_X = 2
+THRESH_DIV_START = 4
+THRESH_DIV_END = 20
+THRESH_STABLE_START = .4
+THRESH_STABLE_END = .8
 SAVE = os.path.join("trained_models/wing/test_model")
-BASE_MODEL = None  # "trained_models/wing/corrected_lastoneloss_good"
+BASE_MODEL = "trained_models/wing/current_model"
 BASE_MODEL_NAME = 'model_wing'
+
+dyn = FixedWingDynamics()
 
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
@@ -55,8 +66,11 @@ net = net.to(device)
 optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE, momentum=0.9)
 
 # init dataset
-state_data = WingDataset(EPOCH_SIZE, **param_dict)
+state_data = WingDataset(EPOCH_SIZE, self_play=SELF_PLAY, **param_dict)
 param_dict = state_data.get_means_stds(param_dict)
+param_dict["take_every_x"] = TAKE_EVERY_X
+param_dict["thresh_div"] = THRESH_DIV_START
+param_dict["thresh_stable"] = THRESH_STABLE_START
 
 with open(os.path.join(SAVE, "param_dict.json"), "w") as outfile:
     json.dump(param_dict, outfile)
@@ -74,6 +88,7 @@ for epoch in range(NR_EPOCHS):
 
     try:
         # EVALUATE
+        # if not DEBUG:
         print(f"Epoch {epoch} (before)")
         controller = FixedWingNetWrapper(net, state_data, **param_dict)
         eval_env = FixedWingEvaluator(controller, **param_dict)
@@ -90,6 +105,14 @@ for epoch in range(NR_EPOCHS):
             state_data.resample_data()
             print(f"Sampled new data ({state_data.num_sampled_states})")
 
+        print("eval counter", state_data.eval_counter)
+
+        # increase thresholds
+        if param_dict["thresh_div"] < THRESH_DIV_END:
+            param_dict["thresh_div"] += 1
+        if param_dict["thresh_stable"] < THRESH_STABLE_END:
+            param_dict["thresh_stable"] += .05
+
         # save best model
         if epoch > 0 and suc_mean < highest_success:
             highest_success = suc_mean
@@ -105,14 +128,17 @@ for epoch in range(NR_EPOCHS):
         for i, data in enumerate(trainloader, 0):
             # inputs are normalized states, current state is unnormalized in
             # order to correctly apply the action
-            in_state, current_state, in_ref_state, _ = data
+            in_state, current_state, in_ref_state, ref_state = data
 
+            if DEBUG:
+                print()
+                print(current_state[0, :3])
             # # GIVE LINEAR TRAJECTORY FOR LOSS
-            speed = torch.sqrt(current_state[:, 2]**2 + current_state[:, 3]**2)
-            vec_len_per_step = speed * DELTA_T * NR_ACTIONS
+            speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
+            vec_len_per_step = speed * DELTA_T * NR_ACTIONS_RNN
             # form auxiliary array with linear reference for loss computation
-            target_pos = torch.zeros((in_state.size()[0], 2))
-            for j in range(2):
+            target_pos = torch.zeros((in_state.size()[0], 3))
+            for j in range(3):
                 target_pos[:, j] = current_state[:, j] + (
                     in_ref_state[:, j] * vec_len_per_step
                 )
@@ -124,20 +150,38 @@ for epoch in range(NR_EPOCHS):
             actions = net(in_state, in_ref_state)
             actions = torch.sigmoid(actions)
             action_seq = torch.reshape(actions, (-1, NR_ACTIONS, ACTION_DIM))
-
-            for k in range(NR_ACTIONS):
+            # intermediate_states = torch.zeros(
+            #     in_state.size()[0], NR_ACTIONS,
+            #     current_state.size()[1]
+            # )
+            for k in range(NR_ACTIONS_RNN):
                 # extract action
                 action = action_seq[:, k]
-                current_state = long_dynamics(
+
+                # ------------ VERSION 2: recurrent -------------------
+                # in_state, _, in_ref_state, _ = state_data.prepare_data(
+                #     current_state, ref_state
+                # )
+                # # print(k, "current state", current_state[0, :3])
+                # # print(k, "in_state", in_state[0])
+                # # print(k, "in ref", in_ref_state[0])
+                # action = torch.sigmoid(net(in_state, in_ref_state))
+
+                current_state = dyn.simulate_fixed_wing(
                     current_state, action, dt=DELTA_T
                 )
+                # intermediate_states[:, k] = current_state
 
-            loss = fixed_wing_loss(current_state, target_pos, printout=0)
+            loss = fixed_wing_loss(
+                current_state, target_pos, action_seq, printout=0
+            )
 
             # Backprop
             loss.backward()
-            # print(net.fc_out.weight.grad.size(), net.fc_out.weight.grad)
             optimizer.step()
+            if DEBUG:
+                print(current_state[0, :3])
+                print(target_pos[0])
 
             running_loss += loss.item()
 
