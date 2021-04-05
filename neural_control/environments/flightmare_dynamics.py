@@ -6,8 +6,8 @@ import casadi as ca
 
 class FlightmareDynamics(Dynamics):
 
-    def __init__(self, modified_params={}, simulate_rotors=False):
-        super().__init__(modified_params=modified_params)
+    def __init__(self, simulate_rotors=False, **kwargs):
+        super().__init__(**kwargs)
         # new parameters needed for flightmare simulation
         self.t_BM_ = self.arm_length * np.sqrt(0.5) * torch.tensor(
             [[1, -1, -1, 1], [-1, -1, 1, 1], [0, 0, 0, 0]]
@@ -78,12 +78,15 @@ class FlightmareDynamics(Dynamics):
         body_to_world = torch.transpose(world_to_body, 1, 2)
 
         # print("force in ld ", force.size())
-        thrust = self.copter_params.down_drag * 1 / self.mass * torch.matmul(
+        thrust = self.down_drag * 1 / self.mass * torch.matmul(
             body_to_world, torch.unsqueeze(force, 2)
         )
         # print("thrust", thrust.size())
         # drag = velocity * TODO: dynamics.drag_coeff??
-        thrust_min_grav = thrust[:, :, 0] + self.torch_gravity
+        thrust_min_grav = (
+            thrust[:, :, 0] + self.torch_gravity +
+            self.torch_translational_drag
+        )
         return thrust_min_grav  # - drag
 
     def run_flight_control(self, thrust, av, body_rates, cross_prod):

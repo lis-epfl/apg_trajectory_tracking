@@ -6,58 +6,49 @@ from types import SimpleNamespace
 
 class Dynamics:
 
-    def __init__(self, modified_params={}):
-        dict_copter_params = {
-            "thrust_factor": 5.723e-6,
-            "drag_factor": 1.717e-7,
-            "mass": 0.723,
-            "rotational_drag": np.array([1, 1, 1]) * 1e-4,
-            "translational_drag": np.array([1, 1, 1]) * 1e-4,
-            "arm_length": 0.31,
-            "rotor_inertia": 7.321e-5,
-            "frame_inertia": np.array([4.5, 4.5, 7]),
-            "gravity": np.array([0.0, 0.0, -9.81]),
-            "max_rotor_speed": 1000.0,
-            "rotor_speed_half_time": 1.0 / 16,
-            "kinv_ang_vel_tau": np.array([16.6, 16.6, 5.0]),
-            "down_drag": 1
-        }
-        # change the parameters that should be motified
-        dict_copter_params.update(modified_params)
-        self.copter_params = SimpleNamespace(**dict_copter_params)
+    def __init__(
+        self,
+        thrust_factor=5.723e-06,
+        drag_factor=1.717e-07,
+        mass=0.723,
+        rotational_drag=np.array([0., 0., 0.]),
+        translational_drag=np.array([0, 0, 0]),
+        arm_length=0.31,
+        rotor_inertia=7.321e-05,
+        frame_inertia=np.array([4.5, 4.5, 7.]),
+        gravity=np.array([0., 0., -9.81]),
+        max_rotor_speed=1000.0,
+        rotor_speed_half_time=0.0625,
+        kinv_ang_vel_tau=np.array([16.6, 16.6, 5.]),
+        down_drag=1
+    ):
         device = "cpu"
         # NUMPY PARAMETERS
-        self.mass = self.copter_params.mass
-        self.arm_length = self.copter_params.arm_length
-        self.thrust_factor = self.copter_params.thrust_factor
-        self.drag_factor = self.copter_params.drag_factor
-        self.rotor_inertia = self.copter_params.rotor_inertia
-        self.max_rotor_speed = self.copter_params.max_rotor_speed
-        self.kinv_ang_vel_tau = self.copter_params.kinv_ang_vel_tau
-        self.inertia_vector = (
-            self.copter_params.mass / 12.0 * self.copter_params.arm_length**2 *
-            self.copter_params.frame_inertia
-        )
+        self.down_drag = down_drag
+        self.mass = mass
+        self.arm_length = arm_length
+        self.thrust_factor = thrust_factor
+        self.drag_factor = drag_factor
+        self.rotor_inertia = rotor_inertia
+        self.max_rotor_speed = max_rotor_speed
+        self.kinv_ang_vel_tau = kinv_ang_vel_tau
+        self.inertia_vector = (mass / 12.0 * arm_length**2 * frame_inertia)
 
         # TORCH PARAMETERS
         # torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.copter_params = SimpleNamespace(**self.copter_params)
-        self.torch_translational_drag = torch.from_numpy(
-            self.copter_params.translational_drag
-        ).to(device)
-        self.torch_gravity = torch.from_numpy(self.copter_params.gravity
-                                              ).to(device)
-        self.torch_rotational_drag = torch.from_numpy(
-            self.copter_params.rotational_drag
-        ).to(device)
+        self.torch_translational_drag = torch.from_numpy(translational_drag
+                                                         ).to(device)
+        self.torch_gravity = torch.from_numpy(gravity).to(device)
+        self.torch_rotational_drag = torch.from_numpy(rotational_drag
+                                                      ).to(device)
         self.torch_inertia_vector = torch.from_numpy(self.inertia_vector
                                                      ).float().to(device)
 
         self.torch_inertia_J = torch.diag(self.torch_inertia_vector)
         self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
-        self.torch_kinv_ang_vel_tau = torch.diag(
-            torch.tensor(self.copter_params.kinv_ang_vel_tau).float()
-        )
+        self.torch_kinv_vector = torch.tensor(kinv_ang_vel_tau).float()
+        self.torch_kinv_ang_vel_tau = torch.diag(self.torch_kinv_vector)
 
         # CASADI PARAMETERS
         self.ca_inertia_vector = ca.SX(self.inertia_vector)

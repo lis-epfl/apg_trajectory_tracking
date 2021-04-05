@@ -157,23 +157,15 @@ class QuadEvaluator():
             div = np.linalg.norm(drone_on_line - drone_pos)
             divergences.append(div)
 
-            # # give control back to the neural controller
-            # if is_in_control == 0 and div < 0.3:
-            #     is_in_control = 1
-            # # take over control with the mpc
+            # reset the state to the reference
             if div > thresh_div or not stable:
                 if self.test_time:
                     # TODO: must always be down for flightmare train
                     # print("diverged at", len(drone_trajectory))
                     break
-                # is_in_control and (div > thresh_div or not stable):
-                #     if self.render:
-                #         print("use mpc")
-                #     is_in_control = 0
                 current_np_state = reference.get_current_full_state()
                 self.eval_env._state.from_np(current_np_state)
-            # if div > 3 * thresh_div:
-            #     break
+
             if i >= reference.ref_len:
                 break
         if self.render:
@@ -232,7 +224,6 @@ class QuadEvaluator():
         max_steps: int = 200,
         thresh_div=1,
         thresh_stable=1,
-        use_mpc_every=2,
         **kwargs
     ):
         """
@@ -247,8 +238,7 @@ class QuadEvaluator():
                 reference,
                 max_nr_steps=max_steps,
                 thresh_div=thresh_div,
-                thresh_stable=thresh_stable,
-                use_mpc_every=use_mpc_every
+                thresh_stable=thresh_stable
                 # **circle_args
             )
             div.append(np.mean(divergences))
@@ -359,7 +349,7 @@ if __name__ == "__main__":
     # MPC
     if model_path.split(os.sep)[-1] == "mpc":
         # mpc parameters:
-        params = {"horizon": 20, "dt": .05}
+        params = {"horizon": 10, "dt": .1}
         controller = MPC(dynamics=DYNAMICS, **params)
     # Neural controller
     else:
@@ -370,7 +360,17 @@ if __name__ == "__main__":
     # params["dt"] = .05
     # params["max_drone_dist"] = 1
     params["speed_factor"] = .6
-    modified_params = {}  # {"frame_inertia": np.array([3, 4, 6])}
+    modified_params = {}
+    # {"translational_drag": np.array([.3, .3, .3])}
+    # "mass": 50}
+    # {
+    #     "down_drag": 1,
+    #     "frame_inertia": np.array([2, 2, 3]),
+    #     "kinv_ang_vel_tau": np.array([21, 21, 3.0])
+    # }
+    # {"down_drag": .75}
+    print("MODIFIED: ", modified_params)
+    # {"frame_inertia": np.array([3, 4, 6])}
 
     # DEFINE ENVIRONMENT
     if args.flightmare:
@@ -378,7 +378,7 @@ if __name__ == "__main__":
     else:
         # DYNAMICS
         dynamics = (
-            FlightmareDynamics(modified_params=modified_params)
+            FlightmareDynamics(**modified_params)
             if DYNAMICS == "flightmare" else SimpleDynamics()
         )
         environment = QuadRotorEnvBase(dynamics, params["dt"])
@@ -407,11 +407,14 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     # evaluator.run_mpc_ref(args.ref)
-    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
-        args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
-    )
-    # evaluator.render = 0
-    # evaluator.eval_ref(args.ref, max_steps=250, **traj_args)
+    # reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+    #     args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
+    # )
+    print(params)
+    print()
+    evaluator.render = 0
+    evaluator.eval_ref(args.ref, nr_test=30, max_steps=500, **traj_args)
+    exit()
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

@@ -338,7 +338,7 @@ class MPC(object):
         # exit()
         return opt_u, x0_array
 
-    def preprocess_simple_quad(self, current_state, ref_states):
+    def preprocess_quad(self, current_state, ref_states):
         """
         current_state: list / array of len 12
         ref_states: array of shape (horizon, 9) with pos, vel, acc
@@ -347,7 +347,7 @@ class MPC(object):
         # modify the reference traj to input it into mpc
         changed_middle_ref_states = np.zeros((self._N, len(current_state)))
         changed_middle_ref_states[:, :3] = ref_states[:, :3]
-        changed_middle_ref_states[:, 6:9] = ref_states[:, 3:6]
+        changed_middle_ref_states[:, 6:9] = ref_states[:, 3:6] * 2
 
         # no goal point for now
         # goal_state = changed_middle_ref_states[-1].copy().tolist()
