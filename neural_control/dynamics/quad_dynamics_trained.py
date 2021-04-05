@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 import numpy as np
-from neural_control.environments.flightmare_dynamics import (
+from neural_control.dynamics.quad_dynamics_flightmare import (
     FlightmareDynamics
 )
 

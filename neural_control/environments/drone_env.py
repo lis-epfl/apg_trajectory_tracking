@@ -20,10 +20,10 @@ from neural_control.environments.rendering import (
 from neural_control.environments.helper_simple_env import (
     DynamicsState, Euler
 )
-from neural_control.environments.flightmare_dynamics import (
+from neural_control.dynamics.quad_dynamics_flightmare import (
     FlightmareDynamics
 )
-from neural_control.environments.drone_dynamics import SimpleDynamics
+from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
 from neural_control.utils.generate_trajectory import load_prepare_trajectory
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")

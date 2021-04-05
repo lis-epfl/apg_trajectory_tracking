@@ -6,12 +6,12 @@ import numpy as np
 import time
 from os import system
 
-from neural_control.environments.flightmare_dynamics import (
+from neural_control.dynamics.quad_dynamics_flightmare import (
     FlightmareDynamicsMPC
 )
-from neural_control.environments.drone_dynamics import SimpleDynamicsMPC
-from neural_control.environments.wing_2D_dynamics import fixed_wing_dynamics_mpc
-from neural_control.environments.wing_3D_dynamics import FixedWingDynamicsMPC
+from neural_control.dynamics.quad_dynamics_simple import SimpleDynamicsMPC
+from neural_control.dynamics.fixed_wing_2D import fixed_wing_dynamics_mpc
+from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamicsMPC
 
 
 #

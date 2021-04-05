@@ -19,8 +19,8 @@ from neural_control.utils.random_traj import Random
 from neural_control.dataset import DroneDataset
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
-from neural_control.environments.flightmare_dynamics import FlightmareDynamics
-from neural_control.environments.drone_dynamics import SimpleDynamics
+from neural_control.dynamics.quad_dynamics_flightmare import FlightmareDynamics
+from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -307,6 +307,7 @@ def load_model(model_path, epoch=""):
     controller = NetworkWrapper(net, dataset, **param_dict)
 
     return controller, param_dict
+
 
 def analyze_mpc_mismatch(evaluator, param="down_drag", max_vary=1, steps=10):
     evaluator.render = 0

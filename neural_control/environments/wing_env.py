@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import time
 
-from neural_control.environments.wing_3D_dynamics import FixedWingDynamics
+from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 from neural_control.environments.rendering import (
     Renderer, Ground, RenderedObject, FixedWingDrone
 )

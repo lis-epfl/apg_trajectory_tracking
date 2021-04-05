@@ -18,7 +18,7 @@ class FixedWingDynamics:
         # Load json file with default parameters
         with open(
             os.path.join(
-                Path(__file__).parent.absolute(), "fixed_wing_params.json"
+                Path(__file__).parent.absolute(), "config_fixed_wing.json"
             ), "r"
         ) as infile:
             self.cfg = json.load(infile)

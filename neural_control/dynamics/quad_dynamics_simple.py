@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from neural_control.environments.dynamics import Dynamics
+from neural_control.dynamics.quad_dynamics_base import Dynamics
 import casadi as ca
 
 
