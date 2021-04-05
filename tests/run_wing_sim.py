@@ -1,8 +1,10 @@
 import torch
 import numpy as np
 
-from neural_control.environments.wing_3D_dynamics import long_dynamics
+from neural_control.environments.wing_3D_dynamics import FixedWingDynamics
 from neural_control.utils.plotting import plot_wing_pos
+
+dyn = FixedWingDynamics()
 
 # # Changes after error correction
 
@@ -30,7 +32,7 @@ state_buff = np.zeros((len(t), len(state[0])))
 
 for i in range(len(t)):
     state_buff[i] = state.numpy()[0]
-    state = long_dynamics(state, action, dt)
+    state = dyn.simulate_fixed_wing(state, action, dt)
 
 np.set_printoptions(suppress=True, precision=4)
 print(state_buff)

@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import time
 
-from neural_control.environments.wing_3D_dynamics import (long_dynamics)
+from neural_control.environments.wing_3D_dynamics import FixedWingDynamics
 from neural_control.environments.rendering import (
     Renderer, Ground, RenderedObject, FixedWingDrone
 )
@@ -17,6 +17,7 @@ class SimpleWingEnv(gym.Env):
     def __init__(self, dt):
         self.dt = dt
         self.reset()
+        self.dyn = FixedWingDynamics()
         self.renderer = Renderer(viewer_shape=(1000, 500), y_axis=7)
         self.renderer.add_object(Ground())
         self.drone_render_object = FixedWingDrone(self)
@@ -49,7 +50,9 @@ class SimpleWingEnv(gym.Env):
         action_torch = torch.tensor([action.tolist()]).float()
         state_torch = torch.tensor([self._state.tolist()]).float()
 
-        new_state = long_dynamics(state_torch, action_torch, self.dt)
+        new_state = self.dyn.simulate_fixed_wing(
+            state_torch, action_torch, self.dt
+        )
         self._state = new_state[0].numpy()
 
         is_stable = np.all(np.absolute(self._state[6:8]) < thresh_stable)

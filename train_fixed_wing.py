@@ -10,7 +10,7 @@ from neural_control.dataset import WingDataset
 from neural_control.drone_loss import (
     trajectory_loss, fixed_wing_loss, angle_loss
 )
-from neural_control.environments.wing_3D_dynamics import long_dynamics
+from neural_control.environments.wing_3D_dynamics import FixedWingDynamics
 from neural_control.models.hutter_model import Net
 from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
@@ -39,6 +39,8 @@ THRESH_STABLE_END = .8
 SAVE = os.path.join("trained_models/wing/test_model")
 BASE_MODEL = "trained_models/wing/current_model"
 BASE_MODEL_NAME = 'model_wing'
+
+dyn = FixedWingDynamics()
 
 if not os.path.exists(SAVE):
     os.makedirs(SAVE)
@@ -165,7 +167,7 @@ for epoch in range(NR_EPOCHS):
                 # # print(k, "in ref", in_ref_state[0])
                 # action = torch.sigmoid(net(in_state, in_ref_state))
 
-                current_state = long_dynamics(
+                current_state = dyn.simulate_fixed_wing(
                     current_state, action, dt=DELTA_T
                 )
                 # intermediate_states[:, k] = current_state

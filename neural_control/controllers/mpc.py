@@ -11,7 +11,7 @@ from neural_control.environments.flightmare_dynamics import (
 )
 from neural_control.environments.drone_dynamics import SimpleDynamicsMPC
 from neural_control.environments.wing_2D_dynamics import fixed_wing_dynamics_mpc
-from neural_control.environments.wing_3D_dynamics import wing_3D_dynamics_mpc
+from neural_control.environments.wing_3D_dynamics import FixedWingDynamicsMPC
 
 
 #
@@ -148,7 +148,8 @@ class MPC(object):
         elif self.dynamics_model == "fixed_wing_2D":
             F = fixed_wing_dynamics_mpc(self._dt)
         elif self.dynamics_model == "fixed_wing_3D":
-            F = wing_3D_dynamics_mpc(self._dt)
+            dyn = FixedWingDynamicsMPC()
+            F = dyn.simulate_fixed_wing(self._dt)
         fMap = F.map(self._N, "openmp")  # parallel
 
         # # # # # # # # # # # # # # #
