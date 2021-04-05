@@ -13,8 +13,6 @@ from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.controllers.mpc import MPC
 from neural_control.utils.q_funcs import project_to_line
 
-ACTION_DIM = 2
-
 
 class FixedWingEvaluator:
     """
@@ -40,7 +38,7 @@ class FixedWingEvaluator:
         self.eval_env = SimpleWingEnv(dt)
         self.des_speed = 11.5
 
-    def fly_to_point(self, target_points, max_steps=1000):
+    def fly_to_point(self, target_points, max_steps=1000, average_action=0):
         self.eval_env.zero_reset()
         if self.render:
             self.eval_env.drone_render_object.set_target(target_points)
@@ -53,15 +51,38 @@ class FixedWingEvaluator:
         state = self.eval_env._state
         stable = True
         drone_traj, divergences = [], []
+        last_actions = np.zeros((10, 4))
+        step = 0
+
         while len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
+
+            if average_action:
+                # make average action
+                if step == 0:
+                    last_actions = action.copy()
+                else:
+                    last_actions = np.roll(last_actions, -1, axis=0)
+                    # rolling mean
+                    weight = np.expand_dims(9 - np.arange(10), 1)
+                    # np.ones((10, 1)) # for giving more weight to newer states
+
+                    last_actions = (last_actions * weight +
+                                    action) / (weight + 1)
+                # print("actions", action)
+                # print("last actions", last_actions)
+                step += 1
+                use_action = last_actions[0]
+            else:
+                use_action = action[0]
+
             # if self.render:
             #     np.set_printoptions(suppress=1, precision=3)
             #     print(action[0])
             #     print()
             state, stable = self.eval_env.step(
-                action[0], thresh_stable=self.thresh_stable
+                use_action, thresh_stable=self.thresh_stable
             )
             if self.render:
                 self.eval_env.render()
@@ -187,7 +208,7 @@ if __name__ == "__main__":
 
     # only run evaluation without render
     # tic = time.time()
-    # out_path = "../presentations/intel_meeting_10_03"
+    # out_path = "../presentations/analysis"
     # evaluator.render = 0
     # dists_from_target = evaluator.run_eval(nr_test=10, return_dists=True)
     # np.save(os.path.join(out_path, "dists_mpc_last.npy"), dists_from_target)
