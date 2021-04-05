@@ -1,5 +1,7 @@
 import argparse
 import time
+import os
+import json
 
 import casadi as cs
 import matplotlib.pyplot as plt
@@ -328,15 +330,13 @@ def compute_random_trajectory(
     freq_y,
     freq_z,
     duration=30.0,
-    dt=0.01
+    dt=0.01,
+    seed=0
 ):
     # print("Computing random trajectory!")
     assert dt == 0.01
 
     debug = False
-    seed = None  # 20
-    if seed is None:
-        seed = np.random.randint(0, 9999)
 
     # kernel to map functions that repeat exactly
     # print("seed is: %d" % seed)
@@ -554,38 +554,33 @@ def compute_geometric_trajectory(quad, duration=30.0, dt=0.001):
     return trajectory, motor_inputs, t_vec
 
 
-def generate_trajectory(
-    duration,
+def load_prepare_trajectory(
+    base_dir,
     dt,
-    speed_factor=.6,
-    mode="random",
-    freq_x=2,
-    freq_y=2,
-    freq_z=2
+    speed_factor,
+    test=False
 ):
     """
     speed factor: between 0 and 1, 0.6 would mean that it's going at 0.6 of the
     actual speed (but discrete steps! if dt=0.05 then speed_factor can only be
     0.8, 0.6, 0.4, etc)
     """
-    quad = Quad(10.0)
+    # FOR TESTING: original version
+    # quad = Quad(10.0)
+    # arena_bound_max = np.array([6.5, 10, 10])  # np.array([8.0, 5.0, 5.0]) #
+    # arena_bound_min = np.array([-6.5, -10, 0])
+    # trajectory, _, _ = compute_random_trajectory(
+    #     quad, arena_bound_max, arena_bound_min, .9, .7, .7,
+    #     10, 0.01, seed=np.random.randint(10000)
+    # )
+    folder = 'test' if test else "train"
+    data_list = os.listdir(os.path.join(base_dir, folder))
+    rand_traj = np.random.choice(data_list)
+    trajectory = np.load(os.path.join(base_dir, folder, rand_traj))
 
-    # the arena bounds
-    arena_bound_max = np.array([6.5, 10, 10])  # np.array([8.0, 5.0, 5.0]) #
-    arena_bound_min = np.array([-6.5, -10, 0])
-
-    # compute trajector
-    trajectory, motor_inputs, t_vec = compute_random_trajectory(
-        quad, arena_bound_max, arena_bound_min, freq_x, freq_y, freq_z,
-        duration, 0.01
-    )
     # dt for trajectory generation is 0.01, then transform back
     take_every_nth = int(dt / 0.01 * speed_factor)
     taken_every = trajectory[::take_every_nth, :]
-
-    freq_x = 0.29
-    freq_y = 0.27
-    freq_z = 0.7
 
     # transform to euler angels
     quaternions = taken_every[:, 3:7]
@@ -603,7 +598,51 @@ def generate_trajectory(
     # print("transformed shape", transformed_ref.shape)
     return transformed_ref
 
+def make_dataset():
+    config = {
+        "duration": 10,
+        "train_split": .9,
+        "freq_x": 0.9,
+        "freq_y": 0.7,
+        "freq_z": 0.7,
+        "out_dir": "data/traj_data_1/",
+    }
+
+    cutoff = int(10000 * config["train_split"])
+    rand_nums = np.random.permutation(10000)
+    train_rand_states = rand_nums[:cutoff]
+    test_rand_states = rand_nums[cutoff:]
+
+    quad = Quad(10.0)
+
+    # the arena bounds
+    arena_bound_max = np.array([6.5, 10, 10])  # np.array([8.0, 5.0, 5.0]) #
+    arena_bound_min = np.array([-6.5, -10, 0])
+
+    for out_dir in ["train", "test"]:
+        out_path = os.path.join(config["out_dir"], out_dir)
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
+
+    for rand_states, train_test_dir in zip([train_rand_states, test_rand_states], ["train", "test"]):
+        out_path = os.path.join(config["out_dir"], train_test_dir)
+        for rand in rand_states:
+            # compute trajectory
+            trajectory, _, _ = compute_random_trajectory(
+                quad, arena_bound_max, arena_bound_min, config["freq_x"], config["freq_y"], config["freq_z"],
+                config["duration"], 0.01, seed=rand
+            )
+            np.save(os.path.join(out_path, f"traj_{rand}.npy"), trajectory[:, :10])
+
+    
+    traj_len = len(trajectory)
+    config["traj_len"] = traj_len
+
+    with open(os.path.join(config["out_dir"], "config.json"), "w") as outfile:
+        json.dump(config, outfile)
 
 if __name__ == '__main__':
-    traj = generate_trajectory(10, 0.05)
-    print(len(traj))
+    make_dataset()
+    # # Test loading function
+    # load_prepare_trajectory("data/traj_data_1/", 0.1, 0.6, test=1)
+

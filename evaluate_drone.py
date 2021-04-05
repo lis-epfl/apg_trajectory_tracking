@@ -117,6 +117,7 @@ class QuadEvaluator():
             speed_factor=self.speed_factor,
             horizon=self.horizon,
             dt=self.dt,
+            test_time=self.test_time,
             **traj_args
         )
         if traj_type == "rand":
@@ -244,14 +245,17 @@ class QuadEvaluator():
             div.append(np.mean(divergences))
             # before take over
             no_large_div = np.sum(np.array(divergences) < thresh_div)
+            # print(np.mean(divergences), no_large_div)
             # no_large_div = np.where(np.array(divergences) > thresh_div)[0][0]
             stable.append(no_large_div)
             # stable.append(len(drone_traj))
 
         # Output results
+        stable = np.array(stable)
+        div_of_full_runs = np.array(div)[stable == np.max(stable)]
         print(
             "%s: Average divergence: %3.2f (%3.2f)" %
-            (reference, np.mean(div), np.std(div))
+            (reference, np.mean(div_of_full_runs), np.std(div_of_full_runs))
         )
         print(
             "%s: Steps until divergence: %3.2f (%3.2f)" %
@@ -303,6 +307,24 @@ def load_model(model_path, epoch=""):
     controller = NetworkWrapper(net, dataset, **param_dict)
 
     return controller, param_dict
+
+def analyze_mpc_mismatch(evaluator, param="down_drag", max_vary=1, steps=10):
+    evaluator.render = 0
+    current_param = getattr(evaluator.eval_env.dynamics, param)
+    print("default", current_param)
+
+    try:
+        len_add = len(current_param)
+    except TypeError:
+        len_add = 1
+
+    for i in range(steps):
+        mod_param = current_param + np.random.rand()
+        print("modified", i, mod_param)
+        if len(mod_param) == 1:
+            mod_param = mod_param[0]
+        evaluator.eval_env.dynamics.set_attributes({param: mod_param})
+        evaluator.eval_ref(args.ref, nr_test=10, max_steps=500, **traj_args)
 
 
 if __name__ == "__main__":
@@ -423,7 +445,8 @@ if __name__ == "__main__":
     speed = evaluator.compute_speed(drone_traj[:, :3])
     print(
         "Speed: max:", round(np.max(speed), 2), ", mean:",
-        round(np.mean(speed), 2), "stopped at", len(drone_traj)
+        round(np.mean(speed), 2), "stopped at", len(drone_traj),
+        "avg tracking error", np.mean(divergences)
     )
     # print(speed)
     plot_trajectory(

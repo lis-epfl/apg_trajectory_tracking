@@ -24,7 +24,7 @@ from neural_control.environments.flightmare_dynamics import (
     FlightmareDynamics
 )
 from neural_control.environments.drone_dynamics import SimpleDynamics
-from neural_control.utils.generate_trajectory import generate_trajectory
+from neural_control.utils.generate_trajectory import load_prepare_trajectory
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -272,7 +272,7 @@ def load_training_data(len_data, ref_length=5, reset_strength=0, **kwargs):
 
 
 def full_state_training_data(
-    len_data, ref_length=5, reset_strength=0, dt=0.02, **kwargs
+    len_data, ref_length=5, dt=0.02, speed_factor=.6, **kwargs
 ):
     """
     Use trajectory generation of Elia to generate random trajectories and then
@@ -288,8 +288,9 @@ def full_state_training_data(
 
     counter = 0
     while counter < len_data:
-        traj = generate_trajectory(10, dt)[:, :ref_size]
-        # TODO: freq of trajectory?
+        traj = load_prepare_trajectory(
+            "data/traj_data_1", dt, speed_factor, test=0
+        )[:, :ref_size]
         traj_cut = traj[:-ref_length]
         # select every xth sample as the current drone state
         selected_starts = traj_cut[::sample_freq, :]

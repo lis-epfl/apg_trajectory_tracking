@@ -19,7 +19,8 @@ class FlightmareWrapper(QuadRotorEnvBase):
         """
 
     def __init__(self, dt, unity_render=False):
-        super().__init__(dt)
+        # dynamics is None because using fm dynamics
+        super().__init__(None, dt)
         # modify dt in env config
         cfg_env_path = (os.environ["FLIGHTMARE_PATH"] +
                 "/flightlib/configs/quadrotor_env.yaml")
