@@ -5,7 +5,7 @@ import torch
 import torch.optim as optim
 
 from neural_control.dataset import CartpoleDataset
-from neural_control.cartpole_loss import control_loss_function
+from neural_control.drone_loss import cartpole_loss
 from evaluate_cartpole import Evaluator
 from neural_control.models.resnet_like_model import Net
 from neural_control.plotting import plot_loss, plot_success

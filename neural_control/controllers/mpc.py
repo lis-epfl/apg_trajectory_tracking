@@ -402,9 +402,7 @@ class MPC(object):
 
     def predict_actions(self, current_state, ref_states):
         if self.dynamics_model in ["simple_quad", "flightmare"]:
-            preprocessed_ref = self.preprocess_simple_quad(
-                current_state, ref_states
-            )
+            preprocessed_ref = self.preprocess_quad(current_state, ref_states)
         elif self.dynamics_model in ["fixed_wing_2D", "fixed_wing_3D"]:
             preprocessed_ref = self.preprocess_fixed_wing(
                 current_state, ref_states

@@ -1,7 +1,4 @@
-import torch.nn as nn
 import torch
-import numpy as np
-from torch.autograd import Variable
 torch.pi = torch.acos(torch.zeros(1)).item() * 2
 
 # target state means that theta is zero --> only third position matters
@@ -20,7 +17,7 @@ muc = 0.0005
 mup = 0.000002
 
 
-def state_to_theta(state, action):
+def simulate_cartpole(state, action):
     """
     Compute new state from state and action
     """
@@ -59,41 +56,3 @@ def state_to_theta(state, action):
 
     new_state = torch.stack((x, x_dot, theta, theta_dot), dim=1)
     return new_state
-
-
-def control_loss_function(action, state, lambda_factor=.4, printout=0):
-
-    # bring action into -1 1 range
-    action = torch.sigmoid(action) - .5
-
-    nr_actions = action.size()[1]
-
-    # update state iteratively for each proposed action
-    for i in range(nr_actions):
-        state = state_to_theta(state, action[:, i])
-    abs_state = torch.abs(state)
-
-    pos_loss = state[:, 0]**2
-    # velocity losss is low when x is high
-    vel_loss = abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
-    angle_loss = 3 * abs_state[:, 2]
-    # high angle velocity is fine if angle itself is high
-    angle_vel_loss = .1 * abs_state[:, 3] * (torch.pi - abs_state[:, 2])**2
-    loss = .1 * (pos_loss + vel_loss + angle_loss + angle_vel_loss)
-
-    if printout:
-        # print(
-        #     "x before",
-        #     x_orig[0].item(),
-        #     "x after",
-        #     x[0].item(),  # "theta max possible", theta_max_possible[0].item()
-        # )
-        # print("losses:")
-        print("position_loss", pos_loss[0].item())
-        print("vel_loss", vel_loss[0].item())
-        # print("factor", factor[0].item())
-        print("angle loss", angle_loss[0].item())
-        print("angle vel", angle_vel_loss[0].item())
-        print()
-    # print(fail)
-    return torch.sum(loss)  # + angle_acc)

@@ -7,7 +7,7 @@ import torch
 from neural_control.environments.cartpole_env import CartPoleEnv
 from neural_control.dataset import raw_states_to_torch
 from neural_control.models.resnet_like_model import Net
-from neural_control.cartpole_loss import control_loss_function
+from neural_control.drone_loss import cartpole_loss
 
 APPLY_UNTIL = 3
 
@@ -52,8 +52,7 @@ class Evaluator:
                     # Predict optimal action:
                     predicted_action = net(torch_state)
                     collect_loss.append(
-                        control_loss_function(predicted_action,
-                                              torch_state).item()
+                        cartpole_loss(predicted_action, torch_state).item()
                     )
                     action_seq = torch.sigmoid(predicted_action) - .5
                     # print([round(act, 2) for act in action_seq[0].numpy()])

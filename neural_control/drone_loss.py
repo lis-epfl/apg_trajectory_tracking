@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from neural_control.plotting import print_state_ref_div
+from neural_control.dynamics.cartpole_dynamics import simulate_cartpole
 device = "cpu"
 torch.autograd.set_detect_anomaly(True)
 zero_tensor = torch.zeros(3).to(device)
@@ -338,3 +339,34 @@ def trajectory_loss(
         print(projected_pos.detach().numpy()[0])
         exit()
     return loss
+
+
+def cartpole_loss(action, state, lambda_factor=.4, printout=0):
+
+    # bring action into -1 1 range
+    action = torch.sigmoid(action) - .5
+
+    nr_actions = action.size()[1]
+
+    # update state iteratively for each proposed action
+    for i in range(nr_actions):
+        state = simulate_cartpole(state, action[:, i])
+    abs_state = torch.abs(state)
+
+    pos_loss = state[:, 0]**2
+    # velocity losss is low when x is high
+    vel_loss = abs_state[:, 1] * (2.4 - abs_state[:, 0])**2
+    angle_loss = 3 * abs_state[:, 2]
+    # high angle velocity is fine if angle itself is high
+    angle_vel_loss = .1 * abs_state[:, 3] * (torch.pi - abs_state[:, 2])**2
+    loss = .1 * (pos_loss + vel_loss + angle_loss + angle_vel_loss)
+
+    if printout:
+        print("position_loss", pos_loss[0].item())
+        print("vel_loss", vel_loss[0].item())
+        # print("factor", factor[0].item())
+        print("angle loss", angle_loss[0].item())
+        print("angle vel", angle_vel_loss[0].item())
+        print()
+    # print(fail)
+    return torch.sum(loss)  # + angle_acc)
