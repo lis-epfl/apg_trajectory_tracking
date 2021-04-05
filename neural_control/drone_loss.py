@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-from neural_control.utils.plotting import print_state_ref_div
+from neural_control.plotting import print_state_ref_div
 device = "cpu"
 torch.autograd.set_detect_anomaly(True)
 zero_tensor = torch.zeros(3).to(device)

@@ -11,16 +11,16 @@ from neural_control.drone_loss import (
     drone_loss_function, simply_last_loss, reference_loss, mse_loss,
     weighted_loss
 )
-from neural_control.environments.drone_dynamics import SimpleDynamics
-from neural_control.environments.flightmare_dynamics import (
+from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
+from neural_control.dynamics.quad_dynamics_flightmare import (
     FlightmareDynamics
 )
-from neural_control.environments.learnt_dynamics import LearntDynamics
+from neural_control.dynamics.quad_dynamics_trained import LearntDynamics
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.environments.drone_env import QuadRotorEnvBase
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
-from neural_control.utils.plotting import (
+from neural_control.plotting import (
     plot_loss_episode_len, print_state_ref_div
 )
 try:
@@ -38,7 +38,7 @@ class TrainDrone:
         self,
         train_dynamics,
         eval_dynamics,
-        speed_factor = .6,
+        speed_factor=.6,
         sample_in="train_env"
     ):
         """
@@ -320,7 +320,7 @@ if __name__ == "__main__":
     train_dynamics = FlightmareDynamics()
     # LearntDynamics()
 
-    eval_dynamics = None # FlightmareDynamics(**modified_params)
+    eval_dynamics = None  # FlightmareDynamics(**modified_params)
 
     trainer = TrainDrone(train_dynamics, eval_dynamics, sample_in=sample_in)
 

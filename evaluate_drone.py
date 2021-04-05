@@ -8,14 +8,14 @@ import torch
 from neural_control.environments.drone_env import (
     QuadRotorEnvBase, trajectory_training_data
 )
-from neural_control.utils.plotting import (
+from neural_control.plotting import (
     plot_state_variables, plot_trajectory, plot_position, plot_suc_by_dist,
     plot_drone_ref_coords
 )
-from neural_control.utils.straight import Hover, Straight
-from neural_control.utils.circle import Circle
-from neural_control.utils.polynomial import Polynomial
-from neural_control.utils.random_traj import Random
+from neural_control.trajectory.straight import Hover, Straight
+from neural_control.trajectory.circle import Circle
+from neural_control.trajectory.polynomial import Polynomial
+from neural_control.trajectory.random_traj import Random
 from neural_control.dataset import DroneDataset
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
@@ -420,7 +420,7 @@ if __name__ == "__main__":
         "duration": 10
     }
     if args.points is not None:
-        from neural_control.utils.predefined_trajectories import (
+        from neural_control.trajectory.predefined_trajectories import (
             collected_trajectories
         )
         traj_args["points_to_traverse"] = collected_trajectories[args.points]

@@ -2,7 +2,7 @@ import torch
 import numpy as np
 
 from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
-from neural_control.utils.plotting import plot_wing_pos
+from neural_control.plotting import plot_wing_pos
 
 dyn = FixedWingDynamics()
 

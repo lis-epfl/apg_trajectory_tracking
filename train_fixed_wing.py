@@ -10,11 +10,11 @@ from neural_control.dataset import WingDataset
 from neural_control.drone_loss import (
     trajectory_loss, fixed_wing_loss, angle_loss
 )
-from neural_control.environments.wing_3D_dynamics import FixedWingDynamics
+from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 from neural_control.models.hutter_model import Net
 from evaluate_fixed_wing import FixedWingEvaluator
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
-from neural_control.utils.plotting import plot_loss_episode_len
+from neural_control.plotting import plot_loss_episode_len
 
 DEBUG = 0
 DELTA_T = 0.05

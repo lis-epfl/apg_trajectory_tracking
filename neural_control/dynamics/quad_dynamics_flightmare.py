@@ -175,7 +175,7 @@ class FlightmareDynamics(Dynamics):
 
         # other option: use quaternion
         # --> also slight error to flightmare, even when using euler, no idea why
-        # from neural_control.utils.q_funcs import (
+        # from neural_control.trajectory.q_funcs import (
         #     q_dot_new, euler_to_quaternion, quaternion_to_euler
         # )
         # quaternion = euler_to_quaternion(

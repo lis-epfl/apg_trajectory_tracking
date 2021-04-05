@@ -6,12 +6,12 @@ import numpy as np
 import torch
 
 from neural_control.environments.wing_env import SimpleWingEnv, run_wing_flight
-from neural_control.utils.plotting import plot_wing_pos_3d
+from neural_control.plotting import plot_wing_pos_3d
 from neural_control.dataset import WingDataset
 from evaluate_drone import load_model_params
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.controllers.mpc import MPC
-from neural_control.utils.q_funcs import project_to_line
+from neural_control.trajectory.q_funcs import project_to_line
 
 
 class FixedWingEvaluator:

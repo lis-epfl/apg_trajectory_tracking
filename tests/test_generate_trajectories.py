@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 np.set_printoptions(suppress=True, precision=3)
 
-from neural_control.utils.straight import Hover, Straight
-from neural_control.utils.circle import Circle
-from neural_control.utils.polynomial import Polynomial
+from neural_control.trajectory.straight import Hover, Straight
+from neural_control.trajectory.circle import Circle
+from neural_control.trajectory.polynomial import Polynomial
 
 # the input to generate a reference trajectory is a drone state of the form
 # position, attitude, velocity

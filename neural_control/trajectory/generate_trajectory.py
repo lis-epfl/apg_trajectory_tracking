@@ -11,7 +11,7 @@ from scipy import interpolate
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ExpSineSquared
 
-from neural_control.utils.q_funcs import (
+from neural_control.trajectory.q_funcs import (
     q_dot_q, quaternion_inverse, quaternion_to_euler
 )
 # from utils.visualization import debug_plot, draw_poly
@@ -20,7 +20,7 @@ Autor: Elia Kaufmann
 Script for generating random and geometric quadrotor trajectories
 """
 
-from neural_control.environments.dynamics import Dynamics
+from neural_control.dynamics.quad_dynamics_base import Dynamics
 
 
 class Quad(Dynamics):
@@ -554,12 +554,7 @@ def compute_geometric_trajectory(quad, duration=30.0, dt=0.001):
     return trajectory, motor_inputs, t_vec
 
 
-def load_prepare_trajectory(
-    base_dir,
-    dt,
-    speed_factor,
-    test=False
-):
+def load_prepare_trajectory(base_dir, dt, speed_factor, test=False):
     """
     speed factor: between 0 and 1, 0.6 would mean that it's going at 0.6 of the
     actual speed (but discrete steps! if dt=0.05 then speed_factor can only be
@@ -598,6 +593,7 @@ def load_prepare_trajectory(
     # print("transformed shape", transformed_ref.shape)
     return transformed_ref
 
+
 def make_dataset():
     config = {
         "duration": 10,
@@ -624,25 +620,35 @@ def make_dataset():
         if not os.path.exists(out_path):
             os.makedirs(out_path)
 
-    for rand_states, train_test_dir in zip([train_rand_states, test_rand_states], ["train", "test"]):
+    for rand_states, train_test_dir in zip(
+        [train_rand_states, test_rand_states], ["train", "test"]
+    ):
         out_path = os.path.join(config["out_dir"], train_test_dir)
         for rand in rand_states:
             # compute trajectory
             trajectory, _, _ = compute_random_trajectory(
-                quad, arena_bound_max, arena_bound_min, config["freq_x"], config["freq_y"], config["freq_z"],
-                config["duration"], 0.01, seed=rand
+                quad,
+                arena_bound_max,
+                arena_bound_min,
+                config["freq_x"],
+                config["freq_y"],
+                config["freq_z"],
+                config["duration"],
+                0.01,
+                seed=rand
             )
-            np.save(os.path.join(out_path, f"traj_{rand}.npy"), trajectory[:, :10])
+            np.save(
+                os.path.join(out_path, f"traj_{rand}.npy"), trajectory[:, :10]
+            )
 
-    
     traj_len = len(trajectory)
     config["traj_len"] = traj_len
 
     with open(os.path.join(config["out_dir"], "config.json"), "w") as outfile:
         json.dump(config, outfile)
 
+
 if __name__ == '__main__':
     make_dataset()
     # # Test loading function
     # load_prepare_trajectory("data/traj_data_1/", 0.1, 0.6, test=1)
-
