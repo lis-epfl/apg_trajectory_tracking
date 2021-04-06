@@ -356,5 +356,6 @@ if __name__ == "__main__":
             print(f"Loss ({model_to_train}): {round(epoch_loss, 2)}")
             # print("time one epoch", time.time() - tic_epoch)
     except KeyboardInterrupt:
-        # Save model
-        trainer.finalize(success_mean_list, success_std_list, loss_list)
+        pass
+    # Save model
+    trainer.finalize(success_mean_list, success_std_list, loss_list)

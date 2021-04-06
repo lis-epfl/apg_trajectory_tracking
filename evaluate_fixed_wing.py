@@ -29,6 +29,7 @@ class FixedWingEvaluator:
         render=0,
         thresh_div=10,
         thresh_stable=0.8,
+        test_time=0,
         **kwargs
     ):
         self.controller = controller
@@ -39,6 +40,7 @@ class FixedWingEvaluator:
         self.thresh_stable = thresh_stable
         self.eval_env = env
         self.des_speed = 11.5
+        self.test_time = test_time
 
     def fly_to_point(self, target_points, max_steps=1000, average_action=0):
         self.eval_env.zero_reset()
@@ -110,8 +112,9 @@ class FixedWingEvaluator:
                     break
 
             if not stable or div > self.thresh_div:
-                if self.render:
-                    print("diverged", div, "stable", stable)
+                if self.test_time:
+                    if self.render:
+                        print("diverged", div, "stable", stable)
                     break
                 else:
                     reset_state = np.zeros(12)
@@ -154,20 +157,14 @@ class FixedWingEvaluator:
         return mean_err, std_err
 
 
-def load_model(model_path, epoch="", horizon=10, dt=0.05, **kwargs):
+def load_model(model_path, epoch="", **kwargs):
     """
     Load model and corresponding parameters
     """
-    if "mpc" not in model_path:
-        # load std or other parameters from json
-        net, param_dict = load_model_params(
-            model_path, "model_wing", epoch=epoch
-        )
-        dataset = WingDataset(100, **param_dict)
+    net, param_dict = load_model_params(model_path, "model_wing", epoch=epoch)
+    dataset = WingDataset(100, **param_dict)
 
-        controller = FixedWingNetWrapper(net, dataset, **param_dict)
-    else:
-        controller = MPC(horizon, dt, dynamics="fixed_wing_3D")
+    controller = FixedWingNetWrapper(net, dataset, **param_dict)
     return controller
 
 
@@ -202,20 +199,25 @@ if __name__ == "__main__":
     model_name = args.model
     model_path = os.path.join("trained_models", "wing", model_name)
 
-    controller = load_model(
-        model_path, epoch=args.epoch, name="model_wing", **params
-    )
+    if model_name != "mpc":
+        controller = load_model(
+            model_path, epoch=args.epoch, name="model_wing", **params
+        )
+    else:
+        controller = MPC(20, 0.1, dynamics="fixed_wing_3D")
 
     dynamics = FixedWingDynamics()
     eval_env = SimpleWingEnv(dynamics, params["dt"])
-    evaluator = FixedWingEvaluator(controller, eval_env, **params)
+    evaluator = FixedWingEvaluator(controller, eval_env, test_time=1, **params)
 
     # only run evaluation without render
     # tic = time.time()
     # out_path = "../presentations/analysis"
     # evaluator.render = 0
     # dists_from_target = evaluator.run_eval(nr_test=10, return_dists=True)
-    # np.save(os.path.join(out_path, "dists_mpc_last.npy"), dists_from_target)
+    # np.save(
+    #     os.path.join(out_path, "analyse_neural_new.npy"), dists_from_target
+    # )
     # print("time for 100 trajectories", time.time() - tic)
     # exit()
 

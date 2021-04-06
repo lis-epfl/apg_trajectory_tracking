@@ -37,15 +37,15 @@ class TrainFixedWing:
         """
         self.sample_in = sample_in
         self.delta_t = 0.05
-        self.epoch_size = 500
+        self.epoch_size = 1000
         self.vec_std = 0.15
-        self.self_play = 1
+        self.self_play = .5
         self.self_play_every_x = 2
         self.batch_size = 8
         self.reset_strength = 1.2
         self.max_drone_dist = 0.25
         self.thresh_div_start = 4
-        self.thresh_div_end = 6
+        self.thresh_div_end = 5
         self.thresh_stable_start = .4
         self.thresh_stable_end = .5
         self.state_size = 12
@@ -296,7 +296,7 @@ if __name__ == "__main__":
 
     method = "train_control"
     modified_params = {}
-    base_model = "trained_models/wing/current_model"
+    base_model = "trained_models/wing/best_23"
 
     if method == "sample":
         nr_epochs = 10
@@ -351,5 +351,6 @@ if __name__ == "__main__":
             print(f"Loss ({model_to_train}): {round(epoch_loss, 2)}")
             # print("time one epoch", time.time() - tic_epoch)
     except KeyboardInterrupt:
-        # Save model
-        trainer.finalize(success_mean_list, success_std_list, loss_list)
+        pass
+    # Save model
+    trainer.finalize(success_mean_list, success_std_list, loss_list)
