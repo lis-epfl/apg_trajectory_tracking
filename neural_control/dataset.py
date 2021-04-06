@@ -55,20 +55,28 @@ class DroneDataset(torch.utils.data.Dataset):
         self.num_self_play = int(self_play * num_states)
         self.total_dataset_size = self.num_sampled_states + self.num_self_play
 
-        states, ref_states = full_state_training_data(
-            self.total_dataset_size, **kwargs
-        )
+        self.kwargs = kwargs
+
+        states, ref_states = self.sample_data()
+
         if mean is None:
             # sample states
-            self.mean = np.mean(states, axis=0)
-            self.std = np.std(states, axis=0)
+            mean = np.mean(states, axis=0)
+            std = np.std(states, axis=0)
 
-        self.kwargs = kwargs
+        self.mean = torch.tensor(mean).float()
+        self.std = torch.tensor(std).float()
+
         (self.normed_states, self.states, self.in_ref_states,
          self.ref_states) = self.prepare_data(states, ref_states)
 
         # count where to add new evaluation data
         self.eval_counter = 0
+
+    def get_means_stds(self, param_dict):
+        param_dict["mean"] = self.mean.tolist()
+        param_dict["std"] = self.std.tolist()
+        return param_dict
 
     def get_eval_index(self):
         """
@@ -79,16 +87,11 @@ class DroneDataset(torch.utils.data.Dataset):
                 self.eval_counter % self.num_self_play
             ) + self.num_sampled_states
 
-    def set_num_sampled_states(self, num_sampled_states):
-        self.num_sampled_states = num_sampled_states
-
     def resample_data(self):
         """
         Sample new training data and replace dataset with it
         """
-        states, ref_states = full_state_training_data(
-            self.num_sampled_states, **self.kwargs
-        )
+        states, ref_states = self.sample_data()
         (prep_normed_states, prep_states, prep_in_ref_states,
          prep_ref_states) = self.prepare_data(states, ref_states)
 
@@ -104,9 +107,6 @@ class DroneDataset(torch.utils.data.Dataset):
         While evaluating, add the data to the dataset with some probability
         to achieve self play
         """
-        states = np.expand_dims(states, 0)
-        ref_states = np.expand_dims(ref_states, 0)
-
         (normed_states, states, in_ref_states,
          ref_states) = self.prepare_data(states, ref_states)
         if add_to_dataset and self.num_self_play > 0:
@@ -133,8 +133,17 @@ class DroneDataset(torch.utils.data.Dataset):
             self.in_ref_states[index], self.ref_states[index]
         )
 
-    def normalize_data(self, states):
-        return (states - self.mean) / self.std
+
+class QuadDataset(DroneDataset):
+
+    def __init__(self, num_states, self_play, mean=None, std=None, **kwargs):
+        super().__init__(num_states, self_play, mean=mean, std=std, **kwargs)
+
+    def sample_data(self):
+        states, ref_states = full_state_training_data(
+            self.num_sampled_states, **self.kwargs
+        )
+        return states, ref_states
 
     def rot_world_to_body(self, state_vector, world_to_body):
         """
@@ -151,6 +160,9 @@ class DroneDataset(torch.utils.data.Dataset):
         - normalize
         - world to body
         """
+        if len(states.shape) == 1:
+            states = np.expand_dims(states, 0)
+            ref_states = np.expand_dims(ref_states, 0)
         # 1) make torch arrays
         drone_states = self.to_torch(states)
         torch_ref_states = self.to_torch(ref_states)
@@ -232,7 +244,7 @@ class CartpoleDataset(torch.utils.data.Dataset):
         return self.to_torch(states)
 
 
-class WingDataset(torch.utils.data.Dataset):
+class WingDataset(DroneDataset):
 
     def __init__(
         self,
@@ -244,89 +256,16 @@ class WingDataset(torch.utils.data.Dataset):
         ref_std=None,
         **kwargs
     ):
-        # First constructor: New dataset for training
-        self.num_sampled_states = num_states
-        self.num_self_play = int(self_play * num_states)
-        self.total_dataset_size = self.num_sampled_states + self.num_self_play
-        states, ref_states = sample_training_data(
-            self.total_dataset_size, **kwargs
-        )
+        super().__init__(num_states, self_play=0, mean=mean, std=std, **kwargs)
 
-        if mean is None:
-            # sample states
-            mean = np.mean(states, axis=0)
-            std = np.std(states, axis=0)
-            pos_diff = ref_states[:, :3] - states[:, :3]
-            ref_mean = np.mean(pos_diff, axis=0)
-            ref_std = np.std(pos_diff, axis=0)
-
-        self.mean = torch.tensor(mean).float()
-        self.std = torch.tensor(std).float()
-        self.ref_mean = torch.tensor(ref_mean).float()
-        self.ref_std = torch.tensor(ref_std).float()
-
-        self.kwargs = kwargs
-        (
-            self.normed_states, self.states, self.normed_ref_states,
-            self.ref_states
-        ) = self.prepare_data(states, ref_states)
-
-        # count where to add new evaluation data
-        self.eval_counter = 0
-
-    def get_means_stds(self, param_dict):
-        param_dict["mean"] = self.mean.tolist()
-        param_dict["std"] = self.std.tolist()
-        param_dict["ref_mean"] = self.ref_mean.tolist()
-        param_dict["ref_std"] = self.ref_std.tolist()
-        return param_dict
-
-    def get_eval_index(self):
+    def sample_data(self):
         """
-        compute current index where to add new data
-        """
-        if self.num_self_play > 0:
-            return (
-                self.eval_counter % self.num_self_play
-            ) + self.num_sampled_states
-
-    def resample_data(self):
-        """
-        Sample new training data and replace dataset with it
+        Interface to training data function of fixed wing drone
         """
         states, ref_states = sample_training_data(
             self.num_sampled_states, **self.kwargs
         )
-        (prep_normed_states, prep_states, prep_in_ref_states,
-         prep_ref_states) = self.prepare_data(states, ref_states)
-
-        # add to first (the sampled) part of dataset
-        num = self.num_sampled_states
-        self.normed_states[:num] = prep_normed_states
-        self.states[:num] = prep_states
-        self.normed_ref_states[:num] = prep_in_ref_states
-        self.ref_states[:num] = prep_ref_states
-
-    def get_and_add_eval_data(self, states, ref_states, add_to_dataset=False):
-        """
-        While evaluating, add the data to the dataset with some probability
-        to achieve self play
-        """
-        (normed_states, states, normed_ref_states,
-         ref_states) = self.prepare_data(states, ref_states)
-        if add_to_dataset and self.num_self_play > 0:
-            # replace previous eval data with new eval data
-            counter = self.get_eval_index()
-            self.normed_states[counter] = normed_states[0]
-            self.states[counter] = states[0]
-            self.ref_states[counter] = ref_states[0]
-            self.normed_ref_states[counter] = normed_ref_states[0]
-            self.eval_counter += 1
-
-        return normed_states, states, normed_ref_states, ref_states
-
-    def to_torch(self, states):
-        return torch.from_numpy(states).float().to(device)
+        return states, ref_states
 
     def prepare_data(self, states, ref_states):
         """
@@ -354,13 +293,3 @@ class WingDataset(torch.utils.data.Dataset):
         normed_ref_states = (relative_ref.t() / ref_vec_norm).t()
 
         return normed_states, states, normed_ref_states, ref_states
-
-    def __len__(self):
-        return len(self.states)
-
-    def __getitem__(self, index):
-        # Select sample
-        return (
-            self.normed_states[index], self.states[index],
-            self.normed_ref_states[index], self.ref_states[index]
-        )

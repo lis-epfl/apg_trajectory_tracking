@@ -6,7 +6,7 @@ import torch.optim as optim
 import torch
 import torch.nn.functional as F
 
-from neural_control.dataset import DroneDataset
+from neural_control.dataset import QuadDataset
 from neural_control.drone_loss import (
     drone_loss_function, simply_last_loss, reference_loss, mse_loss,
     weighted_loss
@@ -99,7 +99,7 @@ class TrainDrone:
             STD = np.array(self.param_dict["std"]).astype(float)
             MEAN = np.array(self.param_dict["mean"]).astype(float)
         else:
-            self.state_data = DroneDataset(
+            self.state_data = QuadDataset(
                 self.epoch_size,
                 self.self_play,
                 reset_strength=self.reset_strength,
@@ -141,7 +141,7 @@ class TrainDrone:
             json.dump(self.param_dict, outfile)
 
         # init dataset
-        self.state_data = DroneDataset(
+        self.state_data = QuadDataset(
             self.epoch_size, self.self_play, **self.param_dict
         )
         # Init train loader

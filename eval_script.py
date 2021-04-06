@@ -5,7 +5,7 @@ import pandas as pd
 
 from evaluate_drone import QuadEvaluator, load_model
 from neural_control.controllers.mpc import MPC
-from neural_control.dataset import DroneDataset
+from neural_control.dataset import QuadDataset
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
 from neural_control.dynamics.quad_dynamics_flightmare import FlightmareDynamics
 from neural_control.environments.drone_env import QuadRotorEnvBase

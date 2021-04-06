@@ -16,7 +16,7 @@ from neural_control.trajectory.straight import Hover, Straight
 from neural_control.trajectory.circle import Circle
 from neural_control.trajectory.polynomial import Polynomial
 from neural_control.trajectory.random_traj import Random
-from neural_control.dataset import DroneDataset
+from neural_control.dataset import QuadDataset
 from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
 from neural_control.dynamics.quad_dynamics_flightmare import FlightmareDynamics
@@ -302,7 +302,7 @@ def load_model(model_path, epoch=""):
     """
     # load std or other parameters from json
     net, param_dict = load_model_params(model_path, "model_quad", epoch=epoch)
-    dataset = DroneDataset(1, 1, **param_dict)
+    dataset = QuadDataset(1, 0, **param_dict)
 
     controller = NetworkWrapper(net, dataset, **param_dict)
 
