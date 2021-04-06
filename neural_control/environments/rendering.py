@@ -219,7 +219,7 @@ class FixedWingDrone(RenderedObject):
 
     def set_target(self, target):
         self.targets = np.array(target)
-        self.x_normalize = 14 / self.targets[-1, 0]
+        self.x_normalize = 14 / np.max(self.targets[:, 0])
 
     def draw(self, renderer):
         state = self.source._state.copy()

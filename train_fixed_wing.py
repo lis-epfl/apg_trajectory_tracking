@@ -67,6 +67,18 @@ class TrainFixedWing:
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
 
+        # specify  self.sample_in to collect more data (exploration)
+        if self.sample_in == "eval_env":
+            self.eval_env = SimpleWingEnv(
+                self.eval_dynamics, self.param_dict["dt"]
+            )
+        elif self.sample_in == "train_env":
+            self.eval_env = SimpleWingEnv(
+                self.train_dynamics, self.param_dict["dt"]
+            )
+        else:
+            raise ValueError("sample in must be one of eval_env, train_env")
+
     def initialize_model(
         self,
         base_model=None,
@@ -243,17 +255,10 @@ class TrainFixedWing:
         controller = FixedWingNetWrapper(
             self.net, self.state_data, **self.param_dict
         )
-        # specify  self.sample_in to collect more data (exploration)
-        if self.sample_in == "eval_env":
-            eval_env = SimpleWingEnv(self.eval_dynamics, self.param_dict["dt"])
-        elif self.sample_in == "train_env":
-            eval_env = SimpleWingEnv(
-                self.train_dynamics, self.param_dict["dt"]
-            )
-        else:
-            raise ValueError("sample in must be one of eval_env, train_env")
 
-        evaluator = FixedWingEvaluator(controller, eval_env, **self.param_dict)
+        evaluator = FixedWingEvaluator(
+            controller, self.eval_env, **self.param_dict
+        )
         # run with mpc to collect data
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
