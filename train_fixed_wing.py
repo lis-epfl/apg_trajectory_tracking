@@ -47,7 +47,7 @@ class TrainFixedWing:
         self.thresh_div_start = 4
         self.thresh_div_end = 5
         self.thresh_stable_start = .4
-        self.thresh_stable_end = .5
+        self.thresh_stable_end = .8
         self.state_size = 12
         self.nr_actions = 10
         self.nr_actions_rnn = 10
@@ -62,7 +62,7 @@ class TrainFixedWing:
         self.eval_dynamics = eval_dynamics
 
         self.count_finetune_data = 0
-        self.highest_success = 0
+        self.highest_success = np.inf
 
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
@@ -271,7 +271,7 @@ class TrainFixedWing:
             print("increased thresh div", self.param_dict["thresh_div"])
 
         # save best model
-        if epoch > 0 and suc_mean > self.highest_success:
+        if epoch > 0 and suc_mean < self.highest_success:
             self.highest_success = suc_mean
             print("Best model")
             torch.save(
@@ -296,7 +296,7 @@ if __name__ == "__main__":
 
     method = "train_control"
     modified_params = {}
-    base_model = "trained_models/wing/best_23"
+    base_model = None  # "trained_models/wing/best_23"
 
     if method == "sample":
         nr_epochs = 10
@@ -337,17 +337,27 @@ if __name__ == "__main__":
             success_mean_list.append(suc_mean)
             success_std_list.append(suc_std)
 
-            print("Data used to train dynamics:", trainer.count_finetune_data)
-            print(
-                "Sampled data (exploration):", trainer.state_data.eval_counter
-            )
-            print()
+            if epoch < train_dyn:
+                print(
+                    "Data used to train dynamics:", trainer.count_finetune_data
+                )
+            if sample_in == "eval_env":
+                print(
+                    "Sampled data (exploration):",
+                    trainer.state_data.eval_counter
+                )
+            if method == "train_control":
+                print(
+                    "Data used for training:",
+                    epoch * (trainer.epoch_size * (1 + trainer.self_play))
+                )
 
             # RUN training
             epoch_loss = trainer.run_epoch(train=model_to_train)
 
             loss_list.append(epoch_loss)
 
+            print()
             print(f"Loss ({model_to_train}): {round(epoch_loss, 2)}")
             # print("time one epoch", time.time() - tic_epoch)
     except KeyboardInterrupt:
