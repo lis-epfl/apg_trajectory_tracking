@@ -168,7 +168,7 @@ def load_model(model_path, epoch="", **kwargs):
     return controller
 
 
-def run_mpc_analysis(evaluator):
+def run_mpc_analysis(evaluator, out_path="../presentations/analysis"):
     """
     Run eval function with mpc multiple times and plot the results
     Args:
@@ -176,17 +176,12 @@ def run_mpc_analysis(evaluator):
     """
     with open("neural_control/dynamics/config_fixed_wing.json", "r") as inf:
         parameters = json.load(inf)
-    out_path = "../presentations/analysis"
-    evaluator.render = 0
-    increase_factors = [1, 2]
-    # np.arange(1, 2, .1)
 
-    # for key, default_val in params.items():
-    # "mass", "CD0", "CL_alpha", "Cm_alpha", "Cm_del_e", "Cm0", "epsilon",
-    #  "g", "rho", "S"
-    for key in [
-        "CL_alpha", "Cm_alpha", "Cm_del_e", "Cm0", "epsilon", "g", "rho", "S"
-    ]:
+    increase_factors = np.arange(1, 2, .1)
+    for key, default_val in params.items():
+        if key == "g":
+            # gravity won't change ;)
+            continue
         default_val = parameters[key]
         print("----------------", key, "------------")
         mean_list, std_list = [], []
