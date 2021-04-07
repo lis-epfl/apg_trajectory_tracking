@@ -168,8 +168,9 @@ class FlightmareDynamics(Dynamics):
 
         # 2) angular acceleration
         tau = force_torques[:, 1:]
+        torch_inertia_J_inv = torch.inverse(self.torch_inertia_J)
         angular_acc = torch.matmul(
-            self.torch_inertia_J_inv, torch.unsqueeze((tau - cross_prod), 2)
+            torch_inertia_J_inv, torch.unsqueeze((tau - cross_prod), 2)
         )[:, :, 0]
         new_angular_velocity = angular_velocity + dt * angular_acc
 
