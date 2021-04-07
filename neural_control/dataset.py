@@ -7,6 +7,7 @@ from neural_control.environments.drone_env import (
 from neural_control.environments.wing_env import sample_training_data
 from neural_control.environments.cartpole_env import construct_states
 from neural_control.dynamics.quad_dynamics_base import Dynamics
+from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 
 device = "cpu"  # torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -57,7 +58,7 @@ class DroneDataset(torch.utils.data.Dataset):
 
         self.kwargs = kwargs
 
-        states, ref_states = self.sample_data()
+        states, ref_states = self.sample_data(self.total_dataset_size)
 
         if mean is None:
             # sample states
@@ -91,7 +92,7 @@ class DroneDataset(torch.utils.data.Dataset):
         """
         Sample new training data and replace dataset with it
         """
-        states, ref_states = self.sample_data()
+        states, ref_states = self.sample_data(self.num_sampled_states)
         (prep_normed_states, prep_states, prep_in_ref_states,
          prep_ref_states) = self.prepare_data(states, ref_states)
 
@@ -139,9 +140,9 @@ class QuadDataset(DroneDataset):
     def __init__(self, num_states, self_play, mean=None, std=None, **kwargs):
         super().__init__(num_states, self_play, mean=mean, std=std, **kwargs)
 
-    def sample_data(self):
+    def sample_data(self, num_states):
         states, ref_states = full_state_training_data(
-            self.num_sampled_states, **self.kwargs
+            num_states, **self.kwargs
         )
         return states, ref_states
 
@@ -258,13 +259,11 @@ class WingDataset(DroneDataset):
     ):
         super().__init__(num_states, self_play=0, mean=mean, std=std, **kwargs)
 
-    def sample_data(self):
+    def sample_data(self, num_samples):
         """
         Interface to training data function of fixed wing drone
         """
-        states, ref_states = sample_training_data(
-            self.num_sampled_states, **self.kwargs
-        )
+        states, ref_states = sample_training_data(num_samples, **self.kwargs)
         return states, ref_states
 
     def prepare_data(self, states, ref_states):
@@ -284,7 +283,15 @@ class WingDataset(DroneDataset):
         # 1) Normalized state and remove position
         normed_states = ((states - self.mean) / self.std)[:, 3:]
 
-        # TODO: transorm euler angle?
+        # rot_matrix = FixedWingDynamics.inertial_body_function(
+        #     states[:, 6], states[:, 7], states[:, 8]
+        # )
+        # drone_rot_matrix = torch.reshape(rot_matrix, (-1, 9))
+
+        # # stack vel, rot matrix, angular vel
+        # inp_drone_states = torch.hstack(
+        #     (normed_states[:, 3:6], drone_rot_matrix, normed_states[:, 9:12])
+        # )
 
         # 3) Reference trajectory to torch and relative to drone position
         # normalize
