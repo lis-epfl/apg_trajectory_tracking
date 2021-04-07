@@ -17,7 +17,7 @@ class SimpleWingEnv(gym.Env):
     def __init__(self, dynamics, dt):
         self.dt = dt
         self.reset()
-        self.dyn = dynamics
+        self.dynamics = dynamics
         self.renderer = Renderer(viewer_shape=(1000, 500), y_axis=7)
         self.renderer.add_object(Ground())
         self.drone_render_object = FixedWingDrone(self)
@@ -50,7 +50,7 @@ class SimpleWingEnv(gym.Env):
         action_torch = torch.tensor([action.tolist()]).float()
         state_torch = torch.tensor([self._state.tolist()]).float()
 
-        new_state = self.dyn.simulate_fixed_wing(
+        new_state = self.dynamics.simulate_fixed_wing(
             state_torch, action_torch, self.dt
         )
         self._state = new_state[0].numpy()

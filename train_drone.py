@@ -84,15 +84,11 @@ class TrainDrone:
 
         # Create environment for evaluation
         if self.sample_in == "real_flightmare":
-            self.eval_env = FlightmareWrapper(self.param_dict["dt"])
+            self.eval_env = FlightmareWrapper(self.delta_t)
         elif self.sample_in == "eval_env":
-            self.eval_env = QuadRotorEnvBase(
-                self.eval_dynamics, self.param_dict["dt"]
-            )
+            self.eval_env = QuadRotorEnvBase(self.eval_dynamics, self.delta_t)
         elif self.sample_in == "train_env":
-            self.eval_env = QuadRotorEnvBase(
-                self.train_dynamics, self.param_dict["dt"]
-            )
+            self.eval_env = QuadRotorEnvBase(self.train_dynamics, self.delta_t)
         else:
             raise ValueError(
                 "sample in must be one of eval_env, train_env, real_flightmare"
