@@ -248,7 +248,7 @@ if __name__ == "__main__":
     # only run evaluation without render
     # tic = time.time()
     # out_path = "../presentations/analysis"
-    # evaluator.render = 0
+    evaluator.render = 0
     # dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
     # np.save(
     #     os.path.join(out_path, "analyse_neural_new.npy"), dists_from_target

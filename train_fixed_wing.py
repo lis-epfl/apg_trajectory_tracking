@@ -37,15 +37,16 @@ class TrainFixedWing:
         """
         self.sample_in = sample_in
         self.delta_t = 0.05
-        self.epoch_size = 1000
+        self.delta_t_train = 0.05
+        self.epoch_size = 500
         self.vec_std = 0.15
-        self.self_play = .5
+        self.self_play = 1.5
         self.self_play_every_x = 2
         self.batch_size = 8
         self.reset_strength = 1.2
         self.max_drone_dist = 0.25
         self.thresh_div_start = 4
-        self.thresh_div_end = 5
+        self.thresh_div_end = 20
         self.thresh_stable_start = .4
         self.thresh_stable_end = .8
         self.state_size = 12
@@ -53,6 +54,7 @@ class TrainFixedWing:
         self.nr_actions_rnn = 10
         self.ref_dim = 3
         self.action_dim = 4
+        self.l2_lambda = 0.1
         self.learning_rate_controller = 0.00001
         self.learning_rate_dynamics = 0.001
         self.save_path = os.path.join("trained_models/wing/test_model")
@@ -69,13 +71,9 @@ class TrainFixedWing:
 
         # specify  self.sample_in to collect more data (exploration)
         if self.sample_in == "eval_env":
-            self.eval_env = SimpleWingEnv(
-                self.eval_dynamics, self.param_dict["dt"]
-            )
+            self.eval_env = SimpleWingEnv(self.eval_dynamics, self.delta_t)
         elif self.sample_in == "train_env":
-            self.eval_env = SimpleWingEnv(
-                self.train_dynamics, self.param_dict["dt"]
-            )
+            self.eval_env = SimpleWingEnv(self.train_dynamics, self.delta_t)
         else:
             raise ValueError("sample in must be one of eval_env, train_env")
 
@@ -145,7 +143,7 @@ class TrainFixedWing:
     def _compute_target_pos(self, current_state, ref_vector):
         # # GIVE LINEAR TRAJECTORY FOR LOSS
         speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
-        vec_len_per_step = speed * self.delta_t * self.nr_actions_rnn
+        vec_len_per_step = speed * self.delta_t_train * self.nr_actions_rnn
         # form auxiliary array with linear reference for loss computation
         target_pos = torch.zeros((current_state.size()[0], 3))
         for j in range(3):
@@ -165,7 +163,7 @@ class TrainFixedWing:
             # extract action
             action = action_seq[:, k]
             current_state = self.train_dynamics.simulate_fixed_wing(
-                current_state, action, dt=self.delta_t
+                current_state, action, dt=self.delta_t_train
             )
             # intermediate_states[:, k] = current_state
 
@@ -174,7 +172,7 @@ class TrainFixedWing:
         )
 
         # Backprop
-        loss.backward(retain_graph=1)  # TODO necessary???
+        loss.backward()
         self.optimizer_controller.step()
         return loss
 
@@ -205,12 +203,21 @@ class TrainFixedWing:
             action_seq[:, 0], current_state, dt=self.delta_t
         )
         next_state_d2 = self.eval_dynamics.simulate_fixed_wing(
-            action_seq[:, 0], current_state, dt=self.delta_t
+            current_state, action_seq[:, 0], dt=self.delta_t
+        )
+        # regularize:
+        l2_loss = (
+            torch.norm(self.train_dynamics.linear_state_2.weight) +
+            torch.norm(self.train_dynamics.linear_state_2.bias) +
+            torch.norm(self.train_dynamics.linear_state_1.weight) +
+            torch.norm(self.train_dynamics.linear_state_1.bias)
         )
         # TODO: weighting --> now velocity much more than attitude etc
-        loss = torch.sum((next_state_d1 - next_state_d2)**2)
+        loss = torch.sum(
+            (next_state_d1 - next_state_d2)**2
+        ) + self.l2_lambda * l2_loss
         # print(self.train_dynamics.down_drag.grad)
-        # print("grad", self.train_dynamics.linear_state_2.weight.grad)
+        # print("grad", self.train_dynamics.cfg["rho"].grad)
         loss.backward()
         self.optimizer_dynamics.step()
         return loss
@@ -245,7 +252,7 @@ class TrainFixedWing:
                 loss = self.train_dynamics_model(current_state, action_seq)
                 self.count_finetune_data += len(current_state)
 
-            running_loss += loss.item() * 1000
+            running_loss += loss.item()
         # time_epoch = time.time() - tic
         return running_loss / i
 
@@ -270,10 +277,12 @@ class TrainFixedWing:
             self.state_data.resample_data()
             print(f"Sampled new data ({self.state_data.num_sampled_states})")
 
-        if epoch % 5 == 0 and self.param_dict["thresh_div"
-                                              ] < self.thresh_div_end:
-            self.param_dict["thresh_div"] += .05
+        if self.param_dict["thresh_div"] < self.thresh_div_end:
+            self.param_dict["thresh_div"] += .5
             print("increased thresh div", self.param_dict["thresh_div"])
+
+        if self.param_dict["thresh_stable"] < self.thresh_stable_end:
+            self.param_dict["thresh_stable"] += .05
 
         # save best model
         if epoch > 0 and suc_mean < self.highest_success:
@@ -300,8 +309,8 @@ class TrainFixedWing:
 if __name__ == "__main__":
 
     method = "train_control"
-    modified_params = {}
-    base_model = None  # "trained_models/wing/best_23"
+    modified_params = {"rho": 1.4, "mass": 1.2, "S": 0.32}  # mass: 1.4
+    base_model = "trained_models/wing/baseline_fixed_wing"
 
     if method == "sample":
         nr_epochs = 10
@@ -309,16 +318,19 @@ if __name__ == "__main__":
         sample_in = "eval_env"
     elif method == "train_dyn":
         nr_epochs = 200
-        train_dyn = 10
+        train_dyn = 3
         sample_in = "train_env"
     elif method == "train_control":
         nr_epochs = 200
         train_dyn = -1
         sample_in = "train_env"
 
-    train_dynamics = LearntFixedWingDynamics(modified_params)
-
-    eval_dynamics = None
+    train_dynamics = LearntFixedWingDynamics()
+    # FixedWingDynamics(modified_params=modified_params)
+    # FixedWingDynamics()
+    # LearntFixedWingDynamics()
+    eval_dynamics = FixedWingDynamics()
+    # FixedWingDynamics(modified_params=modified_params)
 
     trainer = TrainFixedWing(
         train_dynamics, eval_dynamics, sample_in=sample_in
@@ -342,7 +354,7 @@ if __name__ == "__main__":
             success_mean_list.append(suc_mean)
             success_std_list.append(suc_std)
 
-            if epoch < train_dyn:
+            if epoch <= train_dyn:
                 print(
                     "Data used to train dynamics:", trainer.count_finetune_data
                 )
