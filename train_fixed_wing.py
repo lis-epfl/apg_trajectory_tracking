@@ -55,7 +55,7 @@ class TrainFixedWing:
         self.ref_dim = 3
         self.action_dim = 4
         self.l2_lambda = 0.1
-        self.learning_rate_controller = 0.00001
+        self.learning_rate_controller = 0.0001
         self.learning_rate_dynamics = 0.001
         self.save_path = os.path.join("trained_models/wing/test_model")
 
@@ -308,8 +308,9 @@ class TrainFixedWing:
 
 if __name__ == "__main__":
 
-    method = "train_control"
-    modified_params = {"rho": 1.4, "mass": 1.2, "S": 0.32}  # mass: 1.4
+    method = "train_dyn"
+    modified_params = {"rho": 1.6}
+    # {"rho": 1.4, "mass": 1.2, "S": 0.32}  # mass: 1.4
     base_model = "trained_models/wing/baseline_fixed_wing"
 
     if method == "sample":
@@ -318,7 +319,7 @@ if __name__ == "__main__":
         sample_in = "eval_env"
     elif method == "train_dyn":
         nr_epochs = 200
-        train_dyn = 3
+        train_dyn = 10
         sample_in = "train_env"
     elif method == "train_control":
         nr_epochs = 200
@@ -329,7 +330,7 @@ if __name__ == "__main__":
     # FixedWingDynamics(modified_params=modified_params)
     # FixedWingDynamics()
     # LearntFixedWingDynamics()
-    eval_dynamics = FixedWingDynamics()
+    eval_dynamics = FixedWingDynamics(modified_params=modified_params)
     # FixedWingDynamics(modified_params=modified_params)
 
     trainer = TrainFixedWing(
@@ -348,6 +349,7 @@ if __name__ == "__main__":
                 print("Params of dynamics model after training:")
                 for k, v in trainer.train_dynamics.state_dict().items():
                     print(k, v)
+                trainer.highest_success = np.inf
 
             # EVALUATE
             suc_mean, suc_std = trainer.evaluate_model(epoch)
