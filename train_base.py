@@ -149,8 +149,6 @@ class TrainBase:
         loss = torch.sum(
             (next_state_d1 - next_state_d2)**2
         ) + self.l2_lambda * l2_loss
-        # print(self.train_dynamics.down_drag.grad)
-        # print("grad", self.train_dynamics.cfg["rho"].grad)
         loss.backward()
         self.optimizer_dynamics.step()
         return loss
@@ -277,7 +275,7 @@ class TrainBase:
                         if len(v) > 10:
                             continue
                         print(k, v)
-                    self.current_score = 0 if suc_up_down == 1 else np.inf
+                    self.current_score = 0 if self.suc_up_down == 1 else np.inf
 
                 if epoch <= config.get("train_dyn_for_epochs", 10):
                     print(
