@@ -257,7 +257,7 @@ class WingDataset(DroneDataset):
         ref_std=None,
         **kwargs
     ):
-        super().__init__(num_states, self_play=0, mean=mean, std=std, **kwargs)
+        super().__init__(num_states, self_play, mean=mean, std=std, **kwargs)
 
     def sample_data(self, num_samples):
         """
