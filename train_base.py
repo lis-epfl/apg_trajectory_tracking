@@ -76,7 +76,15 @@ class TrainBase:
         self.learning_rate_dynamics = learning_rate_dynamics
 
         # performance logging:
-        (self.mean_list, self.std_list, self.losses) = [], [], []
+        self.results_dict = {
+            "mean_success": [],
+            "std_success": [],
+            "loss": [0],
+            "samples_in_d2": [],
+            "samples_in_d1": [],
+            "thresh_div": [],
+            "trained": []
+        }
 
         # saving routine
         self.save_name = save_name
@@ -183,7 +191,8 @@ class TrainBase:
             running_loss += loss.item()
         # time_epoch = time.time() - tic
         epoch_loss = running_loss / i
-        self.losses.append(epoch_loss)
+        self.results_dict["loss"].append(epoch_loss)
+        self.results_dict["trained"].append(train)
         print(f"Loss ({train}): {round(epoch_loss, 2)}")
         return epoch_loss
 
@@ -223,11 +232,13 @@ class TrainBase:
             self.net, os.path.join(self.save_path, self.save_model_name)
         )
         plot_loss_episode_len(
-            self.mean_list,
-            self.std_list,
-            self.losses,
+            self.results_dict["mean_success"],
+            self.results_dict["std_success"],
+            self.results_dict["loss"],
             save_path=os.path.join(self.save_path, "performance.png")
         )
+        with open(os.path.join(self.save_path, "results.json"), "w") as ofile:
+            json.dump(self.results_dict, ofile)
         print("finished and saved.")
 
     def run_control(self, config, sampling_based_finetune=False):

@@ -53,13 +53,10 @@ class TrainFixedWing(TrainBase):
             with open(
                 os.path.join(base_model, "param_dict.json"), "r"
             ) as outfile:
-                self.param_dict = json.load(outfile)
+                previous_parameters = json.load(outfile)
+                self.config["mean"] = previous_parameters["mean"]
+                self.config["std"] = previous_parameters["std"]
         else:
-            self.param_dict = {
-                "dt": self.delta_t,
-                "horizon": self.nr_actions,
-                "vec_std": self.vec_std
-            }
             # +9 because adding 12 things but deleting position (3)
             self.net = Net(
                 self.state_size - self.ref_dim,
@@ -70,18 +67,19 @@ class TrainFixedWing(TrainBase):
             )
 
         # init dataset
-        self.state_data = WingDataset(
-            self.epoch_size, self_play=self.self_play, **self.param_dict
-        )
-        self.param_dict = self.state_data.get_means_stds(self.param_dict)
-        self.param_dict["take_every_x"] = self.self_play_every_x
-        self.param_dict["thresh_div"] = self.thresh_div_start
-        self.param_dict["thresh_stable"] = self.thresh_stable_start
+        self.state_data = WingDataset(self.epoch_size, **self.config)
+        # update mean and std:
+        self.config = self.state_data.get_means_stds(self.config)
+        # add other parameters
+        self.config["horizon"] = self.nr_actions
+        self.config["ref_length"] = self.nr_actions
+        self.config["thresh_div"] = self.thresh_div_start
+        self.config["dt"] = self.delta_t
+        self.config["take_every_x"] = self.self_play_every_x
+        self.config["thresh_stable"] = self.thresh_stable_start
 
-        with open(
-            os.path.join(self.save_path, "param_dict.json"), "w"
-        ) as outfile:
-            json.dump(self.param_dict, outfile)
+        with open(os.path.join(self.save_path, "config.json"), "w") as outfile:
+            json.dump(self.config, outfile)
 
         self.init_optimizer()
 
@@ -150,11 +148,11 @@ class TrainFixedWing(TrainBase):
         # EVALUATE
         print(f"\nEpoch {epoch} (before)")
         controller = FixedWingNetWrapper(
-            self.net, self.state_data, **self.param_dict
+            self.net, self.state_data, **self.config
         )
 
         evaluator = FixedWingEvaluator(
-            controller, self.eval_env, **self.param_dict
+            controller, self.eval_env, **self.config
         )
         # run with mpc to collect data
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
@@ -165,18 +163,19 @@ class TrainFixedWing(TrainBase):
         self.sample_new_data(epoch)
 
         # increase thresholds
-        if self.param_dict["thresh_div"] < self.thresh_div_end:
-            self.param_dict["thresh_div"] += .5
-            print("increased thresh div", self.param_dict["thresh_div"])
+        if self.config["thresh_div"] < self.thresh_div_end:
+            self.config["thresh_div"] += .5
+            print("increased thresh div", self.config["thresh_div"])
 
-        if self.param_dict["thresh_stable"] < self.thresh_stable_end:
-            self.param_dict["thresh_stable"] += .05
+        if self.config["thresh_stable"] < self.thresh_stable_end:
+            self.config["thresh_stable"] += .05
 
         # save best model
         self.save_model(epoch, suc_mean)
 
-        self.mean_list.append(suc_mean)
-        self.std_list.append(suc_std)
+        self.results_dict["mean_success"].append(suc_mean)
+        self.results_dict["std_success"].append(suc_std)
+        self.results_dict["thresh_div"].append(self.config["thresh_div"])
         return suc_mean, suc_std
 
 
@@ -207,6 +206,9 @@ def train_dynamics(base_model, config):
     """
     modified_params = config["modified_params"]
     config["sample_in"] = "train_env"
+    # set thresholds high so the tracking error is reliable
+    config["thresh_div"] = 20
+    config["thresh_stable"] = 1.5
 
     # train environment is learnt
     train_dynamics = LearntFixedWingDynamics()

@@ -287,7 +287,11 @@ class QuadEvaluator():
 
 
 def load_model_params(model_path, name="model_quad", epoch=""):
-    with open(os.path.join(model_path, "param_dict.json"), "r") as outfile:
+    config_path = os.path.join(model_path, "config.json")
+    if not os.path.exists(config_path):
+        print("Load old config..")
+        config_path = os.path.join(model_path, "param_dict.json")
+    with open(config_path, "r") as outfile:
         param_dict = json.load(outfile)
 
     net = torch.load(os.path.join(model_path, name + epoch))

@@ -23,6 +23,7 @@
     "learning_rate_dynamics": 0.001,
     "resample_every": 3,
     "suc_up_down": 1,
+    "speed_factor": 0.4,
     "system": "quad",
     "train_dyn_for_epochs": 5,
     "train_dyn_every": 1,

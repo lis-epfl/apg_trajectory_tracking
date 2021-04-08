@@ -248,14 +248,14 @@ if __name__ == "__main__":
     # only run evaluation without render
     # tic = time.time()
     # out_path = "../presentations/analysis"
-    evaluator.render = 0
+    # evaluator.render = 0
     # dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
     # np.save(
     #     os.path.join(out_path, "analyse_neural_new.npy"), dists_from_target
     # )
     # print("time for 100 trajectories", time.time() - tic)
-    run_mpc_analysis(evaluator)
-    exit()
+    # run_mpc_analysis(evaluator)
+    # exit()
 
     target_point = [[50, -3, -3], [100, 3, 3]]
 

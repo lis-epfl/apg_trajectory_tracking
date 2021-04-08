@@ -63,9 +63,9 @@ class TrainDrone(TrainBase):
             with open(
                 os.path.join(base_model, "param_dict.json"), "r"
             ) as outfile:
-                self.param_dict = json.load(outfile)
-            STD = np.array(self.param_dict["std"]).astype(float)
-            MEAN = np.array(self.param_dict["mean"]).astype(float)
+                previous_parameters = json.load(outfile)
+            data_std = np.array(previous_parameters["std"]).astype(float)
+            data_mean = np.array(previous_parameters["mean"]).astype(float)
         else:
             self.state_data = QuadDataset(
                 self.epoch_size,
@@ -84,34 +84,29 @@ class TrainDrone(TrainBase):
                 self.action_dim * self.nr_actions,
                 conv=1
             )
-            (STD, MEAN) = (self.state_data.std, self.state_data.mean)
+            (data_std, data_mean) = (self.state_data.std, self.state_data.mean)
 
         # save std for normalization during test time
-        self.param_dict = {"std": STD.tolist(), "mean": MEAN.tolist()}
+        self.config["std"] = data_std.tolist()
+        self.config["mean"] = data_mean.tolist()
+
         # update the used parameters:
-        self.param_dict["reset_strength"] = self.reset_strength
-        self.param_dict["max_drone_dist"] = self.max_drone_dist
-        self.param_dict["horizon"] = self.nr_actions
-        self.param_dict["ref_length"] = self.nr_actions
-        self.param_dict["thresh_div"] = self.thresh_div_start
-        self.param_dict["dt"] = self.delta_t
-        self.param_dict["take_every_x"] = self.self_play_every_x
-        self.param_dict["thresh_stable"] = self.thresh_stable_start
-        self.param_dict["speed_factor"] = self.speed_factor
+        self.config["horizon"] = self.nr_actions
+        self.config["ref_length"] = self.nr_actions
+        self.config["thresh_div"] = self.thresh_div_start
+        self.config["dt"] = self.delta_t
+        self.config["take_every_x"] = self.self_play_every_x
+        self.config["thresh_stable"] = self.thresh_stable_start
         for k, v in modified_params.items():
             if type(v) == np.ndarray:
                 modified_params[k] = v.tolist()
-        self.param_dict["modified_params"] = modified_params
+        self.config["modified_params"] = modified_params
 
-        with open(
-            os.path.join(self.save_path, "param_dict.json"), "w"
-        ) as outfile:
-            json.dump(self.param_dict, outfile)
+        with open(os.path.join(self.save_path, "config.json"), "w") as outfile:
+            json.dump(self.config, outfile)
 
         # init dataset
-        self.state_data = QuadDataset(
-            self.epoch_size, self.self_play, **self.param_dict
-        )
+        self.state_data = QuadDataset(self.epoch_size, **self.config)
         self.init_optimizer()
 
     def train_controller_model(
@@ -143,38 +138,30 @@ class TrainDrone(TrainBase):
     def evaluate_model(self, epoch):
         # EVALUATE
         print(f"\nEpoch {epoch} (before)")
-        controller = NetworkWrapper(
-            self.net, self.state_data, **self.param_dict
-        )
+        controller = NetworkWrapper(self.net, self.state_data, **self.config)
 
-        evaluator = QuadEvaluator(controller, self.eval_env, **self.param_dict)
+        evaluator = QuadEvaluator(controller, self.eval_env, **self.config)
         # run with mpc to collect data
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
         with torch.no_grad():
             suc_mean, suc_std = evaluator.eval_ref(
-                "rand",
-                nr_test=10,
-                max_steps=self.max_steps,
-                **self.param_dict
+                "rand", nr_test=10, **self.config
             )
 
         self.sample_new_data(epoch)
 
         # increase threshold
-        if epoch % 5 == 0 and self.param_dict["thresh_div"
-                                              ] < self.thresh_div_end:
-            self.param_dict["thresh_div"] += .05
-            print(
-                "increased thresh div",
-                round(self.param_dict["thresh_div"], 2)
-            )
+        if epoch % 5 == 0 and self.config["thresh_div"] < self.thresh_div_end:
+            self.config["thresh_div"] += .05
+            print("increased thresh div", round(self.config["thresh_div"], 2))
 
         # save best model
         self.save_model(epoch, suc_mean)
 
-        self.mean_list.append(suc_mean)
-        self.std_list.append(suc_std)
+        self.results_dict["mean_success"].append(suc_mean)
+        self.results_dict["std_success"].append(suc_std)
+        self.results_dict["thresh_div"].append(self.config["thresh_div"])
         return suc_mean, suc_std
 
 
