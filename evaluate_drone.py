@@ -368,7 +368,7 @@ if __name__ == "__main__":
     RENDER = 1
 
     # CONTROLLER - define and load controller
-    model_path = os.path.join("trained_models", "drone", args.model)
+    model_path = os.path.join("trained_models", "quad", args.model)
     # MPC
     if model_path.split(os.sep)[-1] == "mpc":
         # mpc parameters:

@@ -96,9 +96,7 @@ class QuadRotorEnvBase(gym.Env):
         torch_action = torch.from_numpy(np.array([action])).float().to(device)
 
         # dynamics
-        new_state_arr = self.dynamics.simulate_quadrotor(
-            torch_action, torch_state, dt=self.dt
-        )
+        new_state_arr = self.dynamics(torch_state, torch_action, dt=self.dt)
         numpy_out_state = new_state_arr.cpu().numpy()[0]
         # update internal state
         self._state.from_np(numpy_out_state)

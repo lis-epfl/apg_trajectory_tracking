@@ -117,6 +117,9 @@ class FlightmareDynamics(Dynamics):
             print("ERR: batch size larger 1", torch_var.size())
         print(varname, torch_var[0].detach().numpy())
 
+    def __call__(self, state, action, dt):
+        return self.simulate_quadrotor(action, state, dt)
+
     def simulate_quadrotor(self, action, state, dt):
         """
         Pytorch implementation of the dynamics in Flightmare simulator

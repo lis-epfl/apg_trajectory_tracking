@@ -178,7 +178,7 @@ def run_mpc_analysis(evaluator, out_path="../presentations/analysis"):
         parameters = json.load(inf)
 
     increase_factors = np.arange(1, 2, .1)
-    for key, default_val in params.items():
+    for key, default_val in parameters.items():
         if key == "g":
             # gravity won't change ;)
             continue

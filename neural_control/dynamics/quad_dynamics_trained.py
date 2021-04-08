@@ -63,7 +63,7 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
         # TODO: activation function?
         return new_state
 
-    def forward(self, action, state, dt):
+    def forward(self, state, action, dt):
         action_transformed = torch.matmul(
             self.linear_at, torch.unsqueeze(action, 2)
         )[:, :, 0]

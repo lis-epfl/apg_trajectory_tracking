@@ -92,6 +92,9 @@ class FixedWingDynamics:
         R_ib = torch.stack((m1, m2, m3), dim=1)
         return torch.transpose(R_ib, 1, 2)
 
+    def __call__(self, state, action, dt):
+        return self.simulate_fixed_wing(state, action, dt)
+
     def simulate_fixed_wing(self, state, action, dt):
         """
         Dynamics of a fixed wing drone
@@ -311,7 +314,7 @@ class LearntFixedWingDynamics(torch.nn.Module, FixedWingDynamics):
         # TODO: activation function?
         return new_state
 
-    def forward(self, action, state, dt):
+    def forward(self, state, action, dt):
         # run through D1
         new_state = self.simulate_fixed_wing(state, action, dt)
         # run through T

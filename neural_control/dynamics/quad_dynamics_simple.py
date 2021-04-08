@@ -62,6 +62,9 @@ class SimpleDynamics(Dynamics):
         # print("body_torque_des", body_torque_des.size())
         return body_torque_des
 
+    def __call__(self, state, action, dt):
+        return self.simulate_quadrotor(action, state, dt=dt)
+
     def simulate_quadrotor(self, action, state, dt=0.02):
         """
         Simulate the dynamics of the quadrotor for the timestep given

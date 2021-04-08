@@ -50,9 +50,7 @@ class SimpleWingEnv(gym.Env):
         action_torch = torch.tensor([action.tolist()]).float()
         state_torch = torch.tensor([self._state.tolist()]).float()
 
-        new_state = self.dynamics.simulate_fixed_wing(
-            state_torch, action_torch, self.dt
-        )
+        new_state = self.dynamics(state_torch, action_torch, self.dt)
         self._state = new_state[0].numpy()
 
         is_stable = np.all(np.absolute(self._state[6:8]) < thresh_stable)
