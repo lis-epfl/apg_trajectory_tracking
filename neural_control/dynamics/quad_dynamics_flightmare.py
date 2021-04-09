@@ -78,7 +78,7 @@ class FlightmareDynamics(Dynamics):
         body_to_world = torch.transpose(world_to_body, 1, 2)
 
         # print("force in ld ", force.size())
-        thrust = self.down_drag * 1 / self.mass * torch.matmul(
+        thrust = 1 / self.mass * torch.matmul(
             body_to_world, torch.unsqueeze(force, 2)
         )
         # print("thrust", thrust.size())
@@ -95,7 +95,7 @@ class FlightmareDynamics(Dynamics):
         omega = av: current angular velocity
         command = body_rates: body rates in command
         """
-        force = torch.unsqueeze(self.mass * thrust, 1)
+        force = torch.unsqueeze(0.723 * thrust, 1)
 
         # constants
         omega_change = torch.unsqueeze(body_rates - av, 2)
@@ -104,7 +104,9 @@ class FlightmareDynamics(Dynamics):
         )
         first_part = torch.matmul(self.torch_inertia_J, kinv_times_change)
         # print("first_part", first_part.size())
-        body_torque_des = first_part[:, :, 0] + cross_prod
+        body_torque_des = (
+            first_part[:, :, 0] + cross_prod + self.torch_rotational_drag
+        )
 
         thrust_and_torque = torch.unsqueeze(
             torch.cat((force, body_torque_des), dim=1), 2

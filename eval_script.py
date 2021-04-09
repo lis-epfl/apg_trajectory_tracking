@@ -17,7 +17,6 @@ except ModuleNotFoundError:
 eval_dict = {"rand": {"nr_test": 50, "max_steps": 1000}}
 thresh_stable = 2
 thresh_divergence = 3
-env_params_mismatch = {"down_drag": .75}
 
 if __name__ == "__main__":
     models_to_evaluate = [

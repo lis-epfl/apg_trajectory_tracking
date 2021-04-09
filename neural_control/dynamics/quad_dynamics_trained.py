@@ -36,11 +36,6 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
             torch.tensor([self.mass]),
             requires_grad=True  # , name="mass"
         )
-        self.down_drag = nn.Parameter(
-            torch.tensor([self.down_drag]).float(),
-            requires_grad=True,
-            # name="down_draf"
-        )
         self.torch_inertia_vector = nn.Parameter(
             torch.from_numpy(self.inertia_vector).float(),
             requires_grad=True,

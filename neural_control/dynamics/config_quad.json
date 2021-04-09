@@ -1,0 +1,29 @@
+{
+    "mass": 0.723,
+    "rotational_drag": [
+        0,
+        0,
+        0
+    ],
+    "translational_drag": [
+        0,
+        0,
+        0
+    ],
+    "arm_length": 0.31,
+    "frame_inertia": [
+        4.5,
+        4.5,
+        7.0
+    ],
+    "gravity": [
+        0,
+        0,
+        -9.81
+    ],
+    "kinv_ang_vel_tau": [
+        16.6,
+        16.6,
+        5.0
+    ]
+}

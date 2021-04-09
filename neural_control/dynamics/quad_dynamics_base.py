@@ -19,12 +19,10 @@ class Dynamics:
         gravity=np.array([0., 0., -9.81]),
         max_rotor_speed=1000.0,
         rotor_speed_half_time=0.0625,
-        kinv_ang_vel_tau=np.array([16.6, 16.6, 5.]),
-        down_drag=1
+        kinv_ang_vel_tau=np.array([16.6, 16.6, 5.])
     ):
         device = "cpu"
         # NUMPY PARAMETERS
-        self.down_drag = down_drag
         self.mass = mass
         self.arm_length = arm_length
         self.thrust_factor = thrust_factor
@@ -38,10 +36,10 @@ class Dynamics:
         # torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.copter_params = SimpleNamespace(**self.copter_params)
         self.torch_translational_drag = torch.from_numpy(translational_drag
-                                                         ).to(device)
+                                                         ).float().to(device)
         self.torch_gravity = torch.from_numpy(gravity).to(device)
         self.torch_rotational_drag = torch.from_numpy(rotational_drag
-                                                      ).to(device)
+                                                      ).float().to(device)
         self.torch_inertia_vector = torch.from_numpy(self.inertia_vector
                                                      ).float().to(device)
 

@@ -137,7 +137,6 @@ class TrainDrone(TrainBase):
 
     def evaluate_model(self, epoch):
         # EVALUATE
-        print(f"\nEpoch {epoch} (before)")
         controller = NetworkWrapper(self.net, self.state_data, **self.config)
 
         evaluator = QuadEvaluator(controller, self.eval_env, **self.config)
@@ -145,7 +144,7 @@ class TrainDrone(TrainBase):
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
         with torch.no_grad():
-            suc_mean, suc_std = evaluator.eval_ref(
+            suc_mean, suc_std = evaluator.run_eval(
                 "rand", nr_test=10, **self.config
             )
 
@@ -230,10 +229,17 @@ if __name__ == "__main__":
     with open("configs/quad_config.json", "r") as infile:
         config = json.load(infile)
 
-    mod_params = {"translational_drag": np.array([.3, .3, .3])}
+    mod_params = {"mass": 1}
+    # {'translational_drag': np.array([0.7, 0.7, 0.7])}
     config["modified_params"] = mod_params
 
     baseline_model = "trained_models/quad/baseline_flightmare"
+    config["thresh_div_start"] = 1
+    config["thresh_stable_start"] = 1.5
+
+    config["save_name"] = "test"
+
+    config["nr_epochs"] = 20
 
     # TRAIN
     # train_control(baseline_model, config)

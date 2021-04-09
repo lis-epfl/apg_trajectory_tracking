@@ -92,6 +92,8 @@ class TrainBase:
         self.save_model_name = "model_" + system
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
+        else:
+            input("Save directory already exists. Continue?")
 
         # dynamics
         self.eval_dynamics = eval_dynamics

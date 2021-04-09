@@ -21,6 +21,7 @@ from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
 from neural_control.dynamics.quad_dynamics_flightmare import FlightmareDynamics
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
+from evaluate_base import run_mpc_analysis, load_model_params
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -218,9 +219,9 @@ class QuadEvaluator():
                 # **circle_args
             )
 
-    def eval_ref(
+    def run_eval(
         self,
-        reference: str,
+        reference: str = "rand",
         nr_test: int = 10,
         max_steps: int = 200,
         thresh_div=1,
@@ -286,50 +287,17 @@ class QuadEvaluator():
         np.save(outpath, data)
 
 
-def load_model_params(model_path, name="model_quad", epoch=""):
-    config_path = os.path.join(model_path, "config.json")
-    if not os.path.exists(config_path):
-        print("Load old config..")
-        config_path = os.path.join(model_path, "param_dict.json")
-    with open(config_path, "r") as outfile:
-        param_dict = json.load(outfile)
-
-    net = torch.load(os.path.join(model_path, name + epoch))
-    net = net.to(device)
-    net.eval()
-    return net, param_dict
-
-
 def load_model(model_path, epoch=""):
     """
     Load model and corresponding parameters
     """
     # load std or other parameters from json
     net, param_dict = load_model_params(model_path, "model_quad", epoch=epoch)
-    dataset = QuadDataset(1, 0, **param_dict)
+    dataset = QuadDataset(1, **param_dict)
 
     controller = NetworkWrapper(net, dataset, **param_dict)
 
     return controller, param_dict
-
-
-def analyze_mpc_mismatch(evaluator, param="down_drag", max_vary=1, steps=10):
-    evaluator.render = 0
-    current_param = getattr(evaluator.eval_env.dynamics, param)
-    print("default", current_param)
-
-    try:
-        len_add = len(current_param)
-    except TypeError:
-        len_add = 1
-
-    for i in range(steps):
-        mod_param = current_param + np.random.rand()
-        print("modified", i, mod_param)
-        if len(mod_param) == 1:
-            mod_param = mod_param[0]
-        evaluator.eval_env.dynamics.set_attributes({param: mod_param})
-        evaluator.eval_ref(args.ref, nr_test=10, max_steps=500, **traj_args)
 
 
 if __name__ == "__main__":
@@ -387,17 +355,16 @@ if __name__ == "__main__":
     # params["dt"] = .05
     # params["max_drone_dist"] = 1
     params["speed_factor"] = .4
-    modified_params = {}
-    # {"translational_drag": np.array([.3, .3, .3])}
-    # "mass": 50}
+    modified_params = {"mass": 1}
+    # {"rotational_drag": np.array([.1, .1, .1])}
+    # {"mass": 1}
+    # {"translational_drag": np.array([.7, .7, .7])}
     # {
-    #     "down_drag": 1,
+    #     "mass": 1,
     #     "frame_inertia": np.array([2, 2, 3]),
     #     "kinv_ang_vel_tau": np.array([21, 21, 3.0])
     # }
-    # {"down_drag": .75}
     print("MODIFIED: ", modified_params)
-    # {"frame_inertia": np.array([3, 4, 6])}
 
     # DEFINE ENVIRONMENT
     if args.flightmare:
@@ -433,15 +400,15 @@ if __name__ == "__main__":
     if args.unity:
         evaluator.eval_env.env.connectUnity()
 
+    evaluator.render = 0
+    # run_mpc_analysis(evaluator, system="quad")
+    evaluator.run_eval(args.ref, nr_test=30, max_steps=500, **traj_args)
+    exit()
+
     # evaluator.run_mpc_ref(args.ref)
     reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
-    # print(params)
-    # print()
-    # evaluator.render = 0
-    # evaluator.eval_ref(args.ref, nr_test=30, max_steps=500, **traj_args)
-    # exit()
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
