@@ -146,7 +146,6 @@ class TrainFixedWing(TrainBase):
 
     def evaluate_model(self, epoch):
         # EVALUATE
-        print(f"\nEpoch {epoch} (before)")
         controller = FixedWingNetWrapper(
             self.net, self.state_data, **self.config
         )
@@ -207,8 +206,8 @@ def train_dynamics(base_model, config):
     modified_params = config["modified_params"]
     config["sample_in"] = "train_env"
     # set thresholds high so the tracking error is reliable
-    config["thresh_div"] = 20
-    config["thresh_stable"] = 1.5
+    config["thresh_div_start"] = 20
+    config["thresh_stable_start"] = 1.5
 
     # train environment is learnt
     train_dynamics = LearntFixedWingDynamics()
@@ -247,13 +246,28 @@ if __name__ == "__main__":
     with open("configs/wing_config.json", "r") as infile:
         config = json.load(infile)
 
-    mod_params = {"rho": 1.6}
-    # {"rho": 1.4, "mass": 1.2, "S": 0.32}  # mass: 1.4
+    baseline_model = "trained_models/wing/baseline_fixed_wing"
+    config["save_name"] = "test_model"
+
+    # set high thresholds because not training from scratch
+    # config["thresh_div_start"] = 20
+    # config["thresh_stable_start"] = 1.5
+
+    mod_params = {}
+    #  {"rho": 1.6}
+    # {
+    #     "CL0": 0.3,  # 0.39
+    #     "CD0": 0.02,  #  0.0765,
+    #     "CY0": 0.02,  # 0.0,
+    #     "Cl0": -0.01,  # 0.0,
+    #     "Cm0": 0.01,  # 0.02,
+    #     "Cn0": 0.0,
+    # }
+    # # {"rho": 1.4, "mass": 1.2, "S": 0.32}  # mass: 1.4
     config["modified_params"] = mod_params
 
-    baseline_model = "trained_models/wing/baseline_fixed_wing"
-
     # TRAIN
+    config["nr_epochs"] = 20
     # train_control(baseline_model, config)
     train_dynamics(baseline_model, config)
     # train_sampling_finetune(baseline_model, config)

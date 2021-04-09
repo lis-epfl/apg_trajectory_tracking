@@ -113,8 +113,7 @@ class FixedWingEvaluator:
 
             if not stable or div > self.thresh_div:
                 if self.test_time:
-                    if self.render:
-                        print("diverged", div, "stable", stable)
+                    print("diverged", div, "stable", stable)
                     break
                 else:
                     reset_state = np.zeros(12)
@@ -142,9 +141,9 @@ class FixedWingEvaluator:
             #     np.linalg.norm(target_point - p) for p in last_x_points
             # ]
             # min_dists.append(np.min(last_x_dists))
-            not_diverged = np.sum(divergences < self.thresh_div)
+            # not_diverged = np.sum(divergences < self.thresh_div)
             mean_div.append(np.mean(divergences))
-            not_div_time.append(not_diverged)
+            # not_div_time.append(not_diverged)
         mean_err = np.mean(mean_div)
         std_err = np.std(mean_div)
         # print(
@@ -224,7 +223,7 @@ if __name__ == "__main__":
         "render": 1,
         "dt": 0.05,
         "horizon": 10,
-        "thresh_stable": 1,
+        "thresh_stable": 3,
         "thresh_div": 10
     }
 
@@ -240,6 +239,15 @@ if __name__ == "__main__":
         controller = MPC(20, 0.1, dynamics="fixed_wing_3D")
 
     modified_params = {}
+    # {
+    #     "CL0": 0.3,  # 0.39
+    #     "CD0": 0.02,  #  0.0765,
+    #     "CY0": 0.02,  # 0.0,
+    #     "Cl0": -0.01,  # 0.0,
+    #     "Cm0": 0.01,  # 0.02,
+    #     "Cn0": 0.0,
+    # }
+    # modified_params = {"rho": 1.6}
 
     dynamics = FixedWingDynamics(modified_params=modified_params)
     eval_env = SimpleWingEnv(dynamics, params["dt"])
@@ -247,15 +255,17 @@ if __name__ == "__main__":
 
     # only run evaluation without render
     # tic = time.time()
-    # out_path = "../presentations/analysis"
-    # evaluator.render = 0
-    # dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
+    out_path = "../presentations/analysis"
+    evaluator.render = 0
+    dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
     # np.save(
-    #     os.path.join(out_path, "analyse_neural_new.npy"), dists_from_target
+    #     os.path.join(
+    #         out_path, f"{model_name}_{'_'.join(modified_params.keys())}.npy"
+    #     ), dists_from_target
     # )
     # print("time for 100 trajectories", time.time() - tic)
     # run_mpc_analysis(evaluator)
-    # exit()
+    exit()
 
     target_point = [[50, -3, -3], [100, 3, 3]]
 

@@ -231,25 +231,40 @@ class TrainBase:
         torch.save(
             self.net, os.path.join(self.save_path, self.save_model_name)
         )
+        # plot performance
         plot_loss_episode_len(
             self.results_dict["mean_success"],
             self.results_dict["std_success"],
             self.results_dict["loss"],
             save_path=os.path.join(self.save_path, "performance.png")
         )
+        # save performance logging
         with open(os.path.join(self.save_path, "results.json"), "w") as ofile:
             json.dump(self.results_dict, ofile)
+
+        # save dynamics model if applicable
+        if isinstance(self.train_dynamics, LearntFixedWingDynamics
+                      ) or isinstance(self.train_dynamics, LearntDynamics):
+            torch.save(
+                self.train_dynamics.state_dict(),
+                os.path.join(self.save_path, "dynamics_model")
+            )
         print("finished and saved.")
 
     def run_control(self, config, sampling_based_finetune=False):
         try:
             for epoch in range(config["nr_epochs"]):
                 _ = self.evaluate_model(epoch)
+
+                print(f"\nEpoch {epoch}")
                 self.run_epoch(train="controller")
 
                 if sampling_based_finetune:
                     print(
                         "Sampled data (exploration):",
+                        self.state_data.eval_counter
+                    )
+                    self.results_dict["samples_in_d2"].append(
                         self.state_data.eval_counter
                     )
                 else:
@@ -278,14 +293,20 @@ class TrainBase:
                 else:
                     model_to_train = "controller"
 
+                print(f"\nEpoch {epoch}")
                 self.run_epoch(train=model_to_train)
+
+                self.results_dict["samples_in_d2"].append(
+                    self.count_finetune_data
+                )
 
                 if epoch == config["train_dyn_for_epochs"]:
                     print("Params of dynamics model after training:")
-                    for k, v in self.train_dynamics.state_dict().items():
-                        if len(v) > 10:
+                    for key, val in self.train_dynamics.state_dict().items():
+                        if len(val) > 10:
+                            print(key, "too long")
                             continue
-                        print(k, v)
+                        print(key, val)
                     self.current_score = 0 if self.suc_up_down == 1 else np.inf
 
                 if epoch <= config.get("train_dyn_for_epochs", 10):

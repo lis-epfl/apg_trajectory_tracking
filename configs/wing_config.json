@@ -18,7 +18,7 @@
     "nr_actions_rnn": 10,
     "ref_dim": 3,
     "action_dim": 4,
-    "l2_lambda": 0.1,
+    "l2_lambda": 0.01,
     "learning_rate_controller": 0.0001,
     "learning_rate_dynamics": 0.001,
     "resample_every": 3,

@@ -290,11 +290,15 @@ class LearntFixedWingDynamics(torch.nn.Module, FixedWingDynamics):
         # Parameter dictionary of other parameters
         dict_pytorch = {}
         for key, val in self.cfg.items():
+            requires_grad = True
             if "I_" in key:
                 # make inertia separately
                 continue
+            # # code to avoid training the parameters
+            # if "0" in key:
+            #     requires_grad = False
             dict_pytorch[key] = torch.nn.Parameter(
-                torch.tensor([val]), requires_grad=True
+                torch.tensor([val]), requires_grad=requires_grad
             )
         self.cfg = torch.nn.ParameterDict(dict_pytorch)
 
