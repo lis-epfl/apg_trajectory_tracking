@@ -1,59 +1,60 @@
 import casadi as ca
 import torch
+import os
+import json
+from pathlib import Path
 import numpy as np
-from types import SimpleNamespace
 
 
 class Dynamics:
 
-    def __init__(
-        self,
-        thrust_factor=5.723e-06,
-        drag_factor=1.717e-07,
-        mass=0.723,
-        rotational_drag=np.array([0., 0., 0.]),
-        translational_drag=np.array([0, 0, 0]),
-        arm_length=0.31,
-        rotor_inertia=7.321e-05,
-        frame_inertia=np.array([4.5, 4.5, 7.]),
-        gravity=np.array([0., 0., -9.81]),
-        max_rotor_speed=1000.0,
-        rotor_speed_half_time=0.0625,
-        kinv_ang_vel_tau=np.array([16.6, 16.6, 5.]),
-        down_drag=1
-    ):
+    def __init__(self, modified_params={}):
+        """
+        Initialzie quadrotor dynamics
+        Args:
+            modified_params (dict, optional): dynamic mismatch. Defaults to {}.
+        """
+        with open(
+            os.path.join(Path(__file__).parent.absolute(), "config_quad.json"),
+            "r"
+        ) as infile:
+            self.cfg = json.load(infile)
+
+        # update with modified parameters
+        self.cfg.update(modified_params)
+
         device = "cpu"
         # NUMPY PARAMETERS
-        self.down_drag = down_drag
-        self.mass = mass
-        self.arm_length = arm_length
-        self.thrust_factor = thrust_factor
-        self.drag_factor = drag_factor
-        self.rotor_inertia = rotor_inertia
-        self.max_rotor_speed = max_rotor_speed
-        self.kinv_ang_vel_tau = kinv_ang_vel_tau
-        self.inertia_vector = (mass / 12.0 * arm_length**2 * frame_inertia)
+        self.mass = self.cfg["mass"]
+        self.arm_length = self.cfg["arm_length"]
+        self.kinv_ang_vel_tau = np.array(self.cfg["kinv_ang_vel_tau"])
+
+        self.inertia_vector = (
+            self.mass / 12.0 * self.arm_length**2 *
+            np.array(self.cfg["frame_inertia"])
+        )
 
         # TORCH PARAMETERS
         # torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.copter_params = SimpleNamespace(**self.copter_params)
-        self.torch_translational_drag = torch.from_numpy(translational_drag
-                                                         ).to(device)
-        self.torch_gravity = torch.from_numpy(gravity).to(device)
-        self.torch_rotational_drag = torch.from_numpy(rotational_drag
-                                                      ).to(device)
+        self.torch_translational_drag = torch.tensor(
+            self.cfg["translational_drag"]
+        ).float().to(device)
+        self.torch_gravity = torch.tensor(self.cfg["gravity"])
+        self.torch_rotational_drag = torch.tensor(self.cfg["rotational_drag"]
+                                                  ).float()
         self.torch_inertia_vector = torch.from_numpy(self.inertia_vector
                                                      ).float().to(device)
 
         self.torch_inertia_J = torch.diag(self.torch_inertia_vector)
         self.torch_inertia_J_inv = torch.diag(1 / self.torch_inertia_vector)
-        self.torch_kinv_vector = torch.tensor(kinv_ang_vel_tau).float()
+        self.torch_kinv_vector = torch.tensor(self.kinv_ang_vel_tau).float()
         self.torch_kinv_ang_vel_tau = torch.diag(self.torch_kinv_vector)
 
         # CASADI PARAMETERS
         self.ca_inertia_vector = ca.SX(self.inertia_vector)
         self.ca_inertia_vector_inv = ca.SX(1 / self.inertia_vector)
-        self.ca_kinv_ang_vel_tau = ca.SX(self.kinv_ang_vel_tau)
+        self.ca_kinv_ang_vel_tau = ca.SX(np.array(self.kinv_ang_vel_tau))
 
     @staticmethod
     def world_to_body_matrix(attitude):

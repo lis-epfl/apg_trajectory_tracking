@@ -6,8 +6,11 @@ import casadi as ca
 
 class FlightmareDynamics(Dynamics):
 
-    def __init__(self, simulate_rotors=False, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, modified_params={}, simulate_rotors=False):
+        super().__init__(modified_params=modified_params)
+
+        self.simulate_rotors = simulate_rotors
+
         # new parameters needed for flightmare simulation
         self.t_BM_ = self.arm_length * np.sqrt(0.5) * torch.tensor(
             [[1, -1, -1, 1], [-1, -1, 1, 1], [0, 0, 0, 0]]
@@ -78,7 +81,7 @@ class FlightmareDynamics(Dynamics):
         body_to_world = torch.transpose(world_to_body, 1, 2)
 
         # print("force in ld ", force.size())
-        thrust = self.down_drag * 1 / self.mass * torch.matmul(
+        thrust = 1 / self.mass * torch.matmul(
             body_to_world, torch.unsqueeze(force, 2)
         )
         # print("thrust", thrust.size())
@@ -95,7 +98,7 @@ class FlightmareDynamics(Dynamics):
         omega = av: current angular velocity
         command = body_rates: body rates in command
         """
-        force = torch.unsqueeze(self.mass * thrust, 1)
+        force = torch.unsqueeze(0.723 * thrust, 1)
 
         # constants
         omega_change = torch.unsqueeze(body_rates - av, 2)
@@ -104,7 +107,9 @@ class FlightmareDynamics(Dynamics):
         )
         first_part = torch.matmul(self.torch_inertia_J, kinv_times_change)
         # print("first_part", first_part.size())
-        body_torque_des = first_part[:, :, 0] + cross_prod
+        body_torque_des = (
+            first_part[:, :, 0] + cross_prod + self.torch_rotational_drag
+        )
 
         thrust_and_torque = torch.unsqueeze(
             torch.cat((force, body_torque_des), dim=1), 2
@@ -116,6 +121,9 @@ class FlightmareDynamics(Dynamics):
         if len(torch_var) > 1:
             print("ERR: batch size larger 1", torch_var.size())
         print(varname, torch_var[0].detach().numpy())
+
+    def __call__(self, state, action, dt):
+        return self.simulate_quadrotor(action, state, dt)
 
     def simulate_quadrotor(self, action, state, dt):
         """

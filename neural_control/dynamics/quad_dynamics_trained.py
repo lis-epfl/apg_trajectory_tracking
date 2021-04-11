@@ -10,7 +10,7 @@ from neural_control.dynamics.quad_dynamics_flightmare import (
 class LearntDynamics(nn.Module, FlightmareDynamics):
 
     def __init__(self, initial_params={}):
-        FlightmareDynamics.__init__(self, **initial_params)
+        FlightmareDynamics.__init__(self, initial_params)
         super(LearntDynamics, self).__init__()
 
         # Action transformation parameters
@@ -36,11 +36,6 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
             torch.tensor([self.mass]),
             requires_grad=True  # , name="mass"
         )
-        self.down_drag = nn.Parameter(
-            torch.tensor([self.down_drag]).float(),
-            requires_grad=True,
-            # name="down_draf"
-        )
         self.torch_inertia_vector = nn.Parameter(
             torch.from_numpy(self.inertia_vector).float(),
             requires_grad=True,
@@ -63,7 +58,7 @@ class LearntDynamics(nn.Module, FlightmareDynamics):
         # TODO: activation function?
         return new_state
 
-    def forward(self, action, state, dt):
+    def forward(self, state, action, dt):
         action_transformed = torch.matmul(
             self.linear_at, torch.unsqueeze(action, 2)
         )[:, :, 0]

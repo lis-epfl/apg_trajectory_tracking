@@ -8,11 +8,11 @@ import torch
 from neural_control.environments.wing_env import SimpleWingEnv, run_wing_flight
 from neural_control.plotting import plot_wing_pos_3d, plot_success
 from neural_control.dataset import WingDataset
-from evaluate_drone import load_model_params
 from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.controllers.mpc import MPC
 from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 from neural_control.trajectory.q_funcs import project_to_line
+from evaluate_base import run_mpc_analysis, load_model_params
 
 
 class FixedWingEvaluator:
@@ -113,8 +113,7 @@ class FixedWingEvaluator:
 
             if not stable or div > self.thresh_div:
                 if self.test_time:
-                    if self.render:
-                        print("diverged", div, "stable", stable)
+                    print("diverged", div, "stable", stable)
                     break
                 else:
                     reset_state = np.zeros(12)
@@ -142,9 +141,9 @@ class FixedWingEvaluator:
             #     np.linalg.norm(target_point - p) for p in last_x_points
             # ]
             # min_dists.append(np.min(last_x_dists))
-            not_diverged = np.sum(divergences < self.thresh_div)
+            # not_diverged = np.sum(divergences < self.thresh_div)
             mean_div.append(np.mean(divergences))
-            not_div_time.append(not_diverged)
+            # not_div_time.append(not_diverged)
         mean_err = np.mean(mean_div)
         std_err = np.std(mean_div)
         # print(
@@ -166,39 +165,6 @@ def load_model(model_path, epoch="", **kwargs):
 
     controller = FixedWingNetWrapper(net, dataset, **param_dict)
     return controller
-
-
-def run_mpc_analysis(evaluator, out_path="../presentations/analysis"):
-    """
-    Run eval function with mpc multiple times and plot the results
-    Args:
-        evaluator (Evaluator): fully initialized environment with controller
-    """
-    with open("neural_control/dynamics/config_fixed_wing.json", "r") as inf:
-        parameters = json.load(inf)
-
-    increase_factors = np.arange(1, 2, .1)
-    for key, default_val in params.items():
-        if key == "g":
-            # gravity won't change ;)
-            continue
-        default_val = parameters[key]
-        print("----------------", key, "------------")
-        mean_list, std_list = [], []
-        for inc in increase_factors:
-            new_val = float(default_val * inc)
-            modified_params = {key: new_val}
-            print("\n ", round(inc, 2), "modified:", modified_params)
-            evaluator.eval_env.dynamics = FixedWingDynamics(
-                modified_params=modified_params
-            )
-            mean_dist, std_dist = evaluator.run_eval(nr_test=20)
-            mean_list.append(mean_dist)
-            std_list.append(std_dist)
-        x = np.array(increase_factors) * default_val
-        plot_success(
-            x, mean_list, std_list, os.path.join(out_path, key + "_mpc.jpg")
-        )
 
 
 if __name__ == "__main__":
@@ -224,7 +190,7 @@ if __name__ == "__main__":
         "render": 1,
         "dt": 0.05,
         "horizon": 10,
-        "thresh_stable": 1,
+        "thresh_stable": 3,
         "thresh_div": 10
     }
 
@@ -240,6 +206,15 @@ if __name__ == "__main__":
         controller = MPC(20, 0.1, dynamics="fixed_wing_3D")
 
     modified_params = {}
+    # {
+    #     "CL0": 0.3,  # 0.39
+    #     "CD0": 0.02,  #  0.0765,
+    #     "CY0": 0.02,  # 0.0,
+    #     "Cl0": -0.01,  # 0.0,
+    #     "Cm0": 0.01,  # 0.02,
+    #     "Cn0": 0.0,
+    # }
+    # modified_params = {"rho": 1.6}
 
     dynamics = FixedWingDynamics(modified_params=modified_params)
     eval_env = SimpleWingEnv(dynamics, params["dt"])
@@ -247,14 +222,16 @@ if __name__ == "__main__":
 
     # only run evaluation without render
     # tic = time.time()
-    # out_path = "../presentations/analysis"
+    out_path = "../presentations/analysis"
     evaluator.render = 0
-    # dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
+    dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
     # np.save(
-    #     os.path.join(out_path, "analyse_neural_new.npy"), dists_from_target
+    #     os.path.join(
+    #         out_path, f"{model_name}_{'_'.join(modified_params.keys())}.npy"
+    #     ), dists_from_target
     # )
     # print("time for 100 trajectories", time.time() - tic)
-    run_mpc_analysis(evaluator)
+    # run_mpc_analysis(evaluator)
     exit()
 
     target_point = [[50, -3, -3], [100, 3, 3]]
