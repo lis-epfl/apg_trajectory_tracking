@@ -170,8 +170,9 @@ def train_control(base_model, config):
     """
     modified_params = config["modified_params"]
     # TODO: might be problematic
-    train_dynamics = FlightmareDynamics(**modified_params)
-    eval_dynamics = FlightmareDynamics(**modified_params)
+    print(modified_params)
+    train_dynamics = FlightmareDynamics(modified_params=modified_params)
+    eval_dynamics = FlightmareDynamics(modified_params=modified_params)
 
     # make sure that also the self play samples are collected in same env
     config["sample_in"] = "train_env"
@@ -194,7 +195,7 @@ def train_dynamics(base_model, config):
 
     # train environment is learnt
     train_dynamics = LearntDynamics()
-    eval_dynamics = FlightmareDynamics(**modified_params)
+    eval_dynamics = FlightmareDynamics(modified_params)
 
     trainer = TrainDrone(train_dynamics, eval_dynamics, config)
     trainer.initialize_model(base_model, modified_params=modified_params)
@@ -215,7 +216,7 @@ def train_sampling_finetune(base_model, config):
 
     # train environment is learnt
     train_dynamics = FlightmareDynamics()
-    eval_dynamics = FlightmareDynamics(**modified_params)
+    eval_dynamics = FlightmareDynamics(modified_params=modified_params)
 
     trainer = TrainDrone(train_dynamics, eval_dynamics, config)
     trainer.initialize_model(base_model, modified_params=modified_params)

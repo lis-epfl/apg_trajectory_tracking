@@ -72,7 +72,7 @@ def run_mpc_analysis(
                 )
             elif system == "quad":
                 evaluator.eval_env.dynamics = FlightmareDynamics(
-                    **modified_params
+                    modified_params=modified_params
                 )
 
             mean_dist, std_dist = evaluator.run_eval(nr_test=20)

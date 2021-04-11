@@ -255,8 +255,12 @@ class QuadEvaluator():
         stable = np.array(stable)
         div_of_full_runs = np.array(div)[stable == np.max(stable)]
         print(
-            "%s: Average divergence: %3.2f (%3.2f)" %
+            "%s: Average div of full runs: %3.2f (%3.2f)" %
             (reference, np.mean(div_of_full_runs), np.std(div_of_full_runs))
+        )
+        print(
+            "%s: Average div total: %3.2f (%3.2f)" %
+            (reference, np.mean(div), np.std(div))
         )
         print(
             "%s: Steps until divergence: %3.2f (%3.2f)" %
@@ -293,6 +297,7 @@ def load_model(model_path, epoch=""):
     """
     # load std or other parameters from json
     net, param_dict = load_model_params(model_path, "model_quad", epoch=epoch)
+    param_dict["self_play"] = 0
     dataset = QuadDataset(1, **param_dict)
 
     controller = NetworkWrapper(net, dataset, **param_dict)
@@ -372,7 +377,7 @@ if __name__ == "__main__":
     else:
         # DYNAMICS
         dynamics = (
-            FlightmareDynamics(**modified_params)
+            FlightmareDynamics(modified_params=modified_params)
             if DYNAMICS == "flightmare" else SimpleDynamics()
         )
         environment = QuadRotorEnvBase(dynamics, params["dt"])

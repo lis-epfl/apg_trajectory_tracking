@@ -10,7 +10,7 @@ from neural_control.dynamics.quad_dynamics_flightmare import (
 class LearntDynamics(nn.Module, FlightmareDynamics):
 
     def __init__(self, initial_params={}):
-        FlightmareDynamics.__init__(self, **initial_params)
+        FlightmareDynamics.__init__(self, initial_params)
         super(LearntDynamics, self).__init__()
 
         # Action transformation parameters
