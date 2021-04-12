@@ -575,6 +575,7 @@ def load_prepare_trajectory(base_dir, dt, speed_factor, test=False):
 
     # dt for trajectory generation is 0.01, then transform back
     take_every_nth = int(dt / 0.01 * speed_factor)
+    assert np.isclose(take_every_nth, dt / 0.01 * speed_factor)
     taken_every = trajectory[::take_every_nth, :]
 
     # transform to euler angels

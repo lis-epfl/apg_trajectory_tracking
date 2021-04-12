@@ -60,9 +60,11 @@ class TrainDrone(TrainBase):
         if base_model is not None:
             self.net = torch.load(os.path.join(base_model, base_model_name))
             # load std or other parameters from json
-            with open(
-                os.path.join(base_model, "param_dict.json"), "r"
-            ) as outfile:
+            config_path = os.path.join(base_model, "config.json")
+            if not os.path.exists(config_path):
+                print("Load old config..")
+                config_path = os.path.join(base_model, "param_dict.json")
+            with open(config_path, "r") as outfile:
                 previous_parameters = json.load(outfile)
             data_std = np.array(previous_parameters["std"]).astype(float)
             data_mean = np.array(previous_parameters["mean"]).astype(float)
