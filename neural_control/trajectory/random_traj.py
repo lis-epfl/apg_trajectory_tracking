@@ -32,7 +32,7 @@ class Random:
             "data/traj_data_1", dt, speed_factor, test=test_time
         )
         points_3d[:, 2] = points_3d[:, 2] + 3
-        self.full_ref = points_3d
+        # self.full_ref = points_3d
         self.initial_pos = points_3d[0, :3]
         # all_training_data = np.load("training_data.npy")
         # rand_ind = np.random.randint(0, len(all_training_data) // 501, 1)
@@ -45,7 +45,7 @@ class Random:
         #     0, :3] + drone_state[:3]
         # TODO merge: without it it looks nicer, but this was in merge
 
-        self.reference = points_3d[:, :6]
+        self.reference = points_3d  # [:, :6]
         # np.zeros((len(points_3d), 9))
         # self.reference[:, :3] = points_3d[:, :3]
         # self.reference[:, 3:6] = points_3d[:, 6:9]
@@ -86,8 +86,9 @@ class Random:
         return self.reference[self.current_ind, :3]
 
     def get_current_full_state(self):
-        pos_vel = self.full_ref[self.current_ind]
-        return np.hstack((pos_vel[:3], pos_vel[6:], pos_vel[3:6], np.zeros(3)))
+        pos_vel = self.reference[self.current_ind]
+        # pos_vel[:3], pos_vel[6:], pos_vel[3:6]
+        return np.hstack((pos_vel, np.zeros(3)))
 
 
 class PolyObject():
