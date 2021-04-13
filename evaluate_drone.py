@@ -136,7 +136,7 @@ class QuadEvaluator():
             # acc = self.eval_env.get_acceleration()
             trajectory = reference.get_ref_traj(current_np_state, 0)
             action = self.controller.predict_actions(
-                current_np_state, trajectory
+                current_np_state, trajectory.copy()
             )
 
             # possible average with previous actions
