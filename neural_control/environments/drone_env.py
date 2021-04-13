@@ -289,23 +289,21 @@ def full_state_training_data(
         traj = load_prepare_trajectory(
             "data/traj_data_1", dt, speed_factor, test=0
         )[:, :ref_size]
-        traj_cut = traj[:-ref_length]
+        traj_cut = traj[:-(ref_length + 1)]
         # select every xth sample as the current drone state
         selected_starts = traj_cut[::sample_freq, :]
         nr_states_added = len(selected_starts)
 
         full_drone_state = np.hstack(
-            (
-                selected_starts[:, :3], np.zeros((len(selected_starts), 3)),
-                selected_starts[:, 3:6], np.zeros((len(selected_starts), 3))
-            )
+            (selected_starts, np.zeros((len(selected_starts), 3)))
         )
         # add drone states
         drone_states[counter:counter + nr_states_added, :] = full_drone_state
         # add ref states
-        for i in range(ref_length):
+        for i in range(1, ref_length + 1):
             ref_states[counter:counter + nr_states_added,
-                       i] = (traj[i::sample_freq])[:nr_states_added]
+                       i - 1] = (traj[i::sample_freq])[:nr_states_added]
+
         counter += nr_states_added
 
     return drone_states[:len_data], ref_states[:len_data]
