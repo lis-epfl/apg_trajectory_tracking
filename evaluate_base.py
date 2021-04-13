@@ -21,6 +21,32 @@ def load_model_params(model_path, name="model_quad", epoch=""):
     return net, param_dict
 
 
+global last_actions
+last_actions = np.zeros((10, 4))
+
+
+def average_action(action, step, do_avg_act=False):
+    global last_actions
+    if do_avg_act:
+        # make average action
+        if step == 0:
+            last_actions = action.copy()
+        else:
+            last_actions = np.roll(last_actions, -1, axis=0)
+            # rolling mean
+            weight = np.ones((10, 1))
+            # np.expand_dims(9 - np.arange(10), 1)
+            # np.ones((10, 1)) # for giving more weight to newer states
+
+            last_actions = (last_actions * weight + action) / (weight + 1)
+        # print("actions", action)
+        # print("last actions", last_actions)\
+        use_action = last_actions[0]
+    else:
+        use_action = action[0]
+    return use_action
+
+
 def increase_param(default_val, inc):
     # first case: param is array
     if isinstance(default_val, list):

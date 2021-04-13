@@ -21,7 +21,7 @@ from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.controllers.mpc import MPC
 from neural_control.dynamics.quad_dynamics_flightmare import FlightmareDynamics
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
-from evaluate_base import run_mpc_analysis, load_model_params
+from evaluate_base import run_mpc_analysis, load_model_params, average_action
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -77,6 +77,7 @@ class QuadEvaluator():
         max_nr_steps=200,
         thresh_stable=.4,
         thresh_div=3,
+        do_avg_act=0,
         **traj_args
     ):
         """
@@ -129,8 +130,6 @@ class QuadEvaluator():
 
         self.help_render()
 
-        # is_in_control = 1
-
         (reference_trajectory, drone_trajectory,
          divergences) = [], [current_np_state], []
         for i in range(max_nr_steps):
@@ -139,8 +138,12 @@ class QuadEvaluator():
             action = self.controller.predict_actions(
                 current_np_state, trajectory
             )
+
+            # possible average with previous actions
+            use_action = average_action(action, i, do_avg_act=do_avg_act)
+
             current_np_state, stable = self.eval_env.step(
-                action[0], thresh=thresh_stable
+                use_action, thresh=thresh_stable
             )
             # np.set_printoptions(suppress=1, precision=3)
             # print(current_np_state[:3], trajectory[0, :3])

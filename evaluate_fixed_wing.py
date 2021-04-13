@@ -12,7 +12,7 @@ from neural_control.controllers.network_wrapper import FixedWingNetWrapper
 from neural_control.controllers.mpc import MPC
 from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 from neural_control.trajectory.q_funcs import project_to_line
-from evaluate_base import run_mpc_analysis, load_model_params
+from evaluate_base import run_mpc_analysis, load_model_params, average_action
 
 
 class FixedWingEvaluator:
@@ -42,7 +42,7 @@ class FixedWingEvaluator:
         self.des_speed = 11.5
         self.test_time = test_time
 
-    def fly_to_point(self, target_points, max_steps=1000, average_action=0):
+    def fly_to_point(self, target_points, max_steps=1000, do_avg_act=0):
         self.eval_env.zero_reset()
         if self.render:
             self.eval_env.drone_render_object.set_target(target_points)
@@ -55,31 +55,13 @@ class FixedWingEvaluator:
         state = self.eval_env._state
         stable = True
         drone_traj, divergences = [], []
-        last_actions = np.zeros((10, 4))
         step = 0
-
         while len(drone_traj) < max_steps:
             current_target = target_points[current_target_ind]
             action = self.controller.predict_actions(state, current_target)
 
-            if average_action:
-                # make average action
-                if step == 0:
-                    last_actions = action.copy()
-                else:
-                    last_actions = np.roll(last_actions, -1, axis=0)
-                    # rolling mean
-                    weight = np.expand_dims(9 - np.arange(10), 1)
-                    # np.ones((10, 1)) # for giving more weight to newer states
-
-                    last_actions = (last_actions * weight +
-                                    action) / (weight + 1)
-                # print("actions", action)
-                # print("last actions", last_actions)
-                step += 1
-                use_action = last_actions[0]
-            else:
-                use_action = action[0]
+            use_action = average_action(action, step, do_avg_act=do_avg_act)
+            step += 1
 
             # if self.render:
             #     np.set_printoptions(suppress=1, precision=3)
