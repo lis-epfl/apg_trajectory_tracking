@@ -322,20 +322,8 @@ class MPC(object):
         x0_array = np.reshape(
             sol_x0[:-self._s_dim], newshape=(-1, self._s_dim + self._u_dim)
         )
-        # print(len(sol_x0))
-        # for i in range(10):
-        #     traj_test = sol_x0[i*14 : (i+1)*14]
-        #     print([round(s[0],2) for s in traj_test])
-        # return optimal action, and a sequence of predicted optimal trajectory.
-        # print(opt_u)
-        # print("solver:")
-        # np.set_printoptions(suppress=True, precision=3)
-        # print(opt_u.tolist())
-        # print("x0array")
-        # print(x0_array)
-        # print("opt_u", opt_u.tolist())
-        # print(np.array(ref_states[self._s_dim:-self._s_dim]).reshape((10, 15)))
-        # exit()
+        # np.set_printoptions(suppress=1, precision=3)
+        # print(x0_array[1:, :9])
         return opt_u, x0_array
 
     def preprocess_quad(self, current_state, ref_states):
@@ -358,6 +346,10 @@ class MPC(object):
             changed_middle_ref_states[-2, :3]
         )
         goal_state[6:9] = changed_middle_ref_states[-1, 6:9]
+
+        # print("-------------------")
+        # np.set_printoptions(suppress=True, precision=3)
+        # print(changed_middle_ref_states[:-1, :3])
 
         # apped three mysterious entries:
         high_mpc_reference = np.hstack((changed_middle_ref_states, self.addon))
