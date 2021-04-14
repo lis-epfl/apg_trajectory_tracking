@@ -25,7 +25,14 @@ global last_actions
 last_actions = np.zeros((10, 4))
 
 
-def average_action(action, step, do_avg_act=False):
+def average_action(action, step, do_avg_act=0):
+    # weight = 9 - np.arange(10)
+    weight = np.ones(10)
+    # weight_first = np.array(np.ones(9).tolist() + [0])
+    # weighting = do_avg_act * weigh_equal + (1 - do_avg_act) * weight_first
+    weight = np.expand_dims(weight, 1)
+    # print(weight)
+
     global last_actions
     if do_avg_act:
         # make average action
@@ -34,9 +41,6 @@ def average_action(action, step, do_avg_act=False):
         else:
             last_actions = np.roll(last_actions, -1, axis=0)
             # rolling mean
-            weight = np.ones((10, 1))
-            # np.expand_dims(9 - np.arange(10), 1)
-            # np.ones((10, 1)) # for giving more weight to newer states
 
             last_actions = (last_actions * weight + action) / (weight + 1)
         # print("actions", action)
