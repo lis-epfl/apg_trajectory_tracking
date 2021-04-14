@@ -414,7 +414,9 @@ if __name__ == "__main__":
     if args.eval > 0:
         evaluator.render = 0
         # run_mpc_analysis(evaluator, system="quad")
-        evaluator.run_eval(args.ref, nr_test=30, max_steps=500, **traj_args)
+        evaluator.run_eval(
+            args.ref, nr_test=args.eval, max_steps=500, **traj_args
+        )
         exit()
 
     # evaluator.run_mpc_ref(args.ref)
