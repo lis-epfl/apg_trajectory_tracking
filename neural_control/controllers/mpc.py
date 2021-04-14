@@ -336,7 +336,7 @@ class MPC(object):
         changed_middle_ref_states = np.zeros((self._N, len(current_state)))
         changed_middle_ref_states[:, :3] = ref_states[:, :3]
         changed_middle_ref_states[:, 3:6] = ref_states[:, 3:6]
-        changed_middle_ref_states[:, 6:9] = ref_states[:, 6:9] * 2
+        changed_middle_ref_states[:, 6:9] = ref_states[:, 6:9]
 
         # no goal point for now
         # goal_state = changed_middle_ref_states[-1].copy().tolist()

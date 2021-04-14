@@ -94,15 +94,15 @@ def weighted_loss(states, ref_states, printout=0):
 
 def simply_last_loss(states, ref_states, action_seq, printout=0):
     angvel_factor = 2e-2
-    vel_factor = 0.05
+    vel_factor = 0.1
     pos_factor = 10
     yaw_factor = 10
     action_factor = .1
 
     action_loss = torch.sum((action_seq[:, :, 0] - .5)**2)
 
-    position_loss = torch.sum((states[:, -1, :3] - ref_states[:, :3])**2)
-    velocity_loss = torch.sum((states[:, -1, 6:9] - ref_states[:, 3:6])**2)
+    position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)
+    velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 6:9])**2)
 
     ang_vel_error = torch.sum(states[:, :, 9:11]**2
                               ) + yaw_factor * torch.sum(states[:, :, 11]**2)

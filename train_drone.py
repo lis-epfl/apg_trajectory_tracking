@@ -129,7 +129,7 @@ class TrainDrone(TrainBase):
             intermediate_states[:, k] = current_state
 
         loss = simply_last_loss(
-            intermediate_states, ref_states[:, -1], action_seq, printout=0
+            intermediate_states, ref_states, action_seq, printout=0
         )
 
         # Backprop
@@ -232,21 +232,21 @@ if __name__ == "__main__":
     with open("configs/quad_config.json", "r") as infile:
         config = json.load(infile)
 
-    mod_params = {"mass": 1}
-    # {'translational_drag': np.array([0.7, 0.7, 0.7])}
-    config["modified_params"] = mod_params
+    # mod_params = {"mass": 1}
+    # # {'translational_drag': np.array([0.7, 0.7, 0.7])}
+    # config["modified_params"] = mod_params
 
-    baseline_model = "trained_models/quad/baseline_flightmare"
-    config["thresh_div_start"] = 1
-    config["thresh_stable_start"] = 1.5
+    baseline_model = "trained_models/quad/trained_master_10act_2"
+    # config["thresh_div_start"] = 1
+    # config["thresh_stable_start"] = 1.5
 
-    config["save_name"] = "test"
+    config["save_name"] = "trained_master_10act_3"
 
-    config["nr_epochs"] = 20
+    config["nr_epochs"] = 200
 
     # TRAIN
-    # train_control(baseline_model, config)
-    train_dynamics(baseline_model, config)
+    train_control(baseline_model, config)
+    # train_dynamics(baseline_model, config)
     # train_sampling_finetune(baseline_model, config)
     # FINE TUNING parameters:
     # self.thresh_div_start = 1
