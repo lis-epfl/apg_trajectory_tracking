@@ -1,9 +1,7 @@
 import torch
 import numpy as np
 import os
-from neural_control.environments.drone_env import (
-    trajectory_training_data, full_state_training_data
-)
+from neural_control.environments.drone_env import full_state_training_data
 from neural_control.environments.wing_env import sample_training_data
 from neural_control.environments.cartpole_env import construct_states
 from neural_control.dynamics.quad_dynamics_base import Dynamics

@@ -5,9 +5,7 @@ import json
 import numpy as np
 import torch
 
-from neural_control.environments.drone_env import (
-    QuadRotorEnvBase, trajectory_training_data
-)
+from neural_control.environments.drone_env import QuadRotorEnvBase
 from neural_control.plotting import (
     plot_state_variables, plot_trajectory, plot_position, plot_suc_by_dist,
     plot_drone_ref_coords

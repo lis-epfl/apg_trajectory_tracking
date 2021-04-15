@@ -112,6 +112,10 @@ def simply_last_loss(states, ref_states, action_seq, printout=0):
         angvel_factor * ang_vel_error + pos_factor * position_loss +
         vel_factor * velocity_loss + action_factor * action_loss
     )
+    if printout:
+        print_state_ref_div(
+            states[0].detach().numpy(), ref_states[0].detach().numpy()
+        )
     return loss
 
 

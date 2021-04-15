@@ -228,46 +228,6 @@ def random_angle(random_state, max_pitch_roll):
 
 # --------------------- Auxilary functions ----------------------
 
-# data = np.load("training_data.npy")
-# rand_inds = np.random.permutation(len(data))
-# # remove problematic ones
-# rand_inds = (rand_inds[np.logical_and(rand_inds % 501 < 490,
-#             rand_inds % 501 > 30)])
-
-
-def load_training_data(len_data, ref_length=5, reset_strength=0, **kwargs):
-    np.set_printoptions(precision=2, suppress=True)
-    # print((np.random.rand(3) - .5) * reset_strength)
-    some_point = np.random.randint(0, len(rand_inds) - len_data, 1)[0]
-    use_start_inds = rand_inds[some_point:some_point + len_data]
-    drone_states, ref_states = [], []
-    for start in use_start_inds:
-        next_ref = np.array(data[start + 1:start + 1 + ref_length])
-        ref_states.append(next_ref)
-        # drone_states.append(data[start])
-        # noise_applied = (
-        #     np.ones(12) + reset_strength * (np.random.rand(12) - .5)
-        # )
-        # print("not noisy drone state", data[start])
-        random_direction = np.random.rand(12) - .5
-        div_vector = (
-            next_ref[1] - next_ref[0]
-        ) * random_direction * reset_strength
-        # print("div_vector", div_vector)
-        noisy_drone_state = data[start] + div_vector
-        # noisy_drone_state[:3] += (np.random.rand(3) - .5) * reset_strength
-
-        drone_states.append(noisy_drone_state)
-
-        # print(noisy_drone_state)
-        # print("ref_states")
-        # print(ref_states)
-        # print()
-
-    drone_states = np.array(drone_states)
-    ref_states = np.array(ref_states)
-    return drone_states[:len_data], ref_states[:len_data]
-
 
 def full_state_training_data(
     len_data, ref_length=5, dt=0.02, speed_factor=.6, **kwargs
@@ -307,80 +267,6 @@ def full_state_training_data(
         counter += nr_states_added
 
     return drone_states[:len_data], ref_states[:len_data]
-
-
-def trajectory_training_data(
-    len_data,
-    max_drone_dist=0.1,
-    ref_length=5,
-    reset_strength=1,
-    load_selfplay=None,  # "data/jan_2021.npy",
-    dt=0.02,
-    **kwargs
-):
-    """
-    Generate training dataset for trajectories as input
-    Arguments:
-        len_data: int, how much data to generate
-        max_drone_dist: Maximum distance of the drone from the first state
-        ref_length: Number of states sampled from reference traj
-        reset_strength: How much to reset the model
-        load_selfplay: file path where data from self play is located
-    Returns:
-        Array of size (len_data, reference_shape) with the training data
-    """
-    if load_selfplay is not None:
-        # load training data from np array
-        data = np.load(load_selfplay)
-        rand_inds = np.random.permutation(len(data))
-        ind_counter = 0
-    env = QuadRotorEnvBase(dt)
-    drone_states, ref_states = [], []
-    for _ in range(len_data):
-        if load_selfplay is not None and np.random.rand() < .5:
-            drone_state = data[rand_inds[ind_counter]]
-            ind_counter += 1
-        else:
-            env.reset(strength=reset_strength)
-            # sample a drone state
-            drone_state = env._state.as_np
-        pos0, vel0 = (drone_state[:3], drone_state[6:9])
-        acc0 = np.random.rand(3) * 2 - 1
-
-        # sample a direction where the next position is located
-        norm_vel = np.linalg.norm(vel0)
-        # should not diverge too much from velocity direction of drone
-        sampled_pos_dir = (
-            vel0 + (np.random.rand(3) - .5) * reset_strength * norm_vel
-        )
-        sampled_pos_dir = sampled_pos_dir / np.linalg.norm(sampled_pos_dir)
-        # sample direction where the velocity should show in the end
-        sampled_vel_dir = (
-            sampled_pos_dir + (np.random.rand(3) - .5) * reset_strength
-        )
-
-        # final goal state:
-        posf = pos0 + sampled_pos_dir * max_drone_dist
-        # multiply by norm to get a velocity of similar strength
-        velf = sampled_vel_dir * (norm_vel * (1 + np.random.rand(1) * .2 - .1))
-
-        reference_states = get_reference(
-            pos0,
-            vel0,
-            acc0,
-            posf,
-            velf,
-            ref_length=ref_length,
-            delta_t=env.dt
-        )
-
-        drone_states.append(drone_state)
-        ref_states.append(reference_states)
-    drone_states = np.array(drone_states)
-    ref_states = np.array(ref_states)
-    # np.save("ref_states.npy", ref_states)
-    # exit()
-    return drone_states, ref_states
 
 
 if __name__ == "__main__":
