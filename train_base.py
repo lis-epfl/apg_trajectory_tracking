@@ -4,6 +4,7 @@ import time
 import numpy as np
 import torch
 import torch.optim as optim
+from torch.utils.tensorboard import SummaryWriter
 
 from neural_control.dynamics.quad_dynamics_trained import LearntDynamics
 from neural_control.dynamics.fixed_wing_dynamics import LearntFixedWingDynamics
@@ -107,6 +108,8 @@ class TrainBase:
         self.state_data = None
         self.net = None
 
+        self.writer = SummaryWriter()
+
     def init_optimizer(self):
         # Init train loader
         self.trainloader = torch.utils.data.DataLoader(
@@ -196,6 +199,7 @@ class TrainBase:
         self.results_dict["loss"].append(epoch_loss)
         self.results_dict["trained"].append(train)
         print(f"Loss ({train}): {round(epoch_loss, 2)}")
+        self.writer.add_scalar("Loss/train", epoch_loss)
         return epoch_loss
 
     def sample_new_data(self, epoch):
@@ -211,7 +215,7 @@ class TrainBase:
             self.sampled_data_count += self.state_data.num_sampled_states
             print(f"Sampled new data ({self.state_data.num_sampled_states})")
 
-    def save_model(self, epoch, success):
+    def save_model(self, epoch, success, suc_std):
         # check if we either are higher than the current score (if measuring
         # the number of epochs) or lower (if measuring tracking error)
         if epoch > 0 and (
@@ -225,6 +229,13 @@ class TrainBase:
                     self.save_path, self.save_model_name + str(epoch)
                 )
             )
+
+        # In any case do tensorboard logging
+        for name, param in self.net.named_parameters():
+            self.writer.add_histogram(name, param)
+        self.writer.add_scalar("success_mean", success)
+        self.writer.add_scalar("success_std", suc_std)
+        self.writer.flush()
 
     def finalize(self):
         """
@@ -251,6 +262,7 @@ class TrainBase:
                 self.train_dynamics.state_dict(),
                 os.path.join(self.save_path, "dynamics_model")
             )
+        self.writer.close()
         print("finished and saved.")
 
     def run_control(self, config, sampling_based_finetune=False):

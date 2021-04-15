@@ -1,10 +1,10 @@
 {
-    "nr_epochs": 200,
+    "nr_epochs": 400,
     "delta_t": 0.05,
     "delta_t_train": 0.05,
-    "epoch_size": 500,
+    "epoch_size": 1000,
     "vec_std": 0.15,
-    "self_play": 1.5,
+    "self_play": 1,
     "self_play_every_x": 2,
     "batch_size": 8,
     "reset_strength": 1.2,

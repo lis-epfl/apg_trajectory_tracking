@@ -85,8 +85,8 @@ class TrainFixedWing(TrainBase):
 
     def _compute_target_pos(self, current_state, ref_vector):
         # # GIVE LINEAR TRAJECTORY FOR LOSS
-        speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
-        vec_len_per_step = speed * self.delta_t_train * self.nr_actions_rnn
+        # speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
+        vec_len_per_step = 12 * self.delta_t_train * self.nr_actions_rnn
         # form auxiliary array with linear reference for loss computation
         target_pos = torch.zeros((current_state.size()[0], 3))
         for j in range(3):
@@ -105,6 +105,7 @@ class TrainFixedWing(TrainBase):
         #     in_state.size()[0], NR_ACTIONS,
         #     current_state.size()[1]
         # )
+        # print("current_state_in", current_state[0])
         for k in range(self.nr_actions_rnn):
             # extract action
             action = action_seq[:, k]
@@ -113,12 +114,18 @@ class TrainFixedWing(TrainBase):
             )
             # intermediate_states[:, k] = current_state
 
+        # print("state after", current_state[0])
+        # print("target pos", target_pos[0])
+        # print("actions", action_seq[0])
         loss = fixed_wing_loss(
             current_state, target_pos, action_seq, printout=0
         )
 
         # Backprop
         loss.backward()
+        for name, param in self.net.named_parameters():
+            if param.grad is not None:
+                self.writer.add_histogram(name + ".grad", param.grad)
         self.optimizer_controller.step()
         return loss
 
@@ -162,15 +169,16 @@ class TrainFixedWing(TrainBase):
         self.sample_new_data(epoch)
 
         # increase thresholds
-        if self.config["thresh_div"] < self.thresh_div_end:
-            self.config["thresh_div"] += .5
+        if epoch % 5 == 0 and self.config["thresh_div"] < self.thresh_div_end:
+            self.config["thresh_div"] += .2
             print("increased thresh div", self.config["thresh_div"])
 
-        if self.config["thresh_stable"] < self.thresh_stable_end:
+        if epoch % 5 == 0 and self.config["thresh_stable"
+                                          ] < self.thresh_stable_end:
             self.config["thresh_stable"] += .05
 
         # save best model
-        self.save_model(epoch, suc_mean)
+        self.save_model(epoch, suc_mean, suc_std)
 
         self.results_dict["mean_success"].append(suc_mean)
         self.results_dict["std_success"].append(suc_std)
@@ -246,8 +254,8 @@ if __name__ == "__main__":
     with open("configs/wing_config.json", "r") as infile:
         config = json.load(infile)
 
-    baseline_model = "trained_models/wing/baseline_fixed_wing"
-    config["save_name"] = "test_model"
+    baseline_model = None  # "trained_models/wing/baseline_fixed_wing"
+    config["save_name"] = "train_from_scratch"
 
     # set high thresholds because not training from scratch
     # config["thresh_div_start"] = 20
@@ -267,7 +275,7 @@ if __name__ == "__main__":
     config["modified_params"] = mod_params
 
     # TRAIN
-    config["nr_epochs"] = 20
-    # train_control(baseline_model, config)
-    train_dynamics(baseline_model, config)
+    # config["nr_epochs"] = 20
+    train_control(baseline_model, config)
+    # train_dynamics(baseline_model, config)
     # train_sampling_finetune(baseline_model, config)

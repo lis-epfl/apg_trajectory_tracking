@@ -165,6 +165,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-u", "--unity", action='store_true', help="unity rendering"
     )
+    parser.add_argument(
+        "-a", "--eval", type=int, default=0, help="number eval runs"
+    )
     args = parser.parse_args()
 
     # parameters
@@ -203,18 +206,21 @@ if __name__ == "__main__":
     evaluator = FixedWingEvaluator(controller, eval_env, test_time=1, **params)
 
     # only run evaluation without render
-    # tic = time.time()
-    out_path = "../presentations/analysis"
-    evaluator.render = 0
-    dists_from_target = evaluator.run_eval(nr_test=30, return_dists=True)
-    # np.save(
-    #     os.path.join(
-    #         out_path, f"{model_name}_{'_'.join(modified_params.keys())}.npy"
-    #     ), dists_from_target
-    # )
-    # print("time for 100 trajectories", time.time() - tic)
-    # run_mpc_analysis(evaluator)
-    exit()
+    if args.eval > 0:
+        # tic = time.time()
+        out_path = "../presentations/analysis"
+        evaluator.render = 0
+        dists_from_target = evaluator.run_eval(
+            nr_test=args.eval, return_dists=True
+        )
+        # np.save(
+        #     os.path.join(
+        #         out_path, f"{model_name}_{'_'.join(modified_params.keys())}.npy"
+        #     ), dists_from_target
+        # )
+        # print("time for 100 trajectories", time.time() - tic)
+        # run_mpc_analysis(evaluator)
+        exit()
 
     target_point = [[50, -3, -3], [100, 3, 3]]
 

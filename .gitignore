@@ -7,6 +7,7 @@ pendulum.code-workspace
 backups/
 data_backup/
 outputs/
+*runs*
 
 .ipynb_checkpoints/
 *.csv

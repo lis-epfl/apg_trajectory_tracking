@@ -134,6 +134,9 @@ class TrainDrone(TrainBase):
 
         # Backprop
         loss.backward()
+        for name, param in self.net.named_parameters():
+            if param.grad is not None:
+                self.writer.add_histogram(name + ".grad", param.grad)
         self.optimizer_controller.step()
         return loss
 
@@ -158,7 +161,7 @@ class TrainDrone(TrainBase):
             print("increased thresh div", round(self.config["thresh_div"], 2))
 
         # save best model
-        self.save_model(epoch, suc_mean)
+        self.save_model(epoch, suc_mean, suc_std)
 
         self.results_dict["mean_success"].append(suc_mean)
         self.results_dict["std_success"].append(suc_std)
