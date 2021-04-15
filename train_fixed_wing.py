@@ -203,7 +203,7 @@ def train_control(base_model, config):
     trainer = TrainFixedWing(train_dynamics, eval_dynamics, config)
     trainer.initialize_model(base_model, modified_params=modified_params)
 
-    trainer.run_control(config)
+    trainer.run_control(config, curriculum=0)
 
 
 def train_dynamics(base_model, config):

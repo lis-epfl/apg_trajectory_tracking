@@ -5,8 +5,21 @@ import numpy as np
 import torch
 import torch.optim as optim
 from collections import defaultdict
-from torch.utils.tensorboard import SummaryWriter
-
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except ImportError:
+    class SummaryWriter:
+        def __init__(self):
+            print("Tensorboard not installed, not logging")
+            pass
+        def close(self):
+            pass
+        def flush(self):
+            pass
+        def add_scalar(self, name, scalar):
+            pass
+        def add_histogram(self, name, data):
+            pass
 from neural_control.dynamics.quad_dynamics_trained import LearntDynamics
 from neural_control.dynamics.fixed_wing_dynamics import LearntFixedWingDynamics
 from neural_control.plotting import (
@@ -262,10 +275,27 @@ class TrainBase:
         self.writer.close()
         print("finished and saved.")
 
-    def run_control(self, config, sampling_based_finetune=False):
+    def run_control(
+        self, config, sampling_based_finetune=False, curriculum=1
+    ):
+        if curriculum:
+            self.config["speed_factor"] = 0.4
+            successes = []
         try:
             for epoch in range(config["nr_epochs"]):
                 _ = self.evaluate_model(epoch)
+
+                if curriculum:
+                    current_possible_steps = 1000 / (self.config["speed_factor"] / self.config["delta_t"])
+                    successes.append(self.results_dict["mean_success"][-1])
+                    print(successes, "speed", round(self.config["speed_factor"]
+                        , 2), "thresh", round(self.config["thresh_div"], 2))
+                    if len(successes)>5 and np.all(np.array(successes[-5:]) > current_possible_steps):
+                        print(" -------------- increase speed --------- ")
+                        self.config["speed_factor"] += 0.1
+                        self.config["thresh_div"] = 0.1
+                        successes = []
+                        self.current_score = 0 if self.suc_up_down == 1 else np.inf
 
                 print(f"\nEpoch {epoch}")
                 self.run_epoch(train="controller")

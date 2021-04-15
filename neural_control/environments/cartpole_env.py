@@ -8,7 +8,10 @@ import math
 import numpy as np
 import time
 logger = logging.getLogger(__name__)
-from . import cartpole_rendering as rendering
+try:
+    from . import cartpole_rendering as rendering
+except:
+    pass
 
 
 class CartPoleEnv():
