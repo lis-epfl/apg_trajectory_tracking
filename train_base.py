@@ -4,6 +4,7 @@ import time
 import numpy as np
 import torch
 import torch.optim as optim
+from collections import defaultdict
 from torch.utils.tensorboard import SummaryWriter
 
 from neural_control.dynamics.quad_dynamics_trained import LearntDynamics
@@ -77,15 +78,9 @@ class TrainBase:
         self.learning_rate_dynamics = learning_rate_dynamics
 
         # performance logging:
-        self.results_dict = {
-            "mean_success": [],
-            "std_success": [],
-            "loss": [0],
-            "samples_in_d2": [],
-            "samples_in_d1": [],
-            "thresh_div": [],
-            "trained": []
-        }
+        self.results_dict = defaultdict(list)
+        # to match losses and eval runs, add 0
+        self.results_dict["loss"].append(0)
 
         # saving routine
         self.save_name = save_name
@@ -164,6 +159,8 @@ class TrainBase:
         ) + self.l2_lambda * l2_loss
         loss.backward()
         self.optimizer_dynamics.step()
+
+        self.results_dict["loss_dyn_per_step"].append(loss.item())
         return loss
 
     def run_epoch(self, train="controller"):
