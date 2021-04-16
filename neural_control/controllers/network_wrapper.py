@@ -4,8 +4,6 @@ import contextlib
 import time
 import torch.optim as optim
 
-from neural_control.drone_loss import reference_loss
-
 
 @contextlib.contextmanager
 def dummy_context():

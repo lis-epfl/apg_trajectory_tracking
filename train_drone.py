@@ -7,10 +7,7 @@ import torch.nn.functional as F
 
 from neural_control.dataset import QuadDataset
 from train_base import TrainBase
-from neural_control.drone_loss import (
-    drone_loss_function, simply_last_loss, reference_loss, mse_loss,
-    weighted_loss
-)
+from neural_control.drone_loss import quad_mpc_loss
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
 from neural_control.dynamics.quad_dynamics_flightmare import (
     FlightmareDynamics
@@ -128,7 +125,7 @@ class TrainDrone(TrainBase):
             )
             intermediate_states[:, k] = current_state
 
-        loss = simply_last_loss(
+        loss = quad_mpc_loss(
             intermediate_states, ref_states, action_seq, printout=0
         )
 
@@ -239,7 +236,7 @@ if __name__ == "__main__":
     # # {'translational_drag': np.array([0.7, 0.7, 0.7])}
     # config["modified_params"] = mod_params
 
-    baseline_model = None # "trained_models/quad/"
+    baseline_model = None  # "trained_models/quad/"
     # config["thresh_div_start"] = 1
     # config["thresh_stable_start"] = 1.5
 

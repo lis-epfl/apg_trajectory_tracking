@@ -7,9 +7,7 @@ import torch
 import torch.nn.functional as F
 
 from neural_control.dataset import WingDataset
-from neural_control.drone_loss import (
-    trajectory_loss, fixed_wing_loss, angle_loss, fixed_wing_mpc_loss
-)
+from neural_control.drone_loss import fixed_wing_last_loss, fixed_wing_mpc_loss
 from neural_control.dynamics.fixed_wing_dynamics import (
     FixedWingDynamics, LearntFixedWingDynamics
 )
@@ -145,7 +143,9 @@ class TrainFixedWing(TrainBase):
             current_state = self.train_dynamics.simulate_fixed_wing(
                 current_state, action, dt=self.delta_t
             )
-        loss = fixed_wing_loss(current_state, target_pos, None, printout=0)
+        loss = fixed_wing_last_loss(
+            current_state, target_pos, None, printout=0
+        )
         # Backprop
         loss.backward()
         self.optimizer_controller.step()
