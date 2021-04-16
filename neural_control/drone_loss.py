@@ -92,6 +92,38 @@ def weighted_loss(states, ref_states, printout=0):
     return loss * .01
 
 
+rates_prior = torch.tensor([.5, .5, .5])
+
+def quad_mpc_loss(states, ref_states, action_seq, printout=0):
+    # MATCH TO MPC
+    # self._Q_u = np.diag([50, 1, 1, 1])
+    # self._Q_pen = np.diag([100, 100, 100, 10, 10, 10, 10, 10, 10, 1, 1, 1])
+    pos_factor = 10
+    u_thrust_factor = 5
+    u_rates_factor = 0.1
+    av_factor = 0.1
+    vel_factor = 1
+    
+    position_loss = torch.sum((states[:, :, :3] - ref_states[:, :, :3])**2)
+    velocity_loss = torch.sum((states[:, :, 6:9] - ref_states[:, :, 6:9])**2)
+
+    av_loss = torch.sum(states[:, :, 9:12]**2)
+    u_thrust_loss = torch.sum((action_seq[:, :, 0] - .5)**2)
+    u_rates_loss = torch.sum((action_seq[:, :, 1:] - rates_prior)**2)
+
+    loss = (
+        pos_factor * position_loss + vel_factor * velocity_loss + 
+        av_factor * av_loss + u_rates_factor * u_rates_loss +
+        u_thrust_factor * u_thrust_loss
+    )
+    
+    if printout:
+        print_state_ref_div(
+            states[0].detach().numpy(), ref_states[0].detach().numpy()
+        )
+    return loss
+
+
 def simply_last_loss(states, ref_states, action_seq, printout=0):
     angvel_factor = 2e-2
     vel_factor = 0.1

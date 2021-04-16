@@ -239,13 +239,13 @@ if __name__ == "__main__":
     # # {'translational_drag': np.array([0.7, 0.7, 0.7])}
     # config["modified_params"] = mod_params
 
-    baseline_model = "trained_models/quad/trained_master_10act_2"
+    baseline_model = None # "trained_models/quad/"
     # config["thresh_div_start"] = 1
     # config["thresh_stable_start"] = 1.5
 
-    config["save_name"] = "trained_master_10act_3"
+    config["save_name"] = "mpc_loss"
 
-    config["nr_epochs"] = 200
+    config["nr_epochs"] = 400
 
     # TRAIN
     train_control(baseline_model, config)
