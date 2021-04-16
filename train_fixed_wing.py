@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from neural_control.dataset import WingDataset
 from neural_control.drone_loss import (
-    trajectory_loss, fixed_wing_loss, angle_loss
+    trajectory_loss, fixed_wing_loss, angle_loss, fixed_wing_mpc_loss
 )
 from neural_control.dynamics.fixed_wing_dynamics import (
     FixedWingDynamics, LearntFixedWingDynamics
@@ -88,13 +88,16 @@ class TrainFixedWing(TrainBase):
     def _compute_target_pos(self, current_state, ref_vector):
         # # GIVE LINEAR TRAJECTORY FOR LOSS
         # speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
-        vec_len_per_step = 12 * self.delta_t_train * self.nr_actions_rnn
+        vec_len_per_step = 12 * self.delta_t_train
         # form auxiliary array with linear reference for loss computation
-        target_pos = torch.zeros((current_state.size()[0], 3))
-        for j in range(3):
-            target_pos[:, j] = current_state[:, j] + (
-                ref_vector[:, j] * vec_len_per_step
-            )
+        target_pos = torch.zeros(
+            (current_state.size()[0], self.nr_actions_rnn, 3)
+        )
+        for i in range(self.nr_actions_rnn):
+            for j in range(3):
+                target_pos[:, i, j] = current_state[:, j] + (
+                    ref_vector[:, j] * vec_len_per_step * (i + 1)
+                )
         return target_pos
 
     def train_controller_model(
@@ -103,24 +106,19 @@ class TrainFixedWing(TrainBase):
         target_pos = self._compute_target_pos(current_state, in_ref_state)
         # zero the parameter gradients
         self.optimizer_controller.zero_grad()
-        # intermediate_states = torch.zeros(
-        #     in_state.size()[0], NR_ACTIONS,
-        #     current_state.size()[1]
-        # )
-        # print("current_state_in", current_state[0])
+        intermediate_states = torch.zeros(
+            current_state.size()[0], self.nr_actions_rnn, self.state_size
+        )
         for k in range(self.nr_actions_rnn):
             # extract action
             action = action_seq[:, k]
             current_state = self.train_dynamics(
                 current_state, action, dt=self.delta_t_train
             )
-            # intermediate_states[:, k] = current_state
+            intermediate_states[:, k] = current_state
 
-        # print("state after", current_state[0])
-        # print("target pos", target_pos[0])
-        # print("actions", action_seq[0])
-        loss = fixed_wing_loss(
-            current_state, target_pos, action_seq, printout=0
+        loss = fixed_wing_mpc_loss(
+            intermediate_states, target_pos, action_seq, printout=0
         )
 
         # Backprop
@@ -257,7 +255,7 @@ if __name__ == "__main__":
         config = json.load(infile)
 
     baseline_model = None  # "trained_models/wing/baseline_fixed_wing"
-    config["save_name"] = "train_from_scratch"
+    config["save_name"] = "train_mpc_loss"
 
     # set high thresholds because not training from scratch
     # config["thresh_div_start"] = 20

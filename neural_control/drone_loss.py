@@ -225,6 +225,19 @@ action_prior = torch.tensor([.5, .5, .5])
 div_weight = torch.tensor([10, 10, 10])
 
 
+def fixed_wing_mpc_loss(drone_states, linear_reference, action, printout=0):
+    # Use costs from MPC:
+    # self._Q_u = np.diag([0, 10, 10, 10])
+    # self._Q_pen = np.diag([1000, 1000, 1000, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    action_factor = 0.1
+    pos_factor = 10
+
+    action_loss = torch.sum((action[:, :, 1:] - action_prior)**2)
+    pos_loss = torch.sum((drone_states[:, :, :3] - linear_reference)**2)
+    loss = pos_factor * pos_loss + action_factor * action_loss
+    return loss
+
+
 def fixed_wing_loss(drone_states, linear_reference, action, printout=0):
     # action_loss = torch.sum((action[:, :, 1:] - action_prior)**2)
     loss = torch.sum((drone_states[:, :3] - linear_reference)**2)
