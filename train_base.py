@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from collections import defaultdict
+from tqdm import tqdm
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
@@ -176,7 +177,7 @@ class TrainBase:
         self.results_dict["loss_dyn_per_step"].append(loss.item())
         return loss
 
-    def run_epoch(self, train="controller"):
+    def run_epoch(self, train="controller", epoch=0):
         # tic_epoch = time.time()
         running_loss = 0
         for i, data in enumerate(self.trainloader, 0):
@@ -209,7 +210,7 @@ class TrainBase:
         self.results_dict["loss"].append(epoch_loss)
         self.results_dict["trained"].append(train)
         print(f"Loss ({train}): {round(epoch_loss, 2)}")
-        self.writer.add_scalar("Loss/train", epoch_loss)
+        self.writer.add_scalar("Loss/train", epoch_loss, epoch)
         return epoch_loss
 
     def sample_new_data(self, epoch):
@@ -228,9 +229,9 @@ class TrainBase:
     def save_model(self, epoch, success, suc_std):
         # check if we either are higher than the current score (if measuring
         # the number of epochs) or lower (if measuring tracking error)
-        if epoch > 0 and (
-            success > self.current_score and self.suc_up_down == 1
-        ) or (success < self.current_score and self.suc_up_down == -1):
+        if epoch > 0: # and (
+            # success > self.current_score and self.suc_up_down == 1
+        # ) or (success < self.current_score and self.suc_up_down == -1):
             self.current_score = success
             print("Best model with score ", round(success, 2))
             torch.save(
@@ -241,10 +242,10 @@ class TrainBase:
             )
 
         # In any case do tensorboard logging
-        for name, param in self.net.named_parameters():
-            self.writer.add_histogram(name, param)
-        self.writer.add_scalar("success_mean", success)
-        self.writer.add_scalar("success_std", suc_std)
+        # for name, param in self.net.named_parameters():
+        #     self.writer.add_histogram(name, param)
+        self.writer.add_scalar("success_mean", success, epoch)
+        self.writer.add_scalar("success_std", suc_std, epoch)
         self.writer.flush()
 
     def finalize(self):
@@ -253,7 +254,15 @@ class TrainBase:
         """
         torch.save(
             self.net, os.path.join(self.save_path, self.save_model_name)
-        )
+        ) 
+        np.savetxt(os.path.join(self.save_path, 'mean_successes.csv'),self.results_dict["mean_success"], delimiter=',')
+        np.savetxt(os.path.join(self.save_path, 'std_success.csv'), self.results_dict["std_success"], delimiter=',')
+        np.savetxt(os.path.join(self.save_path, 'loss.csv'), self.results_dict["loss"], delimiter=',')
+        np.savetxt(os.path.join(self.save_path, 'mean_divergence_full.csv'), self.results_dict["mean_divergence_full"], delimiter=',')
+        np.savetxt(os.path.join(self.save_path, 'std_divergence_full.csv'), self.results_dict["std_divergence_full"], delimiter=',')
+        np.savetxt(os.path.join(self.save_path, 'mean_divergence.csv'), self.results_dict["mean_divergence"], delimiter=',')
+        np.savetxt(os.path.join(self.save_path, 'std_divergence.csv'), self.results_dict["std_divergence"], delimiter=',')
+
         # plot performance
         plot_loss_episode_len(
             self.results_dict["mean_success"],
@@ -279,10 +288,11 @@ class TrainBase:
         self, config, sampling_based_finetune=False, curriculum=1
     ):
         if curriculum:
-            self.config["speed_factor"] = 0.4
+            self.config["speed_factor"] = 0.2
             successes = []
         try:
-            for epoch in range(config["nr_epochs"]):
+            first_epoch_with_this_vel = 0
+            for epoch in tqdm(range(config["nr_epochs"])):
                 _ = self.evaluate_model(epoch)
 
                 if curriculum:
@@ -290,15 +300,16 @@ class TrainBase:
                     successes.append(self.results_dict["mean_success"][-1])
                     print(successes, "speed", round(self.config["speed_factor"]
                         , 2), "thresh", round(self.config["thresh_div"], 2))
-                    if len(successes)>5 and np.all(np.array(successes[-5:]) > current_possible_steps):
+                    if ( (len(successes) > 5 and np.all(np.array(successes[-5:]) > current_possible_steps)) or ((epoch - first_epoch_with_this_vel) > 100) ) and self.config["speed_factor"] < 0.4:
                         print(" -------------- increase speed --------- ")
                         self.config["speed_factor"] += 0.1
                         self.config["thresh_div"] = 0.1
                         successes = []
+                        first_epoch_with_this_vel = epoch + 1
                         self.current_score = 0 if self.suc_up_down == 1 else np.inf
 
                 print(f"\nEpoch {epoch}")
-                self.run_epoch(train="controller")
+                self.run_epoch(train="controller", epoch=epoch)
 
                 if sampling_based_finetune:
                     print(
@@ -335,7 +346,7 @@ class TrainBase:
                     model_to_train = "controller"
 
                 print(f"\nEpoch {epoch}")
-                self.run_epoch(train=model_to_train)
+                self.run_epoch(train=model_to_train, epoch=epoch)
 
                 self.results_dict["samples_in_d2"].append(
                     self.count_finetune_data

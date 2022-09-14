@@ -131,9 +131,10 @@ class TrainDrone(TrainBase):
 
         # Backprop
         loss.backward()
-        for name, param in self.net.named_parameters():
-            if param.grad is not None:
-                self.writer.add_histogram(name + ".grad", param.grad)
+        self.writer.add_scalar('loss/training',loss)
+        # for name, param in self.net.named_parameters():
+        #     if param.grad is not None:
+        #         self.writer.add_histogram(name + ".grad", param.grad)
         self.optimizer_controller.step()
         return loss
 
@@ -146,7 +147,7 @@ class TrainDrone(TrainBase):
         # eval_env.run_mpc_ref("rand", nr_test=5, max_steps=500)
         # run without mpc for evaluation
         with torch.no_grad():
-            suc_mean, suc_std = evaluator.run_eval(
+            suc_mean, suc_std, div_full_mean, div_full_std, div_mean, div_std = evaluator.run_eval(
                 "rand", nr_test=10, **self.config
             )
 
@@ -160,6 +161,10 @@ class TrainDrone(TrainBase):
         # save best model
         self.save_model(epoch, suc_mean, suc_std)
 
+        self.results_dict["mean_divergence_full"].append(div_full_mean)
+        self.results_dict["std_divergence_full"].append(div_full_std)
+        self.results_dict["mean_divergence"].append(div_mean)
+        self.results_dict["std_divergence"].append(div_std)
         self.results_dict["mean_success"].append(suc_mean)
         self.results_dict["std_success"].append(suc_std)
         self.results_dict["thresh_div"].append(self.config["thresh_div"])

@@ -129,7 +129,7 @@ class QuadEvaluator():
         self.help_render()
 
         (reference_trajectory, drone_trajectory,
-         divergences) = [], [current_np_state], []
+         divergences, actions) = [], [current_np_state], [], []
         for i in range(max_nr_steps):
             # acc = self.eval_env.get_acceleration()
             trajectory = reference.get_ref_traj(current_np_state, 0)
@@ -139,6 +139,7 @@ class QuadEvaluator():
 
             # possible average with previous actions
             use_action = average_action(action, i, do_avg_act=do_avg_act)
+            actions.append(action)
 
             current_np_state, stable = self.eval_env.step(
                 use_action, thresh=thresh_stable
@@ -176,7 +177,7 @@ class QuadEvaluator():
         # return trajectorie and divergences
         return (
             np.array(reference_trajectory), np.array(drone_trajectory),
-            divergences
+            divergences, np.array(actions)
         )
 
     def compute_speed(self, drone_traj):
@@ -237,7 +238,7 @@ class QuadEvaluator():
         div, stable = [], []
         for _ in range(nr_test):
             # circle_args = self.sample_circle()
-            _, drone_traj, divergences = self.follow_trajectory(
+            reference_traj, drone_traj, divergences, actions = self.follow_trajectory(
                 reference,
                 max_nr_steps=max_steps,
                 thresh_div=thresh_div,
@@ -267,7 +268,7 @@ class QuadEvaluator():
             "%s: Steps until divergence: %3.2f (%3.2f)" %
             (reference, np.mean(stable), np.std(stable))
         )
-        return np.mean(stable), np.std(stable)
+        return np.mean(stable), np.std(stable), np.mean(div_of_full_runs), np.std(div_of_full_runs), np.mean(div), np.std(div)
 
     def collect_training_data(self, outpath="data/jan_2021.npy"):
         """

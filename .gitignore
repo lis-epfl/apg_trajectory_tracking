@@ -1,4 +1,5 @@
 .vscode/
+.history/
 __pycache__/
 data/
 trained_models/
