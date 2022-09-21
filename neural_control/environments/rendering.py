@@ -217,7 +217,7 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
 class FixedWingDrone(RenderedObject):
 
-    def __init__(self, source, draw_quad=True):
+    def __init__(self, source, draw_quad=False):
         self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
