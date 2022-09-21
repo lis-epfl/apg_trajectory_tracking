@@ -12,3 +12,21 @@ source env/bin/activate
 cd apg_drone_control
 pip install -e .
 ```
+
+### Training
+
+To train a controller for the quadrotor, we first need to create random polynomial trajectories as train and test data. Run
+```
+python train_scripts/generate_trajectories.py
+```
+
+Then, you can start training:
+```
+python train_scripts/train_drone.py
+```
+
+Similarly, the cartpole or fixed wing drnoe can be trained (without generating any trajectories) with
+```
+python train_scripts/train_fixed_wing.py
+python train_scripts/train_cartpole.py
+```

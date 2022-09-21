@@ -191,15 +191,6 @@ if __name__ == "__main__":
         controller = MPC(20, 0.1, dynamics="fixed_wing_3D")
 
     modified_params = {}
-    # {
-    #     "CL0": 0.3,  # 0.39
-    #     "CD0": 0.02,  #  0.0765,
-    #     "CY0": 0.02,  # 0.0,
-    #     "Cl0": -0.01,  # 0.0,
-    #     "Cm0": 0.01,  # 0.02,
-    #     "Cn0": 0.0,
-    # }
-    # modified_params = {"rho": 1.6}
 
     dynamics = FixedWingDynamics(modified_params=modified_params)
     eval_env = SimpleWingEnv(dynamics, params["dt"])
@@ -213,13 +204,6 @@ if __name__ == "__main__":
         dists_from_target = evaluator.run_eval(
             nr_test=args.eval, return_dists=True
         )
-        # np.save(
-        #     os.path.join(
-        #         out_path, f"{model_name}_{'_'.join(modified_params.keys())}.npy"
-        #     ), dists_from_target
-        # )
-        # print("time for 100 trajectories", time.time() - tic)
-        # run_mpc_analysis(evaluator)
         exit()
 
     target_point = [[50, -3, -3], [100, 3, 3]]
@@ -230,7 +214,6 @@ if __name__ == "__main__":
     np.set_printoptions(suppress=True, precision=3)
     print("\n final state", drone_traj[-1])
     print(drone_traj.shape)
-    # np.save(os.path.join(model_path, "drone_traj.npy"), drone_traj)
 
     evaluator.eval_env.close()
 

@@ -94,12 +94,7 @@ class Random:
 class PolyObject():
 
     def __init__(self, reference_arr):
-        self.points = np.array(
-            [
-                reference_arr[i] for i in range(len(reference_arr))
-                if i % 20 == 0
-            ]
-        )
+        self.points = reference_arr.copy()
         self.points[:, 2] += 1
 
     def draw(self, renderer):

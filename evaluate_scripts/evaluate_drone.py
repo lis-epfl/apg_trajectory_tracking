@@ -40,7 +40,7 @@ class QuadEvaluator():
         horizon=5,
         max_drone_dist=0.1,
         render=0,
-        dt=0.02,
+        dt=0.05,
         test_time=0,
         speed_factor=.6,
         **kwargs
@@ -55,7 +55,7 @@ class QuadEvaluator():
         self.test_time = test_time
         self.speed_factor = speed_factor
 
-    def help_render(self, sleep=.05):
+    def help_render(self, t_prev):
         """
         Helper function to make rendering prettier
         """
@@ -67,7 +67,14 @@ class QuadEvaluator():
             )
             self.eval_env.render()
             self.eval_env._state.set_position(current_np_state[:3])
-            time.sleep(sleep)
+
+            # sleep to make the simulation realistic
+            time_now = time.time()
+            dt_process = (time_now - t_prev)
+            dt_sleep = max(0.0, self.dt - dt_process)
+            time.sleep(dt_sleep)
+            t_prev = time_now + dt_sleep
+        return t_prev
 
     def follow_trajectory(
         self,
@@ -126,7 +133,7 @@ class QuadEvaluator():
                 *tuple(reference.initial_pos)
             )
 
-        self.help_render()
+        t_prev = self.help_render(time.time())
 
         (reference_trajectory, drone_trajectory, divergences,
          actions) = [], [current_np_state], [], []
@@ -138,7 +145,8 @@ class QuadEvaluator():
             )
 
             # possible average with previous actions
-            use_action = average_action(action, i, do_avg_act=do_avg_act)
+            # use_action = average_action(action, i, do_avg_act=do_avg_act)
+            use_action = action[0]
             actions.append(action)
 
             current_np_state, stable = self.eval_env.step(
@@ -150,7 +158,7 @@ class QuadEvaluator():
                 self.eval_env._state.from_np(states[i])
                 current_np_state = states[i]
 
-            self.help_render(sleep=0)
+            t_prev = self.help_render(t_prev)
 
             drone_pos = current_np_state[:3]
             drone_trajectory.append(current_np_state)
@@ -399,6 +407,7 @@ if __name__ == "__main__":
     # EVALUATOR
     evaluator = QuadEvaluator(controller, environment, test_time=1, **params)
 
+    np.random.seed(42)
     # Specify arguments for the trajectory
     fixed_axis = 1
     traj_args = {
@@ -427,13 +436,15 @@ if __name__ == "__main__":
         exit()
 
     # evaluator.run_mpc_ref(args.ref)
-    reference_traj, drone_traj, divergences = evaluator.follow_trajectory(
+    reference_traj, drone_traj, divergences, _ = evaluator.follow_trajectory(
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
 
+    # np.save("output_video/traj_drone_" + args.model, drone_traj)
+    # np.save("output_video/reference_" + args.model, reference_traj)
     # EVAL
     speed = evaluator.compute_speed(drone_traj[:, :3])
     print(

@@ -647,9 +647,3 @@ def make_dataset():
 
     with open(os.path.join(config["out_dir"], "config.json"), "w") as outfile:
         json.dump(config, outfile)
-
-
-if __name__ == '__main__':
-    make_dataset()
-    # # Test loading function
-    # load_prepare_trajectory("data/traj_data_1/", 0.1, 0.6, test=1)

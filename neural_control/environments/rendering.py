@@ -166,6 +166,7 @@ class QuadCopter(RenderedObject):  # pragma: no cover
     def __init__(self, source):
         self.source = source
         self._show_thrust = True
+        self.arm_length = 0.31
 
     def draw(self, renderer):
         status = self.source._state
@@ -174,33 +175,40 @@ class QuadCopter(RenderedObject):  # pragma: no cover
         trafo = status.attitude
 
         # draw current orientation
-        rotated = body_to_world(trafo, [0, 0, 0.5])
+        rotated = body_to_world(trafo, [0, 0, self.arm_length / 2])
         renderer.draw_line_3d(status.position, status.position + rotated)
 
         self.draw_propeller(
-            renderer, trafo, status.position, [1, 0, 0],
+            renderer, trafo, status.position, [self.arm_length, 0, 0],
             status.rotor_speeds[0] / 1
         )
         self.draw_propeller(
-            renderer, trafo, status.position, [0, 1, 0],
+            renderer, trafo, status.position, [0, self.arm_length, 0],
             status.rotor_speeds[1] / 1
         )
         self.draw_propeller(
-            renderer, trafo, status.position, [-1, 0, 0],
+            renderer, trafo, status.position, [-self.arm_length, 0, 0],
             status.rotor_speeds[2] / 1
         )
         self.draw_propeller(
-            renderer, trafo, status.position, [0, -1, 0],
+            renderer, trafo, status.position, [0, -self.arm_length, 0],
             status.rotor_speeds[3] / 1
         )
 
     @staticmethod
     def draw_propeller(
-        renderer, euler, position, propeller_position, rotor_speed
+        renderer,
+        euler,
+        position,
+        propeller_position,
+        rotor_speed,
+        arm_length=0.31
     ):
         structure_line = body_to_world(euler, propeller_position)
         renderer.draw_line_3d(position, position + structure_line)
-        renderer.draw_circle(position + structure_line, 0.1, (0, 0, 0))
+        renderer.draw_circle(
+            position + structure_line, 0.2 * arm_length, (0, 0, 0)
+        )
         thrust_line = body_to_world(euler, [0, 0, -0.5 * rotor_speed**2])
         renderer.draw_line_3d(
             position + structure_line, position + structure_line + thrust_line

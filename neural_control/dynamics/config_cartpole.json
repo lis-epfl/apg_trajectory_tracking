@@ -1,0 +1,12 @@
+{
+    "masscart": 1.0,
+    "masspole": 0.1,
+    "length": 0.5,
+    "max_force_mag": 30.0,
+    "muc": 0.0005,
+    "mup": 0.000002,
+    "wind": 0.0,
+    "vel_drag": 0.0,
+    "contact": 0.0,
+    "delay": 0.0
+}
