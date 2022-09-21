@@ -7,9 +7,9 @@ import casadi as ca
 import torch.nn as nn
 import torch
 
-# from neural_control.dynamics.learnt_dynamics import (
-#     LearntDynamics, LearntDynamicsMPC
-# )
+from neural_control.dynamics.learnt_dynamics import (
+    LearntDynamics, LearntDynamicsMPC
+)
 
 # target state means that theta is zero --> only third position matters
 target_state = 0  # torch.from_numpy(np.array([0, 0, 0, 0]))
@@ -125,6 +125,118 @@ class CartpoleDynamics:
 
         new_state = torch.stack((x, x_dot, theta, theta_dot), dim=1)
         return new_state
+
+
+class LearntCartpoleDynamics(LearntDynamics, CartpoleDynamics):
+
+    def __init__(self, modified_params={}, not_trainable=[]):
+        CartpoleDynamics.__init__(self, modified_params=modified_params)
+        super(LearntCartpoleDynamics, self).__init__(4, 1)
+
+        dict_pytorch = {}
+        for key, val in self.cfg.items():
+            requires_grad = True
+            # # code to avoid training the parameters
+            if not_trainable == "all" or key in not_trainable:
+                requires_grad = False
+            dict_pytorch[key] = torch.nn.Parameter(
+                torch.tensor([val]), requires_grad=requires_grad
+            )
+        self.cfg = torch.nn.ParameterDict(dict_pytorch)
+
+    def simulate(self, state, action, dt):
+        return self.simulate_cartpole(state, action, dt)
+
+
+class SequenceCartpoleDynamics(LearntDynamicsMPC, CartpoleDynamics):
+
+    def __init__(self, buffer_length=3):
+        CartpoleDynamics.__init__(self)
+        super(SequenceCartpoleDynamics,
+              self).__init__(5 * buffer_length, 1, out_state_size=4)
+
+    def simulate(self, state, action, dt):
+        return self.simulate_cartpole(state, action, dt)
+
+    def forward(self, state, state_action_buffer, action, dt):
+        # run through normal simulator f hat
+        new_state = self.simulate(state, action, dt)
+        # run through residual network delta
+        added_new_state = self.state_transformer(state_action_buffer, action)
+        return new_state + added_new_state
+
+
+class ImageCartpoleDynamics(torch.nn.Module, CartpoleDynamics):
+
+    def __init__(
+        self, img_width, img_height, nr_img=5, state_size=4, action_dim=1
+    ):
+        CartpoleDynamics.__init__(self)
+        super(ImageCartpoleDynamics, self).__init__()
+
+        self.img_width = img_width
+        self.img_height = img_height
+        # conv net
+        self.conv1 = nn.Conv2d(nr_img * 2 - 1, 10, 5, padding=2)
+        self.conv2 = nn.Conv2d(10, 10, 3, padding=1)
+        self.conv3 = nn.Conv2d(10 + 2, 20, 3, padding=1)
+        self.conv4 = nn.Conv2d(20, 1, 3, padding=1)
+
+        # residual network
+        self.flat_img_size = 10 * (img_width) * (img_height)
+
+        self.linear_act = nn.Linear(action_dim, 32)
+        self.act_to_img = nn.Linear(32, img_width * img_height)
+
+        self.linear_state_1 = nn.Linear(self.flat_img_size + 32, 64)
+        self.linear_state_2 = nn.Linear(64, state_size, bias=False)
+
+    def conv_head(self, image):
+        cat_all = [image]
+        for i in range(image.size()[1] - 1):
+            cat_all.append(
+                torch.unsqueeze(image[:, i + 1] - image[:, i], dim=1)
+            )
+        sub_images = torch.cat(cat_all, dim=1)
+        conv1 = torch.relu(self.conv1(sub_images.float()))
+        conv2 = torch.relu(self.conv2(conv1))
+        return conv2
+
+    def action_encoding(self, action):
+        ff_act = torch.relu(self.linear_act(action))
+        return ff_act
+
+    def state_transformer(self, image_conv, act_enc):
+        flattened = image_conv.reshape((-1, self.flat_img_size))
+        state_action = torch.cat((flattened, act_enc), dim=1)
+
+        ff_1 = torch.relu(self.linear_state_1(state_action))
+        ff_2 = self.linear_state_2(ff_1)
+        return ff_2
+
+    def image_prediction(self, image_conv, act_enc, prior_img):
+        act_img = torch.relu(self.act_to_img(act_enc))
+        act_img = act_img.reshape((-1, 1, self.img_width, self.img_height))
+        # concat channels
+        with_prior = torch.cat((image_conv, prior_img, act_img), dim=1)
+        # conv
+        conv3 = torch.relu(self.conv3(with_prior))
+        conv4 = torch.sigmoid(self.conv4(conv3))
+        # return the single channel that we have (instead of squeeze)
+        return conv4[:, 0]
+
+    def forward(self, state, image, action, dt):
+        # run through normal simulator f hat
+        new_state = self.simulate_cartpole(state, action, dt)
+        # encode image and action (common head)
+        img_conv = self.conv_head(image)
+        act_enc = self.action_encoding(action)
+        # run through residual network delta
+        added_new_state = self.state_transformer(img_conv, act_enc)
+        # # Predict next image
+        # prior_img = torch.unsqueeze(image[:, 0], 1).float()
+        # next_img = self.image_prediction(img_conv, act_enc, prior_img)
+        return new_state + added_new_state  # , next_img
 
 
 class CartpoleDynamicsMPC(CartpoleDynamics):

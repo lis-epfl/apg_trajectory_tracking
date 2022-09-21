@@ -209,9 +209,15 @@ class CartpoleDataset(torch.utils.data.Dataset):
     Dataset for training on cartpole task
     """
 
-    def __init__(self, num_states=1000, **kwargs):
+    def __init__(self, num_states=1000, thresh_div=.21, dt=0.05, **kwargs):
+        self.dt = dt
+        self.resample_data(num_states, thresh_div)
+
+    def resample_data(self, num_states, thresh_div):
         # sample states
-        state_arr_numpy = construct_states(num_states, **kwargs)
+        state_arr_numpy = construct_states(
+            num_states, self.dt, thresh_div=thresh_div
+        )
         # convert to normalized tensors
         self.labels = self.to_torch(state_arr_numpy)
         self.states = self.labels.clone()
@@ -230,21 +236,10 @@ class CartpoleDataset(torch.utils.data.Dataset):
         """
         Add numpy data that was generated in evaluation to the random data
         """
-        self.labels = torch.vstack(
-            (self.labels, self.to_torch(new_numpy_data))
-        )
-        self.states = torch.vstack(
-            (self.states, self.to_torch(new_numpy_data))
-        )
-
-    @staticmethod
-    def prepare_data(states):
-        """
-        Transform into input to NN
-        """
-        if len(states.shape) == 1:
-            states = np.expand_dims(states, 0)
-        return self.to_torch(states)
+        cutoff = min([len(new_numpy_data), self.__len__()])
+        print("adding self play states", cutoff)
+        self.labels[:cutoff] = self.to_torch(new_numpy_data)[:cutoff]
+        self.states[:cutoff] = self.to_torch(new_numpy_data)[:cutoff]
 
 
 class WingDataset(DroneDataset):

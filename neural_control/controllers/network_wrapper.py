@@ -93,3 +93,112 @@ class FixedWingNetWrapper:
 
         self.action_counter += 1
         return suggested_action.detach().numpy()
+
+
+class CartpoleWrapper:
+
+    def __init__(self, model, nr_actions=3, action_dim=1, **kwargs):
+        self.nr_actions = nr_actions
+        self.action_dim = action_dim
+        self.net = model
+
+    def raw_states_to_torch(
+        self, states, normalize=False, std=None, mean=None, return_std=False
+    ):
+        """
+        Helper function to convert numpy state array to normalized tensors
+        Argument states:
+                One state (list of length 4) or array with x states (x times 4)
+        """
+        # either input one state at a time (evaluation) or an array
+        if len(states.shape) == 1:
+            states = np.expand_dims(states, 0)
+
+        # save mean and std column wise
+        if normalize:
+            # can't use mean!
+            if std is None:
+                std = np.std(states, axis=0)
+            if mean is None:
+                mean = np.mean(states, axis=0)
+            states = (states - mean) / std
+            # assert np.all(np.isclose(np.std(states, axis=0), 1))
+        else:
+            std = 1
+
+        # np.save("data_backup/quad_data.npy", states)
+
+        states_to_torch = torch.from_numpy(states).float()
+
+        # if we computed mean and std here, return it
+        if return_std:
+            return states_to_torch, mean, std
+        return states_to_torch
+
+    def predict_actions(self, state, ref_state):
+        torch_state = self.raw_states_to_torch(state)
+        action_seq = self.net(torch_state)
+        action_seq = torch.reshape(
+            action_seq, (-1, self.nr_actions, self.action_dim)
+        )
+        return action_seq
+
+
+class CartpoleImageWrapper:
+
+    def __init__(
+        self,
+        net,
+        dataset,
+        nr_actions=3,
+        action_dim=1,
+        self_play=1,
+        take_every_x=5,
+        **kwargs
+    ):
+        self.dataset = dataset
+        self.nr_actions = nr_actions
+        self.action_dim = action_dim
+        self.net = net
+        self.self_play = (self_play == "all" or self_play > 0)
+        self.action_counter = 0
+        self.take_every_x = take_every_x
+
+    def to_torch(self, inp):
+        """
+        To torch tensor
+        """
+        return torch.from_numpy(np.expand_dims(inp, 0)).float()
+
+    def predict_actions(self, img_input, state):
+        # img_input = self.to_torch(image)
+        action_seq = self.net(img_input)
+        action_seq = torch.reshape(
+            action_seq, (-1, self.nr_actions, self.action_dim)
+        )
+        if self.self_play and (
+            self.action_counter + 1
+        ) % self.take_every_x == 0:
+            torch_state = self.to_torch(state)
+            self.dataset.add_data(img_input, torch_state, action_seq[:, 0])
+
+        self.action_counter += 1
+        return action_seq
+
+
+class SequenceCartpoleWrapper(CartpoleImageWrapper):
+
+    def predict_actions(self, state_buffer, action_buffer, network_input):
+
+        action_seq = self.net(network_input)
+        action_seq = torch.reshape(
+            action_seq, (-1, self.nr_actions, self.action_dim)
+        )
+        if self.self_play and (
+            self.action_counter + 1
+        ) % self.take_every_x == 0:
+            self.dataset.add_data(
+                state_buffer, action_buffer, action_seq[:, 0]
+            )
+        self.action_counter += 1
+        return action_seq
