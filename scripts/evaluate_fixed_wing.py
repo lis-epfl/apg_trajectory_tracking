@@ -210,7 +210,7 @@ if __name__ == "__main__":
         )
         exit()
 
-    target_point = [[50, -2, 2], [100, 2, -2]]
+    target_point = [[50, 6, -4]]
 
     # if animate is set, don't render and only show animation
     if args.animate:

@@ -439,7 +439,7 @@ def animate_fixed_wing(target_point, traj):
 
     def update(i, ax, fig):
         ax.cla()
-        euler = traj[i, 6:9] * np.array([1, 1, -1])
+        euler = traj[i, 6:9]
         s = ax.scatter3D(
             target_point[:, 0],
             target_point[:, 1],
