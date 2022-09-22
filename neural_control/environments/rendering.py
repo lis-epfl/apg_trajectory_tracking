@@ -390,27 +390,27 @@ def animate_quad(ref, traj):
 
 
 def draw_fixed_wing(ax, position, euler, stretch=1):
-    # line from back to the middle
-    back = position + body_to_world(euler, [-stretch, 0, 0])
-    draw_line_3d(ax, back, position)
+    back = position + body_to_world(euler, [-stretch * (7 / 6), 0, 0])
     # line from front to middle-front
-    front_middle = position + body_to_world(euler, [stretch * 0.5, 0, 0])
-    draw_line_3d(
-        ax, position + body_to_world(euler, [stretch * 0.75, 0, 0]), position
-    )
-    right_back = position + body_to_world(euler, [-stretch * 0.5, 0.5, 0])
-    left_back = position + body_to_world(euler, [-stretch * 0.5, -0.5, 0])
+    front = position + body_to_world(euler, [stretch * (5 / 6), 0, 0])
+    front_middle = position + body_to_world(euler, [stretch * (1 / 3), 0, 0])
+    right_back = position + body_to_world(euler, [-stretch * (1 / 6), 0.75, 0])
+    left_back = position + body_to_world(euler, [-stretch * (1 / 6), -0.75, 0])
+    middle_back = position + body_to_world(euler, [-stretch * (1 / 6), 0, 0])
+    pointing_up = position + body_to_world(euler, [-stretch, 0, 0.25])
+    left_up = position + body_to_world(euler, [-stretch, 0.25, 0.25])
+    right_up = position + body_to_world(euler, [-stretch, -0.25, 0.25])
+    # DRAW LINES
+    # line from back to the front
+    draw_line_3d(ax, back, front)
     # line from front middle to right back
     draw_line_3d(ax, front_middle, right_back)
     draw_line_3d(ax, front_middle, left_back)
-    draw_line_3d(ax, position, right_back)
-    draw_line_3d(ax, position, left_back)
+    draw_line_3d(ax, middle_back, right_back)
+    draw_line_3d(ax, middle_back, left_back)
     # small line pointing up in the back
-    pointing_up = position + body_to_world(euler, [-stretch, 0, 0.25])
     draw_line_3d(ax, back, pointing_up)
     # horizontal line on top
-    left_up = position + body_to_world(euler, [-stretch, 0.25, 0.25])
-    right_up = position + body_to_world(euler, [-stretch, -0.25, 0.25])
     draw_line_3d(ax, left_up, right_up)
     return ax
 
