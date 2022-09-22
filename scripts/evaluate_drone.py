@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from neural_control.environments.drone_env import QuadRotorEnvBase
-from neural_control.environments.rendering import animate
+from neural_control.environments.rendering import animate_quad
 from neural_control.trajectory.straight import Hover, Straight
 from neural_control.trajectory.circle import Circle
 from neural_control.trajectory.polynomial import Polynomial
@@ -443,7 +443,7 @@ if __name__ == "__main__":
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
     if args.animate:
-        animate(reference_traj, drone_traj)
+        animate_quad(reference_traj, drone_traj)
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

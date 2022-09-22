@@ -13,6 +13,7 @@ from neural_control.controllers.mpc import MPC
 from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamics
 from neural_control.trajectory.q_funcs import project_to_line
 from evaluate_base import run_mpc_analysis, load_model_params, average_action
+from neural_control.environments.rendering import animate_fixed_wing
 
 
 class FixedWingEvaluator:
@@ -163,6 +164,9 @@ if __name__ == "__main__":
         "-e", "--epoch", type=str, default="", help="Saved epoch"
     )
     parser.add_argument(
+        "-n", "--animate", action='store_true', help="animate 3D"
+    )
+    parser.add_argument(
         "-u", "--unity", action='store_true', help="unity rendering"
     )
     parser.add_argument(
@@ -206,20 +210,15 @@ if __name__ == "__main__":
         )
         exit()
 
-    target_point = [[50, -3, -3], [100, 3, 3]]
+    target_point = [[50, -2, 2], [100, 2, -2]]
 
-    # RUN
+    # if animate is set, don't render and only show animation
+    if args.animate:
+        evaluator.render = 0
+    # Run (one trial)
     drone_traj, _ = evaluator.fly_to_point(target_point, max_steps=1000)
-
-    np.set_printoptions(suppress=True, precision=3)
-    print("\n final state", drone_traj[-1])
-    print(drone_traj.shape)
+    np.save("fixed_wing_traj.npy", drone_traj)
+    if args.animate:
+        animate_fixed_wing(target_point, drone_traj)
 
     evaluator.eval_env.close()
-
-    # EVAL
-    plot_wing_pos_3d(
-        drone_traj,
-        target_point,
-        save_path=os.path.join(model_path, "coords.png")
-    )
