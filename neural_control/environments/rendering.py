@@ -453,7 +453,7 @@ def animate_fixed_wing(target_point, traj):
 
     def update(i, ax, fig):
         ax.cla()
-        euler = traj[i, 6:9]
+        euler = traj[i, 6:9] * np.array([-1,1,1])
         ax = plot_ref_wing(ax, target_point)
         ax = draw_fixed_wing(ax, traj[i, :3], euler)
 
