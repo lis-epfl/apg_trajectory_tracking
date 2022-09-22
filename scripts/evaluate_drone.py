@@ -6,10 +6,7 @@ import numpy as np
 import torch
 
 from neural_control.environments.drone_env import QuadRotorEnvBase
-from neural_control.plotting import (
-    plot_state_variables, plot_trajectory, plot_position, plot_suc_by_dist,
-    plot_drone_ref_coords
-)
+from neural_control.environments.rendering import animate
 from neural_control.trajectory.straight import Hover, Straight
 from neural_control.trajectory.circle import Circle
 from neural_control.trajectory.polynomial import Polynomial
@@ -351,6 +348,9 @@ if __name__ == "__main__":
         help="use predefined reference"
     )
     parser.add_argument(
+        "-n", "--animate", action='store_true', help="animate 3D"
+    )
+    parser.add_argument(
         "-u", "--unity", action='store_true', help="unity rendering"
     )
     parser.add_argument(
@@ -435,31 +435,15 @@ if __name__ == "__main__":
         evaluator.run_eval(args.ref, nr_test=args.eval, **traj_args)
         exit()
 
-    # evaluator.run_mpc_ref(args.ref)
+    # if animate is set, don't render and only show animation
+    if args.animate:
+        evaluator.render = 0
+    # run one trajectory
     reference_traj, drone_traj, divergences, _ = evaluator.follow_trajectory(
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
+    if args.animate:
+        animate(reference_traj, drone_traj)
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
-
-    # np.save("output_video/traj_drone_" + args.model, drone_traj)
-    # np.save("output_video/reference_" + args.model, reference_traj)
-    # EVAL
-    speed = evaluator.compute_speed(drone_traj[:, :3])
-    print(
-        "Speed: max:", round(np.max(speed), 2), ", mean:",
-        round(np.mean(speed), 2), "stopped at", len(drone_traj),
-        "avg tracking error", np.mean(divergences)
-    )
-    # print(speed)
-    plot_trajectory(
-        reference_traj,
-        drone_traj,
-        os.path.join(model_path, args.ref + "_traj.png"),
-        fixed_axis=fixed_axis
-    )
-    plot_drone_ref_coords(
-        drone_traj[1:, :3], reference_traj,
-        os.path.join(model_path, args.ref + "_coords.png")
-    )

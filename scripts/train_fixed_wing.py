@@ -262,16 +262,6 @@ if __name__ == "__main__":
     # config["thresh_stable_start"] = 1.5
 
     mod_params = {}
-    #  {"rho": 1.6}
-    # {
-    #     "CL0": 0.3,  # 0.39
-    #     "CD0": 0.02,  #  0.0765,
-    #     "CY0": 0.02,  # 0.0,
-    #     "Cl0": -0.01,  # 0.0,
-    #     "Cm0": 0.01,  # 0.02,
-    #     "Cn0": 0.0,
-    # }
-    # # {"rho": 1.4, "mass": 1.2, "S": 0.32}  # mass: 1.4
     config["modified_params"] = mod_params
 
     # TRAIN

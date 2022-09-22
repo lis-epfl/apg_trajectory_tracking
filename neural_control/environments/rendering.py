@@ -1,5 +1,9 @@
 import numpy as np
 from neural_control.environments.helper_simple_env import Euler
+from mpl_toolkits.mplot3d import axes3d
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 
 def body_to_world_matrix(euler):
@@ -19,15 +23,7 @@ def world_to_body_matrix(euler):
     :param euler: The Euler angles of the body frame.
     :return: The transformation matrix.
     """
-
-    # check if we have a cached result already available
-    matrix = euler.get_from_cache("world_to_body")
-    if matrix is not None:
-        return matrix
-
-    roll = euler.roll
-    pitch = euler.pitch
-    yaw = euler.yaw
+    roll, pitch, yaw = euler[0], euler[1], euler[2]
 
     Cy = np.cos(yaw)
     Sy = np.sin(yaw)
@@ -43,9 +39,6 @@ def world_to_body_matrix(euler):
             [Cy * Sp * Cr + Sr * Sy, Cr * Sy * Sp - Cy * Sr, Cr * Cp]
         ]
     )
-
-    euler.add_to_cache("world_to_body", matrix)
-
     return matrix
 
 
@@ -172,7 +165,9 @@ class QuadCopter(RenderedObject):  # pragma: no cover
         status = self.source._state
 
         # transformed main axis
-        trafo = status.attitude
+        trafo = np.array(
+            [status.attitude.roll, status.attitude.pitch, status.attitude.yaw]
+        )
 
         # draw current orientation
         rotated = body_to_world(trafo, [0, 0, self.arm_length / 2])
@@ -217,7 +212,7 @@ class QuadCopter(RenderedObject):  # pragma: no cover
 
 class FixedWingDrone(RenderedObject):
 
-    def __init__(self, source, draw_quad=False):
+    def __init__(self, source, draw_quad=True):
         self.draw_quad = draw_quad
         self.source = source
         self._show_thrust = True
@@ -233,8 +228,7 @@ class FixedWingDrone(RenderedObject):
         state = self.source._state.copy()
 
         # transformed main axis
-        euler_angles = state[6:9] * np.array([1, 1, -1])
-        trafo = Euler(*tuple(euler_angles))
+        trafo = state[6:9] * np.array([1, 1, -1])
 
         # normalize x to have drone between left and right bound
         # and set z to other way round
@@ -310,3 +304,84 @@ class FixedWingDrone(RenderedObject):
         )[:, [0, 2]]
 
         renderer.draw_polygon(coord_wing_rotated)
+
+
+def draw_line_3d(ax, pos1, pos2, color="black"):
+    x1, x2, x3 = pos1[0], pos1[1], pos1[2]
+    y1, y2, y3 = pos2[0], pos2[1], pos2[2]
+    ax.plot3D([x1, y1], [x2, y2], [x3, y3], c=color)
+    return ax
+
+
+def draw_circle(ax, pos, radius, col="green"):
+    x, y, z = pos[0], pos[1], pos[2]
+    ax.scatter3D(x, y, z, marker="o", s=radius * 100, c=col)
+    return ax
+
+
+def draw_quad(ax, position, trafo, rotor_speeds):
+
+    # draw current orientation
+    rotated = body_to_world(np.array(trafo), np.array([0, 0, 0.5]))
+    draw_line_3d(ax, position, position + rotated)
+
+    draw_propeller(ax, trafo, position, [1, 0, 0], rotor_speeds[0] / 1)
+    draw_propeller(ax, trafo, position, [0, 1, 0], rotor_speeds[1] / 1)
+    draw_propeller(ax, trafo, position, [-1, 0, 0], rotor_speeds[2] / 1)
+    draw_propeller(ax, trafo, position, [0, -1, 0], 1)
+    return ax
+
+
+def draw_propeller(ax, euler, position, propeller_position, rotor_speed):
+    structure_line = body_to_world(euler, propeller_position)
+    draw_line_3d(ax, position, position + structure_line)
+    draw_circle(ax, position + structure_line, 0.1, (0, 0, 0))
+    thrust_line = body_to_world(euler, [0, 0, -0.5 * rotor_speed**2])
+    draw_line_3d(
+        ax,
+        position + structure_line,
+        position + structure_line + thrust_line,
+        color="grey"
+    )
+
+
+def animate(ref, traj):
+    fig = plt.figure(figsize=(5, 5))
+    ax = axes3d.Axes3D(fig)
+
+    # initially: plot full reference
+    X_ref = ref[:, 0]
+    Y_ref = ref[:, 1]
+    Z_ref = ref[:, 2]
+    ax.plot3D(X_ref, Y_ref, Z_ref, c="red")
+    ax.set_xlim(np.min(X_ref), np.max(X_ref))
+    ax.set_ylim(np.min(Y_ref), np.max(Y_ref))
+    ax.set_zlim(np.min(Z_ref), np.max(Z_ref))
+
+    def update(i, ax, fig):
+        ax.cla()
+        p1 = ax.plot3D(X_ref, Y_ref, Z_ref, c="red")
+        ax = draw_quad(ax, traj[i, :3], traj[i, 3:6], traj[i, 6:9])
+        #     s = ax.scatter3D(X1[i], Y1[i], Z1[i], marker="o", c="green", s=100)
+        wframe = ax.plot3D(X1[:i], Y1[:i], Z1[:i], c="blue")
+        ax.set_xlim(np.min(X_ref), np.max(X_ref))
+        ax.set_ylim(np.min(Y_ref), np.max(Y_ref))
+        ax.set_zlim(np.min(Z_ref), np.max(Z_ref))
+        return wframe,
+
+    # trajectory
+    X1 = traj[:, 0]
+    Y1 = traj[:, 1]
+    Z1 = traj[:, 2]
+
+    anim = animation.FuncAnimation(
+        fig,
+        update,
+        frames=iter(range(len(ref))),
+        fargs=(ax, fig),
+        interval=10
+    )
+    # video = anim.to_html5_video()
+    # html = display.HTML(video)
+    # display.display(html)
+    plt.show()
