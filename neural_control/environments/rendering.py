@@ -1,4 +1,5 @@
 import numpy as np
+from neural_control.environments.cartpole_rendering import LineStyle
 from neural_control.environments.helper_simple_env import Euler
 from mpl_toolkits.mplot3d import axes3d
 import numpy as np
@@ -345,7 +346,7 @@ def draw_propeller(ax, euler, position, propeller_position):
     # )
 
 
-def plot_ref(ax, ref):
+def plot_ref_quad(ax, ref):
     # initially: plot full reference
     X_ref = ref[:, 0]
     Y_ref = ref[:, 1]
@@ -361,11 +362,11 @@ def animate_quad(ref, traj):
     fig = plt.figure(figsize=(5, 5))
     ax = axes3d.Axes3D(fig)
 
-    ax = plot_ref(ax, ref)
+    ax = plot_ref_quad(ax, ref)
 
     def update(i, ax, fig):
         ax.cla()
-        ax = plot_ref(ax, ref)
+        ax = plot_ref_quad(ax, ref)
         ax = draw_quad(ax, traj[i, :3], traj[i, 3:6])
         # s = ax.scatter3D(X1[i], Y1[i], Z1[i], marker="o", c="green", s=100)
         wframe = ax.plot3D(X1[:i], Y1[:i], Z1[:i], color="blue")
@@ -415,15 +416,7 @@ def draw_fixed_wing(ax, position, euler, stretch=1):
     return ax
 
 
-def animate_fixed_wing(target_point, traj):
-    target_point = np.array(target_point)
-    fig = plt.figure(figsize=(10, 8))
-    ax = axes3d.Axes3D(fig)
-    ax.set_box_aspect(
-        (np.ptp(traj[:, 0] / 4), np.ptp(traj[:, 1]), np.ptp(traj[:, 2]))
-    )
-    # ax.set_box_aspect((np.ptp(10), np.ptp(5), np.ptp(5)))
-
+def plot_ref_wing(ax, target_point):
     # xlim is the maximum point
     ax.set_xlim(-1, target_point[-1, 0])
     ax.set_ylim(-7, 7)
@@ -436,23 +429,33 @@ def animate_fixed_wing(target_point, traj):
         c="green",
         s=100
     )
+    temp_target = np.concatenate((np.zeros((1, 3)), target_point))
+    s = ax.plot3D(
+        temp_target[:, 0],
+        temp_target[:, 1],
+        temp_target[:, 2],
+        linestyle="--",
+        c="grey"
+    )
+    return ax
+
+
+def animate_fixed_wing(target_point, traj):
+    target_point = np.array(target_point)
+    fig = plt.figure(figsize=(10, 8))
+    ax = axes3d.Axes3D(fig)
+    ax.set_box_aspect(
+        (np.ptp(traj[:, 0] / 4), np.ptp(traj[:, 1]), np.ptp(traj[:, 2]))
+    )
+    # ax.set_box_aspect((np.ptp(10), np.ptp(5), np.ptp(5)))
+
+    ax = plot_ref_wing(ax, target_point)
 
     def update(i, ax, fig):
         ax.cla()
         euler = traj[i, 6:9]
-        s = ax.scatter3D(
-            target_point[:, 0],
-            target_point[:, 1],
-            target_point[:, 2],
-            marker="o",
-            c="green",
-            s=100
-        )
-
+        ax = plot_ref_wing(ax, target_point)
         ax = draw_fixed_wing(ax, traj[i, :3], euler)
-        ax.set_xlim(-1, target_point[-1, 0])
-        ax.set_ylim(-7, 7)
-        ax.set_zlim(-7, 7)
 
     ax.view_init(elev=10., azim=270)
 
