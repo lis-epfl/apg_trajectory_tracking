@@ -323,20 +323,22 @@ def draw_circle(ax, pos, radius, col="green"):
 def draw_quad(ax, position, trafo):
 
     # draw current orientation
-    rotated = body_to_world(np.array(trafo), np.array([0, 0, 0.5]))
+    arm_length = 0.31
+    rotated = body_to_world(np.array(trafo), np.array([0, 0, arm_length/2]))
     draw_line_3d(ax, position, position + rotated)
 
-    draw_propeller(ax, trafo, position, [1, 0, 0])
-    draw_propeller(ax, trafo, position, [0, 1, 0])
-    draw_propeller(ax, trafo, position, [-1, 0, 0])
-    draw_propeller(ax, trafo, position, [0, -1, 0])
+    draw_propeller(ax, trafo, position, [arm_length, 0, 0])
+    draw_propeller(ax, trafo, position, [0, arm_length, 0])
+    draw_propeller(ax, trafo, position, [-arm_length, 0, 0])
+    draw_propeller(ax, trafo, position, [0, -arm_length, 0])
     return ax
 
 
 def draw_propeller(ax, euler, position, propeller_position):
+    arm_length = 0.31
     structure_line = body_to_world(euler, propeller_position)
     draw_line_3d(ax, position, position + structure_line)
-    draw_circle(ax, position + structure_line, 0.1, (0, 0, 0))
+    draw_circle(ax, position + structure_line, 0.05*arm_length, (0, 0, 0))
     # thrust_line = body_to_world(euler, [0, 0, -0.5 * rotor_speed**2])
     # draw_line_3d(
     #     ax,
@@ -355,11 +357,40 @@ def plot_ref_quad(ax, ref):
     ax.set_xlim(np.min(X_ref), np.max(X_ref))
     ax.set_ylim(np.min(Y_ref), np.max(Y_ref))
     ax.set_zlim(np.min(Z_ref), np.max(Z_ref))
+    set_axes_equal(ax)
+    ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     return ax
 
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
 
-def animate_quad(ref, traj):
-    fig = plt.figure(figsize=(5, 5))
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
+def animate_quad(ref, traj, savefile=np.nan):
+    fig = plt.figure(figsize=(10,10))
     ax = axes3d.Axes3D(fig)
 
     ax = plot_ref_quad(ax, ref)
@@ -377,18 +408,24 @@ def animate_quad(ref, traj):
     Y1 = traj[:, 1]
     Z1 = traj[:, 2]
 
+    dt = 0.05 #s
     anim = animation.FuncAnimation(
         fig,
         update,
-        frames=iter(range(len(ref))),
+        frames=range(len(ref)),
         fargs=(ax, fig),
-        interval=10
+        interval=dt*1000
     )
+    if not savefile == np.nan:
+        try:
+            writervideo = animation.FFMpegWriter(fps=1/dt, codec='libx264') 
+        except:
+            writervideo = animation.FFMpegWriter(fps=1/dt) 
+        anim.save(savefile, writer=writervideo)
     # video = anim.to_html5_video()
     # html = display.HTML(video)
     # display.display(html)
     plt.show()
-
 
 def draw_fixed_wing(ax, position, euler, stretch=1):
     back = position + body_to_world(euler, [-stretch * (7 / 6), 0, 0])

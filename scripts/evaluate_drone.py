@@ -443,7 +443,7 @@ if __name__ == "__main__":
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
     if args.animate:
-        animate_quad(reference_traj, drone_traj)
+        animate_quad(reference_traj, drone_traj, savefile=os.path.join(model_path,'video.mp4'))
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
