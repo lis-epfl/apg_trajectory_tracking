@@ -223,6 +223,6 @@ if __name__ == "__main__":
             drone_traj
         )
     if args.animate:
-        animate_fixed_wing(target_point, drone_traj)
+        animate_fixed_wing(target_point, [drone_traj])
 
     evaluator.eval_env.close()

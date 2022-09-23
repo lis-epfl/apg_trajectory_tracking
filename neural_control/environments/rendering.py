@@ -320,25 +320,26 @@ def draw_circle(ax, pos, radius, col="green"):
     return ax
 
 
-def draw_quad(ax, position, trafo):
+def draw_quad(ax, position, trafo, c="black"):
 
     # draw current orientation
     arm_length = 0.31
     rotated = body_to_world(np.array(trafo), np.array([0, 0, arm_length / 2]))
-    draw_line_3d(ax, position, position + rotated)
+    draw_line_3d(ax, position, position + rotated, color=c)
 
-    draw_propeller(ax, trafo, position, [arm_length, 0, 0])
-    draw_propeller(ax, trafo, position, [0, arm_length, 0])
-    draw_propeller(ax, trafo, position, [-arm_length, 0, 0])
-    draw_propeller(ax, trafo, position, [0, -arm_length, 0])
+    draw_propeller(ax, trafo, position, [arm_length, 0, 0], c=c)
+    draw_propeller(ax, trafo, position, [0, arm_length, 0], c=c)
+    draw_propeller(ax, trafo, position, [-arm_length, 0, 0], c=c)
+    draw_propeller(ax, trafo, position, [0, -arm_length, 0], c=c)
     return ax
 
 
-def draw_propeller(ax, euler, position, propeller_position):
+def draw_propeller(ax, euler, position, propeller_position, c="black"):
     arm_length = 0.31
     structure_line = body_to_world(euler, propeller_position)
-    draw_line_3d(ax, position, position + structure_line)
-    draw_circle(ax, position + structure_line, 0.05 * arm_length, (0, 0, 0))
+    draw_line_3d(ax, position, position + structure_line, color=c)
+    draw_circle(ax, position + structure_line, 0.05 * arm_length, col=c)
+    # # For plotting thrust:
     # thrust_line = body_to_world(euler, [0, 0, -0.5 * rotor_speed**2])
     # draw_line_3d(
     #     ax,
@@ -391,24 +392,29 @@ def set_axes_equal(ax):
     ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
 
-def animate_quad(ref, traj, savefile=None):
+def animate_quad(ref, trajectories, savefile=None, names=["APG"]):
     fig = plt.figure(figsize=(10, 10))
     ax = axes3d.Axes3D(fig)
 
     ax = plot_ref_quad(ax, ref)
+    cols = ["blue", "orange", "green", "purple"]
 
     def update(i, ax, fig):
         ax.cla()
         ax = plot_ref_quad(ax, ref)
-        ax = draw_quad(ax, traj[i, :3], traj[i, 3:6])
-        # s = ax.scatter3D(X1[i], Y1[i], Z1[i], marker="o", c="green", s=100)
-        wframe = ax.plot3D(X1[:i], Y1[:i], Z1[:i], color="blue")
+        for j, traj in enumerate(trajectories):
+            drone_col = "black" if len(names) == 1 else cols[j]
+            ax = draw_quad(ax, traj[i, :3], traj[i, 3:6], c=drone_col)
+            wframe = ax.plot3D(
+                traj[:i, 0],
+                traj[:i, 1],
+                traj[:i, 2],
+                color=cols[j],
+                label=names[j]
+            )
+        if len(names) > 1:
+            ax.legend(bbox_to_anchor=(.9, .7))
         return wframe,
-
-    # trajectory
-    X1 = traj[:, 0]
-    Y1 = traj[:, 1]
-    Z1 = traj[:, 2]
 
     dt = 0.05  #s
     anim = animation.FuncAnimation(
@@ -424,9 +430,7 @@ def animate_quad(ref, traj, savefile=None):
         except:
             writervideo = animation.FFMpegWriter(fps=1 / dt)
         anim.save(savefile, writer=writervideo)
-    # video = anim.to_html5_video()
-    # html = display.HTML(video)
-    # display.display(html)
+        print("Video saved")
     plt.show()
 
 
@@ -480,37 +484,10 @@ def plot_ref_wing(ax, target_point):
     return ax
 
 
-def animate_fixed_wing(target_point, traj):
-    target_point = np.array(target_point)
-    fig = plt.figure(figsize=(10, 8))
-    ax = axes3d.Axes3D(fig)
-    ax.set_box_aspect(
-        (np.ptp(traj[:, 0] / 4), np.ptp(traj[:, 1]), np.ptp(traj[:, 2]))
-    )
-    # ax.set_box_aspect((np.ptp(10), np.ptp(5), np.ptp(5)))
-
-    ax = plot_ref_wing(ax, target_point)
-
-    def update(i, ax, fig):
-        ax.cla()
-        euler = traj[i, 6:9] * np.array([-1, 1, 1])
-        ax = plot_ref_wing(ax, target_point)
-        ax = draw_fixed_wing(ax, traj[i, :3], euler)
-        ax.plot3D(traj[:i, 0], traj[:i, 1], traj[:i, 2], color="blue")
-
-    ax.view_init(elev=10., azim=270)
-
-    anim = animation.FuncAnimation(
-        fig,
-        update,
-        frames=iter(range(len(traj))),
-        fargs=(ax, fig),
-        interval=10
-    )
-    plt.show()
-
-
-def animate_multiple_wing(target_point, trajectories):
+def animate_fixed_wing(
+    target_point, trajectories, names=["APG"], savefile=None
+):
+    dt = 0.05
     target_point = np.array(target_point)
     fig = plt.figure(figsize=(10, 8))
     ax = axes3d.Axes3D(fig)
@@ -521,7 +498,7 @@ def animate_multiple_wing(target_point, trajectories):
             np.ptp(trajectories[0][:, 2])
         )
     )
-    cols = ["blue", "red", "orange", "putple"]
+    cols = ["blue", "red", "orange", "purple"]
     ax = plot_ref_wing(ax, target_point)
 
     def update(i, ax, fig):
@@ -529,8 +506,17 @@ def animate_multiple_wing(target_point, trajectories):
         ax = plot_ref_wing(ax, target_point)
         for j, traj in enumerate(trajectories):
             euler = traj[i, 6:9] * np.array([-1, 1, 1])
-            ax = draw_fixed_wing(ax, traj[i, :3], euler, c=cols[j])
-            ax.plot3D(traj[:i, 0], traj[:i, 1], traj[:i, 2], color=cols[j])
+            drone_col = "black" if len(names) == 1 else cols[j]
+            ax = draw_fixed_wing(ax, traj[i, :3], euler, c=drone_col)
+            ax.plot3D(
+                traj[:i, 0],
+                traj[:i, 1],
+                traj[:i, 2],
+                color=cols[j],
+                label=names[j]
+            )
+        if len(names) > 1:
+            ax.legend(bbox_to_anchor=(.9, .7))
 
     ax.view_init(elev=10., azim=270)
 
@@ -541,15 +527,36 @@ def animate_multiple_wing(target_point, trajectories):
         fargs=(ax, fig),
         interval=10
     )
+    if savefile is not None:
+        try:
+            writervideo = animation.FFMpegWriter(fps=1 / dt, codec='libx264')
+        except:
+            writervideo = animation.FFMpegWriter(fps=1 / dt)
+        anim.save(savefile, writer=writervideo)
+        print("Video saved")
     plt.show()
 
 
 if __name__ == "__main__":
     import os
-    target_point = [[50, 6, -4]]
-    trajectories = []
-    for model in ["mpc", "current_model"]:
-        trajectories.append(
-            np.load(os.path.join("output_video", f"wing_traj_{model}.npy"))
-        )
-    animate_multiple_wing(target_point, trajectories)
+    name = "quad"
+    if name == "wing":
+        target_point = [[50, 6, -4]]
+        trajectories = []
+        for model in ["mpc", "current_model"]:
+            trajectories.append(
+                np.load(
+                    os.path.join("output_video", f"wing_traj_{model}.npy")
+                )
+            )
+        animate_fixed_wing(target_point, trajectories, names=["MPC", "APG"])
+    else:
+        ref = np.load(os.path.join("output_video", "quad_ref_mpc.npy"))
+        trajectories = []
+        for model in ["mpc", "current_model"]:
+            trajectories.append(
+                np.load(
+                    os.path.join("output_video", f"quad_traj_{model}.npy")
+                )
+            )
+        animate_quad(ref, trajectories, names=["MPC", "APG"])

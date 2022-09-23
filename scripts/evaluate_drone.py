@@ -449,8 +449,7 @@ if __name__ == "__main__":
     print("Average divergence", np.mean(divergences))
     if args.animate:
         animate_quad(
-            reference_traj,
-            drone_traj,
+            reference_traj, [drone_traj],
             savefile=os.path.join(model_path, 'video.mp4')
         )
 
