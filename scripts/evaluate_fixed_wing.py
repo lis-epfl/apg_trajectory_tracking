@@ -176,7 +176,7 @@ if __name__ == "__main__":
 
     # parameters
     params = {
-        "render": 1,
+        "render": 0,
         "dt": 0.05,
         "horizon": 10,
         "thresh_stable": 3,
@@ -204,7 +204,6 @@ if __name__ == "__main__":
     if args.eval > 0:
         # tic = time.time()
         out_path = "../presentations/analysis"
-        evaluator.render = 0
         dists_from_target = evaluator.run_eval(
             nr_test=args.eval, return_dists=True
         )
@@ -212,13 +211,14 @@ if __name__ == "__main__":
 
     target_point = [[50, 6, -4]]
 
-    # if animate is set, don't render and only show animation
-    if args.animate:
-        evaluator.render = 0
     # Run (one trial)
     drone_traj, _ = evaluator.fly_to_point(target_point, max_steps=1000)
     np.save("fixed_wing_traj.npy", drone_traj)
     if args.animate:
         animate_fixed_wing(target_point, drone_traj)
+
+    np.save(
+        os.path.join("output_video", f"wing_traj_{args.model}.npy"), drone_traj
+    )
 
     evaluator.eval_env.close()

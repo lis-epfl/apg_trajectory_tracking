@@ -390,7 +390,7 @@ def animate_quad(ref, traj):
     plt.show()
 
 
-def draw_fixed_wing(ax, position, euler, stretch=1):
+def draw_fixed_wing(ax, position, euler, stretch=1, c="black"):
     back = position + body_to_world(euler, [-stretch * (7 / 6), 0, 0])
     # line from front to middle-front
     front = position + body_to_world(euler, [stretch * (5 / 6), 0, 0])
@@ -403,16 +403,16 @@ def draw_fixed_wing(ax, position, euler, stretch=1):
     right_up = position + body_to_world(euler, [-stretch, -0.25, 0.25])
     # DRAW LINES
     # line from back to the front
-    draw_line_3d(ax, back, front)
+    draw_line_3d(ax, back, front, color=c)
     # line from front middle to right back
-    draw_line_3d(ax, front_middle, right_back)
-    draw_line_3d(ax, front_middle, left_back)
-    draw_line_3d(ax, middle_back, right_back)
-    draw_line_3d(ax, middle_back, left_back)
+    draw_line_3d(ax, front_middle, right_back, color=c)
+    draw_line_3d(ax, front_middle, left_back, color=c)
+    draw_line_3d(ax, middle_back, right_back, color=c)
+    draw_line_3d(ax, middle_back, left_back, color=c)
     # small line pointing up in the back
-    draw_line_3d(ax, back, pointing_up)
+    draw_line_3d(ax, back, pointing_up, color=c)
     # horizontal line on top
-    draw_line_3d(ax, left_up, right_up)
+    draw_line_3d(ax, left_up, right_up, color=c)
     return ax
 
 
@@ -453,9 +453,10 @@ def animate_fixed_wing(target_point, traj):
 
     def update(i, ax, fig):
         ax.cla()
-        euler = traj[i, 6:9] * np.array([-1,1,1])
+        euler = traj[i, 6:9] * np.array([-1, 1, 1])
         ax = plot_ref_wing(ax, target_point)
         ax = draw_fixed_wing(ax, traj[i, :3], euler)
+        ax.plot3D(traj[:i, 0], traj[:i, 1], traj[:i, 2], color="blue")
 
     ax.view_init(elev=10., azim=270)
 
@@ -467,3 +468,48 @@ def animate_fixed_wing(target_point, traj):
         interval=10
     )
     plt.show()
+
+
+def animate_multiple_wing(target_point, trajectories):
+    target_point = np.array(target_point)
+    fig = plt.figure(figsize=(10, 8))
+    ax = axes3d.Axes3D(fig)
+    # set aspect ratio based on first one
+    ax.set_box_aspect(
+        (
+            np.ptp(trajectories[0][:, 0] / 4), np.ptp(trajectories[0][:, 1]),
+            np.ptp(trajectories[0][:, 2])
+        )
+    )
+    cols = ["blue", "red", "orange", "putple"]
+    ax = plot_ref_wing(ax, target_point)
+
+    def update(i, ax, fig):
+        ax.cla()
+        ax = plot_ref_wing(ax, target_point)
+        for j, traj in enumerate(trajectories):
+            euler = traj[i, 6:9] * np.array([-1, 1, 1])
+            ax = draw_fixed_wing(ax, traj[i, :3], euler, c=cols[j])
+            ax.plot3D(traj[:i, 0], traj[:i, 1], traj[:i, 2], color=cols[j])
+
+    ax.view_init(elev=10., azim=270)
+
+    anim = animation.FuncAnimation(
+        fig,
+        update,
+        frames=iter(range(len(trajectories[0]))),
+        fargs=(ax, fig),
+        interval=10
+    )
+    plt.show()
+
+
+if __name__ == "__main__":
+    import os
+    target_point = [[50, 6, -4]]
+    trajectories = []
+    for model in ["mpc", "current_model"]:
+        trajectories.append(
+            np.load(os.path.join("output_video", f"wing_traj_{model}.npy"))
+        )
+    animate_multiple_wing(target_point, trajectories)

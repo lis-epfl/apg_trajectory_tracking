@@ -364,7 +364,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     DYNAMICS = "flightmare"
-    RENDER = 1
 
     # CONTROLLER - define and load controller
     model_path = os.path.join("trained_models", "quad", args.model)
@@ -378,7 +377,7 @@ if __name__ == "__main__":
         controller, params = load_model(model_path, epoch=args.epoch)
 
     # PARAMETERS
-    params["render"] = RENDER if not args.unity else 0
+    params["render"] = 0
     # params["dt"] = .05
     # params["max_drone_dist"] = 1
     params["speed_factor"] = .4
@@ -430,20 +429,27 @@ if __name__ == "__main__":
         evaluator.eval_env.env.connectUnity()
 
     if args.eval > 0:
-        evaluator.render = 0
         # run_mpc_analysis(evaluator, system="quad")
         evaluator.run_eval(args.ref, nr_test=args.eval, **traj_args)
         exit()
 
-    # if animate is set, don't render and only show animation
-    if args.animate:
-        evaluator.render = 0
     # run one trajectory
     reference_traj, drone_traj, divergences, _ = evaluator.follow_trajectory(
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
+    print("Average divergence", np.mean(divergences))
     if args.animate:
         animate_quad(reference_traj, drone_traj)
+
+    # Save trajectories
+    os.makedirs("output_video", exist_ok=True)
+    np.save(
+        os.path.join("output_video", f"quad_ref_{args.model}.npy"),
+        reference_traj
+    )
+    np.save(
+        os.path.join("output_video", f"quad_traj_{args.model}.npy"), drone_traj
+    )
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()
