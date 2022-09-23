@@ -297,3 +297,105 @@ class WingDataset(DroneDataset):
         normed_ref_states = (relative_ref.t() / ref_vec_norm).t()
 
         return normed_states, states, normed_ref_states, ref_states
+
+
+class WingDatasetRL(DroneDataset):
+
+    def __init__(
+        self,
+        num_states,
+        self_play=0,
+        mean=None,
+        std=None,
+        ref_mean=None,
+        ref_std=None,
+        delta_t=0.05,
+        nr_actions=10,
+        **kwargs
+    ):
+        self.dt = delta_t
+        self.nr_actions = nr_actions
+        super().__init__(num_states, self_play, mean=mean, std=std, **kwargs)
+        if self.mean is None:
+            self.set_fixed_mean()
+        else:
+            self.mean = torch.tensor(self.mean)
+            self.std = torch.tensor(self.std)
+        states, ref_states = self.sample_data(self.total_dataset_size)
+        (self.normed_states, self.states, self.in_ref_states,
+         self.ref_states) = self.prepare_data(states, ref_states)
+
+    def set_fixed_mean(self):
+        self.mean = torch.tensor(
+            [
+                0.0, 0.0, 0.0, 11.525899887084961, -0.00016766408225521445,
+                0.16617104411125183, 0.007394296582788229, 0.018172707409,
+                0.020353179425001144, -0.0005361468647606671,
+                0.01662314310669899, 0.004487641621381044
+            ]
+        ).float()
+        self.std = torch.tensor(
+            [
+                16.626325607299805, 0.8449159860610962, 0.8879243731498718,
+                0.6243225932121277, 0.28072822093963623, 0.29176747798,
+                0.04499124363064766, 0.10370047390460968, 0.049977313727,
+                0.06449887901544571, 0.27508440613746643, 0.05634994804859
+            ]
+        ).float()
+
+    def sample_data(self, num_samples):
+        """
+        Interface to training data function of fixed wing drone
+        """
+        if self.num_sampled_states < 5:
+            # actually no sampling, only self play
+            states = np.random.rand(num_samples, 12)
+            ref_states = np.random.rand(num_samples, 3)
+        else:
+            states, ref_states = sample_training_data(
+                num_samples, **self.kwargs
+            )
+        return states, ref_states
+
+    def _compute_target_pos(self, current_state, ref_vector):
+        # # GIVE LINEAR TRAJECTORY FOR LOSS
+        # speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
+        vec_len_per_step = 12 * self.dt
+        # form auxiliary array with linear reference for loss computation
+        target_pos = torch.zeros((current_state.size()[0], self.nr_actions, 3))
+        for i in range(self.nr_actions):
+            for j in range(3):
+                target_pos[:, i, j] = current_state[:, j] + (
+                    ref_vector[:, j] * vec_len_per_step * (i + 1)
+                )
+        return target_pos
+
+    def prepare_data(self, states, ref_states):
+        """
+        Prepare numpy data for input in ANN:
+        - expand dims
+        - normalize
+        - world to body
+        """
+        if len(states.shape) == 1:
+            states = np.expand_dims(states, 0)
+            ref_states = np.expand_dims(ref_states, 0)
+        if not isinstance(states, torch.Tensor):
+            states = self.to_torch(states)
+            ref_states = self.to_torch(ref_states)
+
+        # 1) Normalized state and remove position
+        normed_states = ((states - self.mean) / self.std)[:, 3:]
+
+        # 3) Reference trajectory to torch and relative to drone position
+        # normalize
+        relative_ref = ref_states - states[:, :3]
+        ref_vec_norm = torch.sqrt(torch.sum(relative_ref**2, axis=1))
+
+        # get vector in direction of target
+        normed_ref_vector = (relative_ref.t() / ref_vec_norm).t()
+        # transform to the input states
+        ref_states = self._compute_target_pos(states, normed_ref_vector)
+        relative_ref = ref_states[:, -1] - states[:, :3]
+
+        return normed_states, states, relative_ref, ref_states

@@ -45,7 +45,6 @@ class SimpleWingEnv():
         """
         action: tuple / list/np array of two values, between 0 and 1 (sigmoid)
         """
-
         action_torch = torch.tensor([action.tolist()]).float()
         state_torch = torch.tensor([self._state.tolist()]).float()
 

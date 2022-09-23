@@ -201,7 +201,14 @@ def test_ours_cartpole(model_path, modified_params={}, max_steps=500):
 # ------------------ Fixed wing drone -----------------------
 
 
-def evaluate_wing(model=None, env=None, max_steps=1000, nr_iters=1, render=0):
+def evaluate_wing(
+    model=None,
+    env=None,
+    max_steps=1000,
+    nr_iters=1,
+    render=0,
+    given_target_point=None
+):
     # TODO: merge evaluate functions
     if env is None:
         dyn = FixedWingDynamics()
@@ -210,7 +217,7 @@ def evaluate_wing(model=None, env=None, max_steps=1000, nr_iters=1, render=0):
     div_target = []
     np.set_printoptions(precision=3, suppress=1)
     for j in range(nr_iters):
-        obs = env.reset(x_dist=50, x_std=5)
+        obs = env.reset(x_dist=50, x_std=5, target_point=given_target_point)
         if render:
             print(f"iter {j}:", env.target_point)
         trajectory = []
@@ -293,7 +300,12 @@ def test_rl_wing(save_name, modified_params={}, max_steps=1000, nr_iters=50):
         )
     else:
         trajectory, _ = evaluate_wing(
-            model, env, max_steps, nr_iters=1, render=0
+            model,
+            env,
+            max_steps,
+            nr_iters=1,
+            render=1,
+            given_target_point=[50, 6, -4]
         )
 
     return trajectory

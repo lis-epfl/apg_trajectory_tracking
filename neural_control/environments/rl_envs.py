@@ -11,7 +11,7 @@ from neural_control.environments.cartpole_env import CartPoleEnv
 from neural_control.environments.wing_env import SimpleWingEnv
 from neural_control.environments.drone_env import QuadRotorEnvBase
 from neural_control.trajectory.q_funcs import project_to_line
-from neural_control.dataset import WingDataset, QuadDataset
+from neural_control.dataset import WingDatasetRL, QuadDataset
 from neural_control.trajectory.generate_trajectory import (
     load_prepare_trajectory
 )
@@ -367,7 +367,8 @@ class WingEnvRL(gym.Env, SimpleWingEnv):
         self.thresh_div = 4
 
         # for making observation:
-        self.dataset = WingDataset(0, dt=self.dt, **kwargs)
+        self.dataset = WingDatasetRL(0, dt=self.dt, **kwargs)
+        self.dataset.set_fixed_mean()
 
     def done(self):
         # x is greater
@@ -389,9 +390,12 @@ class WingEnvRL(gym.Env, SimpleWingEnv):
         obs = torch.cat((obs_ref, obs_state), dim=1)[0].numpy()
         return obs
 
-    def reset(self, x_dist=50, x_std=5):
-        rand_y, rand_z = tuple((np.random.rand(2) - .5) * 2 * x_std)
-        self.target_point = np.array([x_dist, rand_y, rand_z])
+    def reset(self, x_dist=50, x_std=5, target_point=None):
+        if target_point is None:
+            rand_y, rand_z = tuple((np.random.rand(2) - .5) * 2 * x_std)
+            self.target_point = np.array([x_dist, rand_y, rand_z])
+        else:
+            self.target_point = np.array(target_point)
         self.zero_reset()
         self.state = self._state
         self.obs = self.state_to_obs()

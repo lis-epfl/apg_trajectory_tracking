@@ -522,7 +522,7 @@ def animate_fixed_wing(
         if len(names) > 1:
             ax.legend(bbox_to_anchor=(.9, .7))
 
-    ax.view_init(elev=10., azim=270)
+    ax.view_init(elev=20., azim=30)
 
     anim = animation.FuncAnimation(
         fig,
@@ -543,7 +543,7 @@ def animate_fixed_wing(
 
 if __name__ == "__main__":
     import os
-    name = "quad"
+    name = "wing"
     if name == "wing":
         target_point = [[50, 6, -4]]
         trajectories = []
@@ -554,7 +554,10 @@ if __name__ == "__main__":
                 )
             )
         animate_fixed_wing(
-            target_point, trajectories, names=["MPC", "APG", "PPO"]
+            target_point,
+            trajectories,
+            names=["MPC", "APG", "PPO"],
+            savefile="output_video/vid_comparison_wing.mp4"
         )
     else:
         ref = np.load(os.path.join("output_video", "quad_ref_mpc.npy"))
@@ -569,5 +572,5 @@ if __name__ == "__main__":
             ref,
             trajectories,
             names=["MPC", "APG", "PPO"],
-            savefile="output_video/vid_quad.mp4"
+            savefile="output_video/vid_comparison_quad.mp4"
         )
