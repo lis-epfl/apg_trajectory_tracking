@@ -357,9 +357,7 @@ if __name__ == "__main__":
         "-f", "--flightmare", action='store_true', help="Flightmare"
     )
     parser.add_argument(
-        "-save_data",
-        action="store_true",
-        help="save the episode as training data"
+        "-s", "--save_traj", action="store_true", help="save the trajectory"
     )
     args = parser.parse_args()
 
@@ -437,19 +435,24 @@ if __name__ == "__main__":
     reference_traj, drone_traj, divergences, _ = evaluator.follow_trajectory(
         args.ref, max_nr_steps=2000, use_mpc_every=1000, **traj_args
     )
+    # Save trajectories
+    if args.save_traj:
+        os.makedirs("output_video", exist_ok=True)
+        np.save(
+            os.path.join("output_video", f"quad_ref_{args.model}.npy"),
+            reference_traj
+        )
+        np.save(
+            os.path.join("output_video", f"quad_traj_{args.model}.npy"),
+            drone_traj
+        )
     print("Average divergence", np.mean(divergences))
     if args.animate:
-        animate_quad(reference_traj, drone_traj)
-
-    # Save trajectories
-    os.makedirs("output_video", exist_ok=True)
-    np.save(
-        os.path.join("output_video", f"quad_ref_{args.model}.npy"),
-        reference_traj
-    )
-    np.save(
-        os.path.join("output_video", f"quad_traj_{args.model}.npy"), drone_traj
-    )
+        animate_quad(
+            reference_traj,
+            drone_traj,
+            savefile=os.path.join(model_path, 'video.mp4')
+        )
 
     if args.unity:
         evaluator.eval_env.env.disconnectUnity()

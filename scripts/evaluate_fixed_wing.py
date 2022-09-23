@@ -172,6 +172,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-a", "--eval", type=int, default=0, help="number eval runs"
     )
+    parser.add_argument(
+        "-s", "--save_traj", action='store_true', help="number eval runs"
+    )
     args = parser.parse_args()
 
     # parameters
@@ -213,12 +216,13 @@ if __name__ == "__main__":
 
     # Run (one trial)
     drone_traj, _ = evaluator.fly_to_point(target_point, max_steps=1000)
-    np.save("fixed_wing_traj.npy", drone_traj)
+    if args.save_traj:
+        os.makedirs("output_video", exist_ok=True)
+        np.save(
+            os.path.join("output_video", f"wing_traj_{args.model}.npy"),
+            drone_traj
+        )
     if args.animate:
         animate_fixed_wing(target_point, drone_traj)
-
-    np.save(
-        os.path.join("output_video", f"wing_traj_{args.model}.npy"), drone_traj
-    )
 
     evaluator.eval_env.close()
