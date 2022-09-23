@@ -403,12 +403,13 @@ def animate_quad(ref, trajectories, savefile=None, names=["APG"]):
         ax.cla()
         ax = plot_ref_quad(ax, ref)
         for j, traj in enumerate(trajectories):
+            ind = len(traj) - 1 if i >= len(traj) else i
             drone_col = "black" if len(names) == 1 else cols[j]
-            ax = draw_quad(ax, traj[i, :3], traj[i, 3:6], c=drone_col)
+            ax = draw_quad(ax, traj[ind, :3], traj[ind, 3:6], c=drone_col)
             wframe = ax.plot3D(
-                traj[:i, 0],
-                traj[:i, 1],
-                traj[:i, 2],
+                traj[:ind, 0],
+                traj[:ind, 1],
+                traj[:ind, 2],
                 color=cols[j],
                 label=names[j]
             )
@@ -416,7 +417,7 @@ def animate_quad(ref, trajectories, savefile=None, names=["APG"]):
             ax.legend(bbox_to_anchor=(.9, .7))
         return wframe,
 
-    dt = 0.05  #s
+    dt = 0.05
     anim = animation.FuncAnimation(
         fig,
         update,
@@ -487,6 +488,7 @@ def plot_ref_wing(ax, target_point):
 def animate_fixed_wing(
     target_point, trajectories, names=["APG"], savefile=None
 ):
+    traj_lens = [len(t) for t in trajectories]
     dt = 0.05
     target_point = np.array(target_point)
     fig = plt.figure(figsize=(10, 8))
@@ -505,13 +507,15 @@ def animate_fixed_wing(
         ax.cla()
         ax = plot_ref_wing(ax, target_point)
         for j, traj in enumerate(trajectories):
-            euler = traj[i, 6:9] * np.array([-1, 1, 1])
+            # if the trajectories have different lengths, stay at last position
+            ind = len(traj) - 1 if i >= len(traj) else i
+            euler = traj[ind, 6:9] * np.array([-1, 1, 1])
             drone_col = "black" if len(names) == 1 else cols[j]
-            ax = draw_fixed_wing(ax, traj[i, :3], euler, c=drone_col)
+            ax = draw_fixed_wing(ax, traj[ind, :3], euler, c=drone_col)
             ax.plot3D(
-                traj[:i, 0],
-                traj[:i, 1],
-                traj[:i, 2],
+                traj[:ind, 0],
+                traj[:ind, 1],
+                traj[:ind, 2],
                 color=cols[j],
                 label=names[j]
             )
@@ -523,7 +527,7 @@ def animate_fixed_wing(
     anim = animation.FuncAnimation(
         fig,
         update,
-        frames=iter(range(len(trajectories[0]))),
+        frames=iter(range(max(traj_lens))),
         fargs=(ax, fig),
         interval=10
     )
@@ -543,20 +547,27 @@ if __name__ == "__main__":
     if name == "wing":
         target_point = [[50, 6, -4]]
         trajectories = []
-        for model in ["mpc", "current_model"]:
+        for model in ["mpc", "current_model", "ppo"]:
             trajectories.append(
                 np.load(
                     os.path.join("output_video", f"wing_traj_{model}.npy")
                 )
             )
-        animate_fixed_wing(target_point, trajectories, names=["MPC", "APG"])
+        animate_fixed_wing(
+            target_point, trajectories, names=["MPC", "APG", "PPO"]
+        )
     else:
         ref = np.load(os.path.join("output_video", "quad_ref_mpc.npy"))
         trajectories = []
-        for model in ["mpc", "current_model"]:
+        for model in ["mpc", "current_model", "ppo"]:
             trajectories.append(
                 np.load(
                     os.path.join("output_video", f"quad_traj_{model}.npy")
                 )
             )
-        animate_quad(ref, trajectories, names=["MPC", "APG"])
+        animate_quad(
+            ref,
+            trajectories,
+            names=["MPC", "APG", "PPO"],
+            savefile="output_video/vid_quad.mp4"
+        )

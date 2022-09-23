@@ -345,10 +345,12 @@ class QuadEnvRL(QuadRotorEnvBase, gym.Env):
         return self.obs, reward, done, info
 
     def render(self, mode="human"):
+        self._state.position[2] += 1
         QuadRotorEnvBase.render(self, mode=mode)
+        self._state.position[2] -= 1
 
 
-class WingEnvRL(SimpleWingEnv, gym.Env):
+class WingEnvRL(gym.Env, SimpleWingEnv):
 
     def __init__(self, dynamics, dt, **kwargs):
         SimpleWingEnv.__init__(self, dynamics, dt)

@@ -9,14 +9,14 @@ from neural_control.environments.rendering import (
 )
 
 
-class SimpleWingEnv(gym.Env):
+class SimpleWingEnv():
     """
     Fixed wing drone environment
     """
 
     def __init__(self, dynamics, dt):
         self.dt = dt
-        self.reset()
+        # self.reset()
         self.dynamics = dynamics
         self.renderer = Renderer(viewer_shape=(1000, 500), y_axis=7)
         self.renderer.add_object(Ground())
@@ -28,7 +28,6 @@ class SimpleWingEnv(gym.Env):
         self._state[3] = 11.5
 
     def reset(self):
-        # TODO: wrong at the moment
         # no need to randomize because relative position used anyway
         x_pos = 0
         z_pos = 0
@@ -115,8 +114,12 @@ def sample_training_data(
     num_samples, dt=0.01, take_every=10, traj_len=500, vec_std=.15, **kwargs
 ):
     """
+    Artificial data generation:
     Fly some trajectories in order to sample drone states
     Then add random unit vectors in all directions
+    NOTE: This method is not used in the training of the baseline model.
+    The baseline model is exclusively trained on data acquired accoridng to
+    the curriculum learning
     """
     use_at_each = 20
     # # sample unit vectors

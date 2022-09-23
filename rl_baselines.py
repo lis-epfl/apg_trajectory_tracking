@@ -293,7 +293,7 @@ def test_rl_wing(save_name, modified_params={}, max_steps=1000, nr_iters=50):
         )
     else:
         trajectory, _ = evaluate_wing(
-            model, env, max_steps, nr_iters=1, render=1
+            model, env, max_steps, nr_iters=1, render=0
         )
 
     return trajectory
@@ -312,12 +312,13 @@ def test_ours_wing(model_path, modified_params={}, max_steps=1000):
 # ------------------ Quadrotor -----------------------
 
 
-def evaluate_quad(model, env, max_steps=500, nr_iters=1, render=0):
+def evaluate_quad(model, env, max_steps=500, nr_iters=1, render=0, test=0):
     divergences = []
     num_steps = []
+
     np.set_printoptions(precision=3, suppress=1)
     for j in range(nr_iters):
-        obs = env.reset()
+        obs = env.reset(test=test)
         drone_trajectory, avg_div = [], []
         for i in range(max_steps):
             if isinstance(model, Net):  # DP
@@ -374,9 +375,19 @@ def test_rl_quad(save_name, modified_params={}, max_steps=1000, nr_iters=30):
     env.thresh_div = 3
     model = PPO.load(save_name)
     if nr_iters == 1:
-        _ = evaluate_quad(model, env, max_steps, nr_iters=1, render=1)
+        drone_trajectory, _ = evaluate_quad(
+            model, env, max_steps, nr_iters=1, render=1, test=1
+        )
     else:
-        _ = evaluate_quad(model, env, max_steps, nr_iters=nr_iters, render=0)
+        drone_trajectory, _ = evaluate_quad(
+            model, env, max_steps, nr_iters=nr_iters, render=0, test=1
+        )
+    make_higher = np.zeros(len(drone_trajectory[0]))
+    make_higher[2] = 3
+    drone_trajectory = np.array(
+        [elem for i, elem in enumerate(drone_trajectory) if i % 2 == 0]
+    ) + make_higher
+    return drone_trajectory
 
 
 def test_ours_quad(model_path, modified_params={}, max_steps=500):
@@ -387,7 +398,10 @@ def test_ours_quad(model_path, modified_params={}, max_steps=500):
     dyn = FlightmareDynamics(modified_params=modified_params)
     # param_dict["speed_factor"] = .2
     env = QuadEnvRL(dyn, **param_dict)
-    evaluate_quad(model, env, max_steps, nr_iters=40, render=0)
+    traj, _ = evaluate_quad(
+        model, env, max_steps, nr_iters=40, render=0, test=1
+    )
+    return traj
 
 
 def train_quad(model_path, load_model=None, modified_params={}):
@@ -408,8 +422,8 @@ def train_quad(model_path, load_model=None, modified_params={}):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-s",
-        "--system",
+        "-r",
+        "--robot",
         default="quadrotor",
         help="cartpole, fixed_wing or quadrotor"
     )
@@ -417,27 +431,44 @@ if __name__ == "__main__":
         "-a",
         "--eval_iters",
         default=1,
+        type=int,
         help="nr of iterations for evaluation"
     )
+    parser.add_argument(
+        "-s", "--save_traj", action="store_true", help="save trajectory"
+    )
     args = parser.parse_args()
+    # set seed for trajectory sampling
+    np.random.seed(42)
+
     # ------------------ CartPole -----------------------
-    if args.system == "cartpole":
+    if args.robot == "cartpole":
         pass
     # ------------------ Fixed wing drone -----------------------
-    elif args.system == "fixed_wing":
+    elif args.robot == "fixed_wing":
         # Final: BL evaluation PPO
         load_name = "trained_models/wing/ppo_bl/rl_final"
         scenario = {}
         # train_wing(save_name, load_model=load_name, modified_params=scenario)
-        test_rl_wing(
+        traj = test_rl_wing(
             load_name, modified_params=scenario, nr_iters=args.eval_iters
         )
-    elif args.system == "quadrotor":
+    elif args.robot == "quadrotor":
         # ------------------ Quadrotor -----------------------
         # # Final: BL evaluation PPO:
         load_name = "trained_models/quad/ppo/rl_final"
-        test_rl_quad(load_name, modified_params={}, nr_iters=args.eval_iters)
+        traj = test_rl_quad(
+            load_name, modified_params={}, nr_iters=args.eval_iters
+        )
     else:
         raise NotImplementedError(
             "System must be one of cartpole, fixed_wing or quadrotor"
         )
+    if args.save_traj:
+        name_map = {"quadrotor": "quad", "fixed_wing": "wing"}
+        np.save(
+            os.path.join(
+                "output_video", f"{name_map[args.robot]}_traj_ppo.npy"
+            ), traj
+        )
+        print("Saved trajectory", traj.shape)
