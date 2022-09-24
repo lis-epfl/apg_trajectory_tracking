@@ -139,12 +139,9 @@ class TrainCartpole(TrainBase):
                     )
                     intermediate_states[:, k] = current_state
                 # Loss
-                if self.swingup:
-                    loss = cartpole_loss_swingup(current_state)
-                else:
-                    loss = cartpole_loss_mpc(
-                        intermediate_states, ref_states, action_seq
-                    )
+                loss = cartpole_loss_mpc(
+                    intermediate_states, ref_states, action_seq
+                )
 
                 loss.backward()
                 # for name, param in self.net.named_parameters():
@@ -174,9 +171,14 @@ class TrainCartpole(TrainBase):
             self.model_wrapped, self.eval_env, eval_dyn=eval_dyn
         )
         # Start in upright position and see how long it is balaned
-        res_eval = evaluator.evaluate_in_environment(
-            nr_iters=10, render=self.train_image_dyn
-        )
+        if self.swingup:
+            res_eval = evaluator.evaluate_swingup(
+                nr_iters=10, render=self.train_image_dyn
+            )
+        else:
+            res_eval = evaluator.evaluate_in_environment(
+                nr_iters=10, render=self.train_image_dyn
+            )
         success_mean = res_eval["mean_vel"]
         success_std = res_eval["std_vel"]
         for key, val in res_eval.items():
@@ -297,7 +299,7 @@ if __name__ == "__main__":
 
     if args.todo == "pretrain":
         # No baseline model used
-        train_control(None, config)
+        train_control(None, config, swingup=1)
     elif args.todo == "adapt":
         mod_params = {"wind": 0.5}
         config["modified_params"] = mod_params
