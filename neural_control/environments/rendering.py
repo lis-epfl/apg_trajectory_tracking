@@ -354,10 +354,13 @@ def plot_ref_quad(ax, ref):
     X_ref = ref[:, 0]
     Y_ref = ref[:, 1]
     Z_ref = ref[:, 2]
-    ax.plot3D(X_ref, Y_ref, Z_ref, color="red")
+    ax.plot3D(X_ref, Y_ref, Z_ref, color="grey", label="reference")
     ax.set_xlim(np.min(X_ref), np.max(X_ref))
     ax.set_ylim(np.min(Y_ref), np.max(Y_ref))
     ax.set_zlim(np.min(Z_ref), np.max(Z_ref))
+    ax.set_xlabel("x (in m)")
+    ax.set_ylabel("y (in m)")
+    ax.set_zlabel("z (in m)")
     set_axes_equal(ax)
     ax.w_xaxis.set_pane_color((1.0, 1.0, 1.0, 1.0))
     return ax
@@ -393,11 +396,11 @@ def set_axes_equal(ax):
 
 
 def animate_quad(ref, trajectories, savefile=None, names=["APG"]):
-    fig = plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(11, 10))
     ax = axes3d.Axes3D(fig)
 
     ax = plot_ref_quad(ax, ref)
-    cols = ["blue", "orange", "green", "purple"]
+    cols = ["blue", "red", "orange", "purple"]
 
     def update(i, ax, fig):
         ax.cla()
@@ -466,13 +469,17 @@ def plot_ref_wing(ax, target_point):
     ax.set_xlim(-1, target_point[-1, 0])
     ax.set_ylim(-7, 7)
     ax.set_zlim(-7, 7)
+    ax.set_xlabel("x (in m)")
+    ax.set_ylabel("y (in m)")
+    ax.set_zlabel("z (in m)")
     s = ax.scatter3D(
         target_point[:, 0],
         target_point[:, 1],
         target_point[:, 2],
         marker="o",
         c="green",
-        s=100
+        s=100,
+        label="target point"
     )
     temp_target = np.concatenate((np.zeros((1, 3)), target_point))
     s = ax.plot3D(
@@ -480,7 +487,8 @@ def plot_ref_wing(ax, target_point):
         temp_target[:, 1],
         temp_target[:, 2],
         linestyle="--",
-        c="grey"
+        c="grey",
+        label="reference"
     )
     return ax
 
@@ -491,7 +499,7 @@ def animate_fixed_wing(
     traj_lens = [len(t) for t in trajectories]
     dt = 0.05
     target_point = np.array(target_point)
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(10, 10))
     ax = axes3d.Axes3D(fig)
     # set aspect ratio based on first one
     ax.set_box_aspect(
