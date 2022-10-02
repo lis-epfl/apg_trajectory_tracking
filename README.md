@@ -1,6 +1,6 @@
 # Training Efficient Controllers via Analytic Policy Gradient
 
-This repository contains the code accompanying the paper **Training Efficient Controllers via Analytic Policy Gradient** ([PDF](https://arxiv.org/abs/2209.13052)) by [Nina Wiedemannn*](https://github.com/NinaWie/), [Valentin Wüest*](https://github.com/vwueest/), [Antonio Loquercio](https://antonilo.github.io/), [Matthias Müller](https://matthias.pw/), Dario Floreano, and [Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html). We propose to combine the accuracy of Model Predictive Control with the efficiency (runtime) of learning-based approaches by training a controller with APG, i.e. by differentiating through the dynamics model:
+This repository contains the code accompanying the paper **Training Efficient Controllers via Analytic Policy Gradient** ([PDF](https://arxiv.org/abs/2209.13052)) by [Nina Wiedemannn*](https://github.com/NinaWie/), [Valentin Wüest*](https://github.com/vwueest/), [Antonio Loquercio](https://antonilo.github.io/), [Matthias Müller](https://matthias.pw/), [Dario Floreano](https://people.epfl.ch/dario.floreano), and [Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html). We propose to combine the accuracy of Model Predictive Control with the efficiency (runtime) of learning-based approaches by training a controller with APG, i.e. by differentiating through the dynamics model:
 
 ![Learning paradigm](assets/paradigm.png)
 
