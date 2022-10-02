@@ -9,7 +9,7 @@ For an overview of our method and trajectory tracking examples, check out our [v
 If you use any of this code, please cite the following publication:
 
 ```bibtex
-@Article{wiedemann2022training,
+@Article{wiedemannwueest2022training,
   title   = {Training Efficient Controllers via Analytic Policy Gradient},
   author  = {Wiedemann, Nina and W{\"u}est, Valentin and Loquercio, Antonio and M{\"u}ller, Matthias and Floreano, Dario and Scaramuzza, Davide},
   journal = {arXiv preprint arXiv:2209.13052},
