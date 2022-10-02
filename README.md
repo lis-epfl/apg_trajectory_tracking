@@ -1,6 +1,6 @@
 # Training Efficient Controllers via Analytic Policy Gradient
 
-This repository contains the code accompanying the paper **Training Efficient Controllers via Analytic Policy Gradient** ([PDF](https://arxiv.org/abs/2209.13052)) by Nina Wiedemannn*, Valentin Wüest*, [Antonio Loquercio](https://antonilo.github.io/), [Matthias Müller](https://matthias.pw/), Dario Floreano, and [Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html). We propose to combine the accuracy of Model Predictive Control with the efficiency (runtime) of learning-based approaches by training a controller with APG, i.e. by differentiating through the dynamics model:
+This repository contains the code accompanying the paper **Training Efficient Controllers via Analytic Policy Gradient** ([PDF](https://arxiv.org/abs/2209.13052)) by [Nina Wiedemannn*](https://github.com/NinaWie/), Valentin Wüest*, [Antonio Loquercio](https://antonilo.github.io/), [Matthias Müller](https://matthias.pw/), Dario Floreano, and [Davide Scaramuzza](http://rpg.ifi.uzh.ch/people_scaramuzza.html). We propose to combine the accuracy of Model Predictive Control with the efficiency (runtime) of learning-based approaches by training a controller with APG, i.e. by differentiating through the dynamics model:
 
 ![Learning paradigm](assets/paradigm.png)
 
@@ -43,7 +43,7 @@ Then, you can start training:
 python scripts/train_drone.py
 ```
 
-Similarly, the cartpole or fixed wing drnoe can be trained (without generating any trajectories) with:
+Similarly, the cartpole or fixed wing drone can be trained (without generating any trajectories) with:
 ``` bash
 python scripts/train_fixed_wing.py
 python scripts/train_cartpole.py
