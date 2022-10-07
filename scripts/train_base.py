@@ -233,7 +233,7 @@ class TrainBase:
             # success > self.current_score and self.suc_up_down == 1
         # ) or (success < self.current_score and self.suc_up_down == -1):
             self.current_score = success
-            print("Best model with score ", round(success, 2))
+            print("Save model with score ", round(success, 2))
             torch.save(
                 self.net,
                 os.path.join(
