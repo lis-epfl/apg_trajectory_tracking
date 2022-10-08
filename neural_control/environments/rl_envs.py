@@ -11,7 +11,7 @@ from neural_control.environments.cartpole_env import CartPoleEnv
 from neural_control.environments.wing_env import SimpleWingEnv
 from neural_control.environments.drone_env import QuadRotorEnvBase
 from neural_control.trajectory.q_funcs import project_to_line
-from neural_control.dataset import WingDatasetRL, QuadDataset
+from neural_control.dataset import WingDataset, QuadDataset
 from neural_control.trajectory.generate_trajectory import (
     load_prepare_trajectory
 )
@@ -367,7 +367,7 @@ class WingEnvRL(gym.Env, SimpleWingEnv):
         self.thresh_div = 4
 
         # for making observation:
-        self.dataset = WingDatasetRL(0, dt=self.dt, **kwargs)
+        self.dataset = WingDataset(0, dt=self.dt, **kwargs)
         self.dataset.set_fixed_mean()
 
     def done(self):

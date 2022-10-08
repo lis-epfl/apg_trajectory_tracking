@@ -63,7 +63,10 @@ class EvalCallback(BaseCallback):
         if (self.n_calls - 1) % self.eval_freq == 0:
             if curriculum and self.eval_env.thresh_div < 3:
                 self.eval_env.thresh_div += .05
-                print("increased thresh div", self.eval_env.thresh_div)
+                print(
+                    "Curriculum learning: increase divergence threshold",
+                    self.eval_env.thresh_div
+                )
             # evaluate
             _, res_step = self.eval_func(
                 self.model, self.eval_env, nr_iters=self.nr_iters
