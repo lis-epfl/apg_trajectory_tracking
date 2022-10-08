@@ -528,7 +528,6 @@ def animate_fixed_wing(
         for j, traj in enumerate(trajectories):
             # if the trajectories have different lengths, stay at last position
             ind = len(traj) - 1 if i >= len(traj) else i
-            euler = traj[ind, 6:9] * np.array([-1, 1, 1])
             drone_col = "black" if len(names) == 1 else cols[j]
             ax = draw_fixed_wing(ax, traj[ind, :], c=drone_col)
             ax.plot3D(
