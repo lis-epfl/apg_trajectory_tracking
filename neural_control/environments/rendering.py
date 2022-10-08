@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d import axes3d
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+import time
 
 def body_to_world_matrix(euler):
     """
@@ -438,7 +438,16 @@ def animate_quad(ref, trajectories, savefile=None, names=["APG"]):
     plt.show()
 
 
-def draw_fixed_wing(ax, position, euler, stretch=1, c="black"):
+def draw_fixed_wing(ax, state_NED, stretch=1, c="black"):
+    state_NWU = state_NED * np.array(
+        [1, -1, -1,
+         1, -1, -1,
+         1, -1, -1,
+         1, -1, -1,
+         1, 1, 1, 1]
+    )
+    position = state_NWU[:3]
+    euler = state_NWU[6:9]
     back = position + body_to_world(euler, [-stretch * (7 / 6), 0, 0])
     # line from front to middle-front
     front = position + body_to_world(euler, [stretch * (5 / 6), 0, 0])
@@ -466,30 +475,31 @@ def draw_fixed_wing(ax, position, euler, stretch=1, c="black"):
 
 def plot_ref_wing(ax, target_point):
     # xlim is the maximum point
-    ax.set_xlim(-1, target_point[-1, 0])
+    target_point_NWU = target_point*np.array([1,-1,-1])
+    ax.set_xlim(-1, target_point_NWU[-1, 0])
     ax.set_ylim(-7, 7)
     ax.set_zlim(-7, 7)
     ax.set_xlabel("x (in m)")
     ax.set_ylabel("y (in m)")
     ax.set_zlabel("z (in m)")
     s = ax.scatter3D(
-        target_point[:, 0],
-        target_point[:, 1],
-        target_point[:, 2],
+        target_point_NWU[:, 0],
+        target_point_NWU[:, 1],
+        target_point_NWU[:, 2],
         marker="o",
         c="green",
         s=100,
         label="target point"
     )
-    temp_target = np.concatenate((np.zeros((1, 3)), target_point))
-    s = ax.plot3D(
-        temp_target[:, 0],
-        temp_target[:, 1],
-        temp_target[:, 2],
-        linestyle="--",
-        c="grey",
-        label="reference"
-    )
+    temp_target = np.concatenate((np.zeros((1, 3)), target_point_NWU))
+    # s = ax.plot3D(
+    #     temp_target[:, 0],
+    #     temp_target[:, 1],
+    #     temp_target[:, 2],
+    #     linestyle="--",
+    #     c="grey",
+    #     label="reference"
+    # )
     return ax
 
 
@@ -514,19 +524,25 @@ def animate_fixed_wing(
     def update(i, ax, fig):
         ax.cla()
         ax = plot_ref_wing(ax, target_point)
+        t_prev = time.time()
         for j, traj in enumerate(trajectories):
             # if the trajectories have different lengths, stay at last position
             ind = len(traj) - 1 if i >= len(traj) else i
             euler = traj[ind, 6:9] * np.array([-1, 1, 1])
             drone_col = "black" if len(names) == 1 else cols[j]
-            ax = draw_fixed_wing(ax, traj[ind, :3], euler, c=drone_col)
+            ax = draw_fixed_wing(ax, traj[ind, :], c=drone_col)
             ax.plot3D(
                 traj[:ind, 0],
-                traj[:ind, 1],
-                traj[:ind, 2],
+                -traj[:ind, 1],
+                -traj[:ind, 2],
                 color=cols[j],
                 label=names[j]
             )
+            time_now = time.time()
+            dt_process = (time_now - t_prev)
+            dt_sleep = max(0.0, dt - dt_process)
+            time.sleep(dt_sleep)
+            t_prev = time_now + dt_sleep
         if len(names) > 1:
             ax.legend(bbox_to_anchor=(.9, .7))
 
@@ -535,7 +551,7 @@ def animate_fixed_wing(
     anim = animation.FuncAnimation(
         fig,
         update,
-        frames=iter(range(max(traj_lens))),
+        frames=range(max(traj_lens)),
         fargs=(ax, fig),
         interval=10
     )
