@@ -17,7 +17,7 @@
     "modified_params": {},
     "nr_img": 3,
     "nr_actions": 10,
-    "learning_rate_controller": 1e-7,
+    "learning_rate_controller": 1e-9,
     "learning_rate_dynamics": 0.01,
     "sample_data": 1000,
     "action_dim": 1,

@@ -261,6 +261,62 @@ class Evaluator:
             return success, velocities
         return res
 
+    def evaluate_swingup(
+        self,
+        nr_iters=1,
+        max_steps=250,
+        render=False,
+        burn_in_steps=100,
+        return_success=0
+    ):
+        avg_state = []
+        velocities = []
+        with torch.no_grad():
+            success = np.zeros(nr_iters)
+            # observe also the oscillation
+            avg_angle = np.zeros(nr_iters)
+            for n in range(nr_iters):
+                # initialize success (upright in intermediate checks) to true
+                is_upright = True
+                self.eval_env._reset_swingup()
+                for i in range(max_steps):
+                    new_state = self.eval_env.state
+                    # print(new_state)
+                    action_seq = self.controller.predict_actions(
+                        new_state, new_state
+                    )
+                    # print(action_seq[:, 0])
+
+                    # run action in environment
+                    new_state = self.eval_env._step(
+                        action_seq[:, 0],
+                        image=self.image_buffer,
+                        state_action_buffer=new_state,
+                        is_torch=True
+                    )
+                    if i > burn_in_steps:
+                        velocities.append(new_state[1])
+                        avg_state.append(new_state.copy())
+                        # set upright to false as soon as it was one time lower
+                        if new_state[2] > 1:
+                            is_upright = False
+                    if render:
+                        self.eval_env._render()
+                        time.sleep(0.05)
+                success[n] = int(is_upright)
+
+        avg_state = np.sqrt(np.array(avg_state)**2)
+        mean_state = np.mean(avg_state, axis=0)
+        std_state = np.std(avg_state, axis=0)
+        print("average states", [round(e, 2) for e in mean_state])
+        # print("std", std_state)
+        res_eval = {}
+        res_eval["mean_vel"] = float(np.mean(np.absolute(velocities)))
+        res_eval["std_vel"] = float(np.mean(np.absolute(velocities)))
+        if return_success:
+            return success
+        return res_eval
+
 
 def run_saved_arr(path):
     """
@@ -420,6 +476,4 @@ if __name__ == "__main__":
         # )
     else:
         evaluator.initialize_straight = False
-        _ = evaluator.evaluate_in_environment(
-            render=True, max_steps=500, nr_iters=1
-        )
+        _ = evaluator.evaluate_swingup(render=True, max_steps=500, nr_iters=1)

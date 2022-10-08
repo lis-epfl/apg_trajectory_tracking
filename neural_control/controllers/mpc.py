@@ -12,9 +12,9 @@ from neural_control.dynamics.quad_dynamics_flightmare import (
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamicsMPC
 from neural_control.dynamics.fixed_wing_2D import fixed_wing_dynamics_mpc
 from neural_control.dynamics.fixed_wing_dynamics import FixedWingDynamicsMPC
+from neural_control.dynamics.cartpole_dynamics import CartpoleDynamicsMPC
 
 
-#
 class MPC(object):
     """
     Nonlinear MPC
@@ -54,6 +54,8 @@ class MPC(object):
             self._initParamsFixedWing_2D()
         elif self.dynamics_model == "fixed_wing_3D":
             self._initParamsFixedWing_3D()
+        elif self.dynamics_model == "cartpole":
+            self._initParamsCartpole()
 
         # cost matrix for tracking the goal point
         self._Q_goal = np.zeros((self._s_dim, self._s_dim))
@@ -82,6 +84,21 @@ class MPC(object):
         # default u
         self._default_u = [self._gz, 0, 0, 0]
 
+    def _initParamsCartpole(self):
+        self._s_dim = 4
+        self._u_dim = 1
+        self._w_min_xy = -1
+        self._w_max_xy = 1
+        self._thrust_min = -1
+        self._thrust_max = 1
+        self._Q_u = np.diag([0])
+        self._Q_pen = np.diag([0, 3, 10, 1])
+        # initial states
+        self._quad_s0 = np.zeros(4).tolist()
+        self._quad_u0 = [0]
+        # default u
+        self._default_u = [0]
+
     def _initParamsSimpleQuad(self):
         # Quadrotor constant
         self._w_max_xy = 1
@@ -93,7 +110,7 @@ class MPC(object):
         # cost matrix for the action
         self._Q_u = np.diag([50, 1, 1, 1])
         self._Q_pen = np.diag([100, 100, 100, 0, 0, 0, 10, 10, 10, 1, 1, 1])
-        # initial state and control action TODO
+        # initial state and control action
         self._quad_s0 = (np.zeros(12)).tolist()
         self._quad_u0 = [.5, .5, .5, .5]
         # default u
@@ -150,6 +167,9 @@ class MPC(object):
         elif self.dynamics_model == "fixed_wing_3D":
             dyn = FixedWingDynamicsMPC()
             F = dyn.simulate_fixed_wing(self._dt)
+        elif self.dynamics_model == "cartpole":
+            dyn = CartpoleDynamicsMPC()
+            F = dyn.simulate_cartpole(self._dt)
         fMap = F.map(self._N, "openmp")  # parallel
 
         # # # # # # # # # # # # # # #
@@ -393,6 +413,29 @@ class MPC(object):
 
         return flattened_ref
 
+    def preprocess_cartpole(self, current_state):
+        # interpolate theta
+        inter_theta = np.linspace(current_state[2], 0, self._N + 2)
+        inter_theta_dot = np.linspace(current_state[3], 0, self._N + 2)
+        inter_x = np.linspace(current_state[0], 0, self._N + 2)
+        inter_x_dot = np.linspace(current_state[1], 0, self._N + 2)
+
+        middle_ref_states = np.zeros((self._N + 2, len(current_state)))
+        middle_ref_states[:, 0] = inter_x
+        middle_ref_states[:, 1] = inter_x_dot
+        middle_ref_states[:, 2] = inter_theta
+        middle_ref_states[:, 3] = inter_theta_dot
+
+        goal_state = middle_ref_states[-1]
+
+        high_mpc_reference = np.hstack((middle_ref_states[1:-1], self.addon))
+
+        flattened_ref = (
+            current_state.tolist() + high_mpc_reference.flatten().tolist() +
+            goal_state.tolist()
+        )
+        return flattened_ref
+
     def predict_actions(self, current_state, ref_states):
         if self.dynamics_model in ["simple_quad", "flightmare"]:
             preprocessed_ref = self.preprocess_quad(current_state, ref_states)
@@ -400,6 +443,8 @@ class MPC(object):
             preprocessed_ref = self.preprocess_fixed_wing(
                 current_state, ref_states
             )
+        elif self.dynamics_model == "cartpole":
+            preprocessed_ref = self.preprocess_cartpole(current_state)
         action, _ = self.solve(preprocessed_ref)
         return np.array([action[:, 0]])
 

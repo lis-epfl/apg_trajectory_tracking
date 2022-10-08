@@ -92,6 +92,18 @@ class CartPoleEnv():
         self.steps_beyond_done = None
         return np.array(self.state)
 
+    def _reset_swingup(self):
+        # self.state = np.zeros(4)
+        # self.state[2] = 3.14
+        # self.state[3] = 1
+        self.state = (np.random.rand(4) * 2 - 1) * self.state_limits
+        self.state[0] = 0
+        self.state[1] *= 0.1
+        rand_sign = (-1) if np.random.rand() > .5 else 1
+        self.state[2] = rand_sign * (2.8 + np.random.rand() * .3)
+        self.state[3] *= 0.1
+        return self.state
+
     def _reset_upright(self):
         """
         reset state to a position of the pole close to the optimal upright pos
@@ -158,7 +170,7 @@ class CartPoleEnv():
         x = self.state
         cartx = (x[0] * scale + screen_width / 2.0) % 600  # MIDDLE OF CART
         self.carttrans.set_translation(cartx, carty)
-        self.poletrans.set_rotation(-x[2])
+        self.poletrans.set_rotation(x[2])
 
         return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
@@ -180,13 +192,18 @@ def construct_states(
     env = CartPoleEnv(dyn, dt, thresh_div=thresh_div)
     data = []
     # randimized runs
-    # while len(data) < num_data * randomized_runs:
-    #     # run 100 steps then reset (randomized runs)
-    #     for _ in range(10):
-    #         action = np.random.rand() - 0.5
-    #         state, _, _, _ = env._step(action)
-    #         data.append(state)
-    #     env._reset()
+    while len(data) < num_data * randomized_runs:
+        env._reset()
+        env.state[1] *= .2
+        env.state[3] *= .2
+        # run 100 steps then reset (randomized runs)
+        for _ in range(20):
+            action = (np.random.rand() - 0.5) * .2
+            state = env._step(action, is_torch=False)
+            # env._render()
+            # time.sleep(0.1)
+            data.append(state)
+        env._reset()
 
     # # after randomized runs: run balancing
     while len(data) < num_data:
@@ -198,14 +215,6 @@ def construct_states(
             state = env._step(action, is_torch=False)
             data.append(state)
         env._reset()
-
-    # # add one directional steps
-    # while len(data) < num_data * one_direction:
-    #     action = (-.5) * ((np.random.rand() > .5) * 2 - 1)
-    #     for _ in range(30):
-    #         state, _, fine, _ = env._step(action)
-    #         data.append(state)
-    #     env._reset()
     #
     data = np.array(data)
 

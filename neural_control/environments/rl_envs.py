@@ -154,6 +154,7 @@ class CartPoleEnvRL(gym.Env, CartPoleEnv):
 
     def render(self, mode='human'):
         self._render(mode=mode)
+        time.sleep(self.dt)
 
     def close(self):
         if self.viewer:
@@ -348,6 +349,7 @@ class QuadEnvRL(QuadRotorEnvBase, gym.Env):
         self._state.position[2] += 1
         QuadRotorEnvBase.render(self, mode=mode)
         self._state.position[2] -= 1
+        time.sleep(self.dt)
 
 
 class WingEnvRL(gym.Env, SimpleWingEnv):
@@ -438,6 +440,7 @@ class WingEnvRL(gym.Env, SimpleWingEnv):
 
     def render(self, mode="human"):
         SimpleWingEnv.render(self, mode=mode)
+        time.sleep(self.dt)
 
 
 class QuadEnvMario(QuadEnvRL):

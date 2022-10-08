@@ -31,6 +31,7 @@ class CartpoleDynamics:
 
         self.test_time = test_time
         self.cfg.update(modified_params)
+        self.cfg["friction"] = .5
         self.cfg["total_mass"] = self.cfg["masspole"] + self.cfg["masscart"]
         self.cfg["polemass_length"] = self.cfg["masspole"] * self.cfg["length"]
         self.timestamp = 0
@@ -42,89 +43,80 @@ class CartpoleDynamics:
         self.enforce_contact = -1
 
     def reset_buffer(self):
-        self.action_buffer = np.zeros((batch_size, int(self.cfg["delay"]), 1))
+        self.action_buffer = np.zeros(
+            (self.batch_size, int(self.cfg["delay"]), 1)
+        )
 
     def __call__(self, state, action, dt):
         return self.simulate_cartpole(state, action, dt)
 
-    def simulate_cartpole(self, state, action, dt):
+    def simulate_cartpole(self, state, action, delta_t):
         """
         Compute new state from state and action
         """
         self.timestamp += .05
-        # # get action to range [-1, 1]
-        # action = torch.sigmoid(action)
-        # action = action * 2 - 1
-        # # Attempt to use discrete actions
-        # if self.test_time:
-        #     action = torch.tensor(
-        #         [-1]
-        #     ) if action[0, 0] > action[0, 1] else torch.tensor([-1])
-        # else:
-        #     action = torch.softmax(action, dim=1)
-        #     action = action[:, 0] * -1 + action[:, 1]
-        # get state
-        x = state[:, 0]
-        x_dot = state[:, 1]
-        theta = state[:, 2]
-        theta_dot = state[:, 3]
-        # (x, x_dot, theta, theta_dot) = state
 
-        # helper variables
-        force = self.cfg["max_force_mag"] * action
-        # print("actual force", force)
-        if self.cfg["delay"] > 0:
-            # extract force and update buffer
-            force_orig = force.clone()
-            force = torch.from_numpy(self.action_buffer[:, -1])
-            self.action_buffer = np.roll(self.action_buffer, -1, axis=1)
-            self.action_buffer[:, 0] = force_orig.numpy()
+        # pylint: disable=no-member,unused-argument
+        action = action[..., 0] * self.cfg["max_force_mag"] * 0.5
 
-        costheta = torch.cos(theta)
-        sintheta = torch.sin(theta)
-        sig = self.cfg["muc"] * torch.sign(x_dot)
+        sin_theta = torch.sin(state[..., 2])
+        cos_theta = torch.cos(state[..., 2])
 
-        # add and multiply
-        temp = torch.add(
-            torch.squeeze(force),
-            self.cfg["polemass_length"] * torch.mul(theta_dot**2, sintheta)
+        xdot_update = self._calculate_xdot_update(
+            state, action, sin_theta, cos_theta
         )
-        # divide
-        thetaacc = (
-            gravity * sintheta - (costheta * (temp - sig)) -
-            (self.cfg["mup"] * theta_dot / self.cfg["polemass_length"])
+        thetadot_update = self._calculate_thetadot_update(
+            state, action, sin_theta, cos_theta
+        )
+
+        new_x = state[..., 0] + state[..., 1] * delta_t
+        new_xdot = state[..., 1] + xdot_update * delta_t
+        new_costheta, new_sintheta = self._calculate_theta_update(
+            state, delta_t, sin_theta, cos_theta
+        )
+        new_theta = torch.atan2(new_sintheta, new_costheta)
+        new_thetadot = state[..., 3] + thetadot_update * delta_t
+
+        next_state = torch.stack(
+            [new_x, new_xdot, new_theta, new_thetadot], dim=-1
+        )
+        return next_state
+        # next_state.expand(torch.Size(sample_shape) + state.shape)
+
+    def _calculate_xdot_update(self, state, action, sin_theta, cos_theta):
+        # pylint: disable=no-member
+        x_dot = state[..., 1]
+        theta_dot = state[..., 3]
+        return (
+            -2 * self.cfg["polemass_length"] * (theta_dot**2) * sin_theta +
+            3 * self.cfg["masspole"] * gravity * sin_theta * cos_theta +
+            4 * action - 4 * self.cfg["friction"] * x_dot
         ) / (
-            self.cfg["length"] * (
-                4.0 / 3.0 - self.cfg["masspole"] * costheta * costheta /
-                self.cfg["total_mass"]
-            )
+            4 * self.cfg["total_mass"] -
+            3 * self.cfg["masspole"] * cos_theta**2
         )
-        thetaacc += (1 + np.sin(self.timestamp)) * self.cfg["contact"]
-        wind_drag = self.cfg["wind"] * torch.cos(theta * 5)
 
-        # swapped these two lines
-        theta = theta + dt * theta_dot
-        theta_dot = theta_dot + dt * (thetaacc + wind_drag)
+    def _calculate_thetadot_update(self, state, action, sin_theta, cos_theta):
+        # pylint: disable=no-member
+        x_dot = state[..., 1]
+        theta_dot = state[..., 3]
+        return (
+            -3 * self.cfg["polemass_length"] *
+            (theta_dot**2) * sin_theta * cos_theta +
+            6 * self.cfg["total_mass"] * gravity * sin_theta + 6 *
+            (action - self.cfg["friction"] * x_dot) * cos_theta
+        ) / (
+            4 * self.cfg["length"] * self.cfg["total_mass"] -
+            3 * self.cfg["polemass_length"] * cos_theta**2
+        )
 
-        # add velocity of cart
-        xacc = (
-            temp - (self.cfg['polemass_length'] * thetaacc * costheta) - sig
-        ) / self.cfg["total_mass"]
-
-        # # Contact dynamics on the cart
-        # if self.cfg["contact"] > 0 and (
-        #     # first possibility: periodically applied
-        #     (np.sin(self.timestamp) > 0 and self.enforce_contact == -1)
-        #     # second possibility: set manually (for dataset generation!)
-        #     or self.enforce_contact == 1
-        # ):
-        #     xacc += self.cfg["contact"]
-
-        x = x + dt * x_dot
-        x_dot = x_dot + dt * (xacc - self.cfg["vel_drag"] * x_dot)
-
-        new_state = torch.stack((x, x_dot, theta, theta_dot), dim=1)
-        return new_state
+    @staticmethod
+    def _calculate_theta_update(state, delta_t, sin_theta, cos_theta):
+        sin_theta_dot = torch.sin(state[..., 3] * delta_t)
+        cos_theta_dot = torch.cos(state[..., 3] * delta_t)
+        new_sintheta = sin_theta * cos_theta_dot + cos_theta * sin_theta_dot
+        new_costheta = cos_theta * cos_theta_dot - sin_theta * sin_theta_dot
+        return new_costheta, new_sintheta
 
 
 class LearntCartpoleDynamics(LearntDynamics, CartpoleDynamics):
@@ -241,18 +233,8 @@ class ImageCartpoleDynamics(torch.nn.Module, CartpoleDynamics):
 
 class CartpoleDynamicsMPC(CartpoleDynamics):
 
-    def __init__(self, modified_params={}, use_residual=False):
+    def __init__(self, modified_params={}):
         CartpoleDynamics.__init__(self, modified_params=modified_params)
-        self.use_residual = use_residual
-        if use_residual and "linear_state_1.weight" in modified_params:
-            print("Set weights for residual in MPC F")
-            self.weight1 = modified_params["linear_state_1.weight"]
-            # self.bias1 = modified_params["linear_state_1.bias"]
-            self.weight2 = modified_params["linear_state_2.weight"]
-            self.weight3 = modified_params["linear_state_3.weight"]
-        elif len(modified_params) > 0:
-            print("Using identified system but only parameters, no res")
-            self.use_residual = False
 
     def simulate_cartpole(self, dt):
         (x, x_dot, theta, theta_dot) = (
@@ -260,76 +242,37 @@ class CartpoleDynamicsMPC(CartpoleDynamics):
             ca.SX.sym("theta_dot")
         )
         action = ca.SX.sym("action")
-        # x_state = ca.vertcat(x, x_dot, theta, theta_dot)
-
-        # first part is state
-        current_state = ca.vertcat(x, x_dot, theta, theta_dot)
-
-        # rest of history are states and actions beforehand
-        x_h4 = ca.SX.sym('h4')
-        x_h5 = ca.SX.sym('h5')
-        x_h6 = ca.SX.sym('h6')
-        x_h7 = ca.SX.sym('h7')
-        x_h8 = ca.SX.sym('h8')
-        x_h9 = ca.SX.sym('h9')
-        x_h10 = ca.SX.sym('h10')
-        x_h11 = ca.SX.sym('h11')
-        x_h12 = ca.SX.sym('h12')
-        x_h13 = ca.SX.sym('h13')
-        x_h14 = ca.SX.sym('h14')
-
-        x_state = ca.vertcat(
-            current_state, x_h4, x_h5, x_h6, x_h7, x_h8, x_h9, x_h10, x_h11,
-            x_h12, x_h13, x_h14
-        )
+        x_state = ca.vertcat(x, x_dot, theta, theta_dot)
 
         # helper variables
-        force = self.cfg["max_force_mag"] * action
+        force = self.cfg["max_force_mag"] * action * 0.5
         costheta = ca.cos(theta)
         sintheta = ca.sin(theta)
-        sig = self.cfg["muc"] * ca.sign(x_dot)
 
-        # add and multiply
-        temp = force + self.cfg["polemass_length"] * theta_dot**2 * sintheta
-
-        # divide
-        thetaacc = (
-            gravity * sintheta - (costheta * (temp - sig)) -
-            (self.cfg["mup"] * theta_dot / self.cfg["polemass_length"])
+        # xdot update
+        x_acc = (
+            -2 * self.cfg["polemass_length"] *
+            (theta_dot**2) * sintheta + 3 * self.cfg["masspole"] * gravity *
+            sintheta * costheta + 4 * force - 4 * self.cfg["friction"] * x_dot
         ) / (
-            self.cfg["length"] * (
-                4.0 / 3.0 - self.cfg["masspole"] * costheta * costheta /
-                self.cfg["total_mass"]
-            )
+            4 * self.cfg["total_mass"] - 3 * self.cfg["masspole"] * costheta**2
         )
+
+        # thetadot_update
+        thetaacc = (
+            -3 * self.cfg["polemass_length"] *
+            (theta_dot**2) * sintheta * costheta +
+            6 * self.cfg["total_mass"] * gravity * sintheta + 6 *
+            (force - self.cfg["friction"] * x_dot) * costheta
+        ) / (
+            4 * self.cfg["length"] * self.cfg["total_mass"] -
+            3 * self.cfg["polemass_length"] * costheta**2
+        )
+
         wind_drag = self.cfg["wind"] * costheta
 
-        # add velocity of cart
-        x_acc = (
-            temp - (self.cfg['polemass_length'] * thetaacc * costheta) - sig
-        ) / self.cfg["total_mass"]
-
         x_state_dot = ca.vertcat(x_dot, x_acc, theta_dot, thetaacc + wind_drag)
-
-        if self.use_residual:
-            print("USING res in mpc function")
-            history = ca.vertcat(x_state, action)
-            # state_action = ca.vertcat(
-            #     x_state, action, x_state, action, x_state, action, action
-            # )
-            # residual_state_1 = ca.tanh(self.weight1 @ history + self.bias1)
-            # residual_state = self.weight2 @ residual_state_1
-            residual_state_1 = ca.tanh(self.weight1 @ history)
-            residual_state_2 = ca.tanh(self.weight2 @ residual_state_1)
-            residual_state = ca.tanh(self.weight3 @ residual_state_2)
-        else:
-            residual_state = 0
-
-        new_x_state = current_state + dt * x_state_dot + residual_state
-        X = ca.vertcat(
-            new_x_state, action, current_state, x_h4, x_h5, x_h6, x_h7, x_h8,
-            x_h9
-        )
+        X = x_state + dt * x_state_dot
 
         F = ca.Function('F', [x_state, action], [X], ['x', 'u'], ['ode'])
         return F

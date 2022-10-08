@@ -262,6 +262,10 @@ if __name__ == "__main__":
             drone_traj
         )
     if args.animate:
-        animate_fixed_wing(target_point, [drone_traj])
+        animate_fixed_wing(
+            target_point, [drone_traj]
+            # uncomment to save video
+            # savefile=os.path.join(model_path, 'video.mp4')
+        )
 
     evaluator.eval_env.close()
