@@ -131,7 +131,7 @@ class TrainDrone(TrainBase):
 
         # Backprop
         loss.backward()
-        self.writer.add_scalar('loss/training',loss)
+        self.writer.add_scalar('loss/training', loss)
         # for name, param in self.net.named_parameters():
         #     if param.grad is not None:
         #         self.writer.add_histogram(name + ".grad", param.grad)
@@ -156,7 +156,10 @@ class TrainDrone(TrainBase):
         # increase threshold
         if epoch % 5 == 0 and self.config["thresh_div"] < self.thresh_div_end:
             self.config["thresh_div"] += .05
-            print("increased thresh div", round(self.config["thresh_div"], 2))
+            print(
+                "Curriculum learning: increase divergence threshold",
+                round(self.config["thresh_div"], 2)
+            )
 
         # save best model
         self.save_model(epoch, suc_mean, suc_std)

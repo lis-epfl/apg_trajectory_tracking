@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.optim as optim
 from collections import defaultdict
-from tqdm import tqdm
 try:
     from torch.utils.tensorboard import SummaryWriter
 except ImportError:
@@ -233,7 +232,7 @@ class TrainBase:
             # success > self.current_score and self.suc_up_down == 1
         # ) or (success < self.current_score and self.suc_up_down == -1):
             self.current_score = success
-            print("Best model with score ", round(success, 2))
+            print("Save model with score ", round(success, 2))
             torch.save(
                 self.net,
                 os.path.join(
@@ -292,7 +291,7 @@ class TrainBase:
             successes = []
         try:
             first_epoch_with_this_vel = 0
-            for epoch in tqdm(range(config["nr_epochs"])):
+            for epoch in range(config["nr_epochs"]):
                 _ = self.evaluate_model(epoch)
 
                 if curriculum:

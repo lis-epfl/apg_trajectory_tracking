@@ -388,7 +388,8 @@ if __name__ == "__main__":
     #     "frame_inertia": np.array([2, 2, 3]),
     #     "kinv_ang_vel_tau": np.array([21, 21, 3.0])
     # }
-    print("MODIFIED: ", modified_params)
+    if len(modified_params) > 0:
+        print("MODIFIED: ", modified_params)
 
     # DEFINE ENVIRONMENT
     if args.flightmare:

@@ -10,10 +10,14 @@ import pandas as pd
 from scipy import interpolate
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import ExpSineSquared
+from tqdm import tqdm
 
 from neural_control.trajectory.q_funcs import (
-    q_dot_q, quaternion_inverse, quaternion_to_euler
+    q_dot_q,
+    quaternion_inverse,
+    quaternion_to_euler,
 )
+
 # from utils.visualization import debug_plot, draw_poly
 """
 Autor: Elia Kaufmann
@@ -24,12 +28,11 @@ from neural_control.dynamics.quad_dynamics_base import Dynamics
 
 
 class Quad(Dynamics):
-
     def __init__(self, max_thrust_per_motor):
-        '''
+        """
         :param mass: mass of the quadrotor in [kg]
         :param max_thrust_per_motor: maximum thrust in [N] per motor
-        '''
+        """
         super().__init__()
         self.max_thrust_per_motor = max_thrust_per_motor
 
@@ -66,9 +69,7 @@ def check_trajectory(trajectory, inputs, tvec, plot=False):
         numeric_velocity = numeric_derivative[i, 0:3]
         analytic_velocity = trajectory[i, 7:10]
         errors[i, 0] = np.linalg.norm(numeric_velocity - analytic_velocity)
-        if not np.allclose(
-            analytic_velocity, numeric_velocity, atol=0.05, rtol=0.05
-        ):
+        if not np.allclose(analytic_velocity, numeric_velocity, atol=0.05, rtol=0.05):
             print("inconsistent linear velocity at i = %d" % i)
             print(numeric_velocity)
             print(analytic_velocity)
@@ -76,9 +77,7 @@ def check_trajectory(trajectory, inputs, tvec, plot=False):
 
         # 2) check if attitude is consistent with acceleration
         gravity = 9.81
-        numeric_thrust = numeric_derivative[i, 7:10] + np.array(
-            [0.0, 0.0, gravity]
-        )
+        numeric_thrust = numeric_derivative[i, 7:10] + np.array([0.0, 0.0, gravity])
         numeric_thrust = numeric_thrust / np.linalg.norm(numeric_thrust)
         analytic_attitude = trajectory[i, 3:7]
         if np.abs(np.linalg.norm(analytic_attitude) - 1.0) > 1e-6:
@@ -93,11 +92,16 @@ def check_trajectory(trajectory, inputs, tvec, plot=False):
         numeric_attitude = 0.5 * np.array([q_w] + q_xyz.tolist())
         numeric_attitude = numeric_attitude / np.linalg.norm(numeric_attitude)
         # the two attitudes can only differ in yaw --> check x,y component
-        q_diff = q_dot_q(
-            quaternion_inverse(analytic_attitude), numeric_attitude
-        )
+        q_diff = q_dot_q(quaternion_inverse(analytic_attitude), numeric_attitude)
         errors[i, 1] = np.linalg.norm(q_diff[1:3])
-        if not np.allclose(q_diff[1:3], np.zeros(2, ), atol=0.05, rtol=0.05):
+        if not np.allclose(
+            q_diff[1:3],
+            np.zeros(
+                2,
+            ),
+            atol=0.05,
+            rtol=0.05,
+        ):
             print("Attitude and acceleration do not match at i = %d" % i)
             print(analytic_attitude)
             print(numeric_attitude)
@@ -105,15 +109,16 @@ def check_trajectory(trajectory, inputs, tvec, plot=False):
             return False
 
         # 3) check if bodyrates agree with attitude difference
-        numeric_bodyrates = 2.0 * q_dot_q(
-            quaternion_inverse(trajectory[i, 3:7]), numeric_derivative[i, 3:7]
-        )[1:]
+        numeric_bodyrates = (
+            2.0
+            * q_dot_q(
+                quaternion_inverse(trajectory[i, 3:7]), numeric_derivative[i, 3:7]
+            )[1:]
+        )
         num_bodyrates.append(numeric_bodyrates)
         analytic_bodyrates = trajectory[i, 10:13]
         errors[i, 2] = np.linalg.norm(numeric_bodyrates - analytic_bodyrates)
-        if not np.allclose(
-            numeric_bodyrates, analytic_bodyrates, atol=0.05, rtol=0.05
-        ):
+        if not np.allclose(numeric_bodyrates, analytic_bodyrates, atol=0.05, rtol=0.05):
             print("inconsistent angular velocity at i = %d" % i)
             print(numeric_bodyrates)
             print(analytic_bodyrates)
@@ -129,28 +134,28 @@ def check_trajectory(trajectory, inputs, tvec, plot=False):
         plt.figure()
         for i in range(3):
             plt.subplot(3, 2, i * 2 + 1)
-            plt.plot(numeric_derivative[:, i], label='numeric')
-            plt.plot(trajectory[:, 7 + i], label='analytic')
-            plt.ylabel('m/s')
+            plt.plot(numeric_derivative[:, i], label="numeric")
+            plt.plot(trajectory[:, 7 + i], label="analytic")
+            plt.ylabel("m/s")
             if i == 0:
                 plt.title("Velocity check")
             plt.legend()
 
         for i in range(3):
             plt.subplot(3, 2, i * 2 + 2)
-            plt.plot(num_bodyrates[:, i], label='numeric')
-            plt.plot(trajectory[:, 10 + i], label='analytic')
-            plt.ylabel('rad/s')
+            plt.plot(num_bodyrates[:, i], label="numeric")
+            plt.plot(trajectory[:, 10 + i], label="analytic")
+            plt.ylabel("rad/s")
             if i == 0:
                 plt.title("Body rate check")
             plt.legend()
-        plt.suptitle('Integrity check of reference trajectory')
+        plt.suptitle("Integrity check of reference trajectory")
         plt.show()
 
     return True
 
 
-def smooth(x, window_len=11, window='hanning'):
+def smooth(x, window_len=11, window="hanning"):
     """smooth the data using a window with requested size.
 
     This method is based on the convolution of a scaled window with the signal.
@@ -195,7 +200,7 @@ def smooth(x, window_len=11, window='hanning'):
     if window_len < 3:
         return x
 
-    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+    if not window in ["flat", "hanning", "hamming", "bartlett", "blackman"]:
         raise ValueError(
             "Window is on of 'flat', 'hanning', 'hamming', 'bartlett','blackman'"
         )
@@ -206,12 +211,12 @@ def smooth(x, window_len=11, window='hanning'):
     x_end = np.repeat(x[-1], (window_len - 1) // 2)
     s = np.concatenate([x_start, x, x_end])
 
-    if window == 'flat':  # moving average
-        w = np.ones(window_len, 'd')
+    if window == "flat":  # moving average
+        w = np.ones(window_len, "d")
     else:
-        w = eval('np.' + window + '(window_len)')
+        w = eval("np." + window + "(window_len)")
 
-    y = np.convolve(w / w.sum(), s, mode='valid')
+    y = np.convolve(w / w.sum(), s, mode="valid")
     return y
 
 
@@ -221,9 +226,7 @@ def compute_full_traj(quad, t_np, pos_np, vel_np, alin_np):
 
     # Add gravity to accelerations
     gravity = 9.81
-    thrust_np = alin_np + np.tile(
-        np.array([[0, 0, 1]]), (len_traj, 1)
-    ) * gravity
+    thrust_np = alin_np + np.tile(np.array([[0, 0, 1]]), (len_traj, 1)) * gravity
     # Compute body axes
     z_b = thrust_np / np.sqrt(np.sum(thrust_np**2, 1))[:, np.newaxis]
     # new way to compute attitude:
@@ -241,9 +244,7 @@ def compute_full_traj(quad, t_np, pos_np, vel_np, alin_np):
     q_dot = np.gradient(att_np, axis=0) / dt
     w_int = np.zeros((len_traj, 3))
     for i in range(len_traj):
-        w_int[
-            i, :] = 2.0 * q_dot_q(quaternion_inverse(att_np[i, :]),
-                                  q_dot[i])[1:]
+        w_int[i, :] = 2.0 * q_dot_q(quaternion_inverse(att_np[i, :]), q_dot[i])[1:]
         f_t[i, 0] = quad.mass * z_b[i].dot(thrust_np[i, :].T)
     rate_np[:, 0] = w_int[:, 0]
     rate_np[:, 1] = w_int[:, 1]
@@ -263,21 +264,18 @@ def compute_full_traj(quad, t_np, pos_np, vel_np, alin_np):
                 yaw_corr = -rate_np[i, 2] * dt
                 yaw_corr_acc += yaw_corr
                 q_corr = np.array(
-                    [
-                        np.cos(yaw_corr_acc / 2.0), 0.0, 0.0,
-                        np.sin(yaw_corr_acc / 2.0)
-                    ]
+                    [np.cos(yaw_corr_acc / 2.0), 0.0, 0.0, np.sin(yaw_corr_acc / 2.0)]
                 )
                 q_new[i, :] = q_dot_q(att_np[i, :], q_corr)
-                w_int[i, :] = 2.0 * q_dot_q(
-                    quaternion_inverse(att_np[i, :]), q_dot[i]
-                )[1:]
+                w_int[i, :] = (
+                    2.0 * q_dot_q(quaternion_inverse(att_np[i, :]), q_dot[i])[1:]
+                )
 
             q_new_dot = np.gradient(q_new, axis=0) / dt
             for i in range(1, len_traj):
-                w_int[i, :] = 2.0 * q_dot_q(
-                    quaternion_inverse(q_new[i, :]), q_new_dot[i]
-                )[1:]
+                w_int[i, :] = (
+                    2.0 * q_dot_q(quaternion_inverse(q_new[i, :]), q_new_dot[i])[1:]
+                )
 
             att_np = q_new
             rate_np[:, 0] = w_int[:, 0]
@@ -302,7 +300,7 @@ def compute_full_traj(quad, t_np, pos_np, vel_np, alin_np):
         [
             (quad.J[2] - quad.J[1]) * rate_np[:, 2] * rate_np[:, 1],
             (quad.J[0] - quad.J[2]) * rate_np[:, 0] * rate_np[:, 2],
-            (quad.J[1] - quad.J[0]) * rate_np[:, 1] * rate_np[:, 0]
+            (quad.J[1] - quad.J[0]) * rate_np[:, 1] * rate_np[:, 0],
         ]
     ).T
 
@@ -310,10 +308,12 @@ def compute_full_traj(quad, t_np, pos_np, vel_np, alin_np):
     b = np.concatenate((tau, f_t), axis=-1)
     a_mat = np.concatenate(
         (
-            quad.y_f[np.newaxis, :], -quad.x_f[np.newaxis, :],
-            quad.z_l_tau[np.newaxis, :], np.ones_like(quad.z_l_tau
-                                                      )[np.newaxis, :]
-        ), 0
+            quad.y_f[np.newaxis, :],
+            -quad.x_f[np.newaxis, :],
+            quad.z_l_tau[np.newaxis, :],
+            np.ones_like(quad.z_l_tau)[np.newaxis, :],
+        ),
+        0,
     )
 
     # for i in range(len_traj):
@@ -331,7 +331,7 @@ def compute_random_trajectory(
     freq_z,
     duration=30.0,
     dt=0.01,
-    seed=0
+    seed=0,
 ):
     # print("Computing random trajectory!")
     assert dt == 0.01
@@ -340,15 +340,21 @@ def compute_random_trajectory(
 
     # kernel to map functions that repeat exactly
     # print("seed is: %d" % seed)
-    kernel_y = ExpSineSquared(length_scale=freq_x, periodicity=17) \
-               + ExpSineSquared(length_scale=3.0, periodicity=23) \
-               + ExpSineSquared(length_scale=4.0, periodicity=51)
-    kernel_x = ExpSineSquared(length_scale=freq_y, periodicity=37) \
-               + ExpSineSquared(length_scale=3.0, periodicity=61) \
-               + ExpSineSquared(length_scale=4.0, periodicity=13)
-    kernel_z = ExpSineSquared(length_scale=freq_z, periodicity=19) \
-               + ExpSineSquared(length_scale=3.0, periodicity=29) \
-               + ExpSineSquared(length_scale=4.0, periodicity=53)
+    kernel_y = (
+        ExpSineSquared(length_scale=freq_x, periodicity=17)
+        + ExpSineSquared(length_scale=3.0, periodicity=23)
+        + ExpSineSquared(length_scale=4.0, periodicity=51)
+    )
+    kernel_x = (
+        ExpSineSquared(length_scale=freq_y, periodicity=37)
+        + ExpSineSquared(length_scale=3.0, periodicity=61)
+        + ExpSineSquared(length_scale=4.0, periodicity=13)
+    )
+    kernel_z = (
+        ExpSineSquared(length_scale=freq_z, periodicity=19)
+        + ExpSineSquared(length_scale=3.0, periodicity=29)
+        + ExpSineSquared(length_scale=4.0, periodicity=53)
+    )
 
     gp_x = GaussianProcessRegressor(kernel=kernel_x)
     gp_y = GaussianProcessRegressor(kernel=kernel_y)
@@ -367,37 +373,39 @@ def compute_random_trajectory(
     # t_adj = 2.0 * (t / 2.0 - cs.sin(2.0 / duration * cs.pi * t) /
     # (4.0 * cs.pi / duration))
     tau = t / duration
-    t_adj = 1.524 * duration * (
-        -(
-            8 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 5) +
-            10 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 3) +
-            39 * cs.sin(tau * cs.pi) * cs.cos(tau * cs.pi) +
-            12 * cs.sin(2 * tau * cs.pi) * cs.cos(2 * tau * cs.pi) -
-            63 * tau * cs.pi
-        ) / (96 * cs.pi)
+    t_adj = (
+        1.524
+        * duration
+        * (
+            -(
+                8 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 5)
+                + 10 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 3)
+                + 39 * cs.sin(tau * cs.pi) * cs.cos(tau * cs.pi)
+                + 12 * cs.sin(2 * tau * cs.pi) * cs.cos(2 * tau * cs.pi)
+                - 63 * tau * cs.pi
+            )
+            / (96 * cs.pi)
+        )
     )
 
-    f_t_adj = cs.Function('t_adj', [t], [t_adj])
+    f_t_adj = cs.Function("t_adj", [t], [t_adj])
     scaled_time = f_t_adj(t_vec)
 
     # print("sampling x...")
     x_sample_hr = gp_x.sample_y(t_coarse[:, np.newaxis], 1, random_state=seed)
     # print("sampling y...")
-    y_sample_hr = gp_y.sample_y(
-        t_coarse[:, np.newaxis], 1, random_state=seed + 1
-    )
+    y_sample_hr = gp_y.sample_y(t_coarse[:, np.newaxis], 1, random_state=seed + 1)
     # print("sampling z...")
-    z_sample_hr = gp_z.sample_y(
-        t_coarse[:, np.newaxis], 1, random_state=seed + 2
-    )
+    z_sample_hr = gp_z.sample_y(t_coarse[:, np.newaxis], 1, random_state=seed + 2)
 
     pos_np = np.concatenate([x_sample_hr, y_sample_hr, z_sample_hr], axis=1)
     # scale to arena bounds
     max_traj = np.max(pos_np, axis=0)
     min_traj = np.min(pos_np, axis=0)
     pos_centered = pos_np - (max_traj + min_traj) / 2.0
-    pos_scaled = pos_centered * (arena_bound_max -
-                                 arena_bound_min) / (max_traj - min_traj)
+    pos_scaled = (
+        pos_centered * (arena_bound_max - arena_bound_min) / (max_traj - min_traj)
+    )
     pos_arena = pos_scaled + (arena_bound_max + arena_bound_min) / 2.0
 
     if debug:
@@ -418,21 +426,17 @@ def compute_random_trajectory(
         t_coarse, pos_arena[:, 2], kind="cubic", fill_value="extrapolate"
     )
     pos_arena = np.concatenate(
-        [
-            pos_blub_x(scaled_time),
-            pos_blub_y(scaled_time),
-            pos_blub_z(scaled_time)
-        ],
-        axis=1
+        [pos_blub_x(scaled_time), pos_blub_y(scaled_time), pos_blub_z(scaled_time)],
+        axis=1,
     )
 
     pos_arena = np.concatenate(
         [
             smooth(np.squeeze(pos_arena[:, 0]), window_len=11)[:, np.newaxis],
             smooth(np.squeeze(pos_arena[:, 1]), window_len=11)[:, np.newaxis],
-            smooth(np.squeeze(pos_arena[:, 2]), window_len=11)[:, np.newaxis]
+            smooth(np.squeeze(pos_arena[:, 2]), window_len=11)[:, np.newaxis],
         ],
-        axis=1
+        axis=1,
     )
 
     # compute numeric derivative & smooth things
@@ -441,18 +445,18 @@ def compute_random_trajectory(
         [
             smooth(np.squeeze(vel_arena[:, 0]), window_len=11)[:, np.newaxis],
             smooth(np.squeeze(vel_arena[:, 1]), window_len=11)[:, np.newaxis],
-            smooth(np.squeeze(vel_arena[:, 2]), window_len=11)[:, np.newaxis]
+            smooth(np.squeeze(vel_arena[:, 2]), window_len=11)[:, np.newaxis],
         ],
-        axis=1
+        axis=1,
     )
     acc_arena = np.gradient(vel_arena, axis=0) / dt
     acc_arena = np.concatenate(
         [
             smooth(np.squeeze(acc_arena[:, 0]), window_len=11)[:, np.newaxis],
             smooth(np.squeeze(acc_arena[:, 1]), window_len=11)[:, np.newaxis],
-            smooth(np.squeeze(acc_arena[:, 2]), window_len=11)[:, np.newaxis]
+            smooth(np.squeeze(acc_arena[:, 2]), window_len=11)[:, np.newaxis],
         ],
-        axis=1
+        axis=1,
     )
     t_np = t_vec
 
@@ -478,14 +482,19 @@ def compute_geometric_trajectory(quad, duration=30.0, dt=0.001):
     # t_adj = 2.0 * (t / 2.0 - cs.sin(2.0 / duration * cs.pi * t) /
     # (4.0 * cs.pi / duration))
     tau = t / duration
-    t_adj = 1.524 * duration * (
-        -(
-            8 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 5) +
-            10 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 3) +
-            39 * cs.sin(tau * cs.pi) * cs.cos(tau * cs.pi) +
-            12 * cs.sin(2 * tau * cs.pi) * cs.cos(2 * tau * cs.pi) -
-            63 * tau * cs.pi
-        ) / (96 * cs.pi)
+    t_adj = (
+        1.524
+        * duration
+        * (
+            -(
+                8 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 5)
+                + 10 * cs.cos(tau * cs.pi) * cs.constpow(cs.sin(tau * cs.pi), 3)
+                + 39 * cs.sin(tau * cs.pi) * cs.cos(tau * cs.pi)
+                + 12 * cs.sin(2 * tau * cs.pi) * cs.cos(2 * tau * cs.pi)
+                - 63 * tau * cs.pi
+            )
+            / (96 * cs.pi)
+        )
     )
 
     # sphere trajectory rotating around x-axis
@@ -500,13 +509,13 @@ def compute_geometric_trajectory(quad, duration=30.0, dt=0.001):
     freq_slow = 0.02
     freq_fast = 0.12
     pos_x = 3.0 + radius_x * (
-        cs.sin(2.0 * cs.pi * freq_fast * t_adj) *
-        cs.cos(2.0 * cs.pi * freq_slow * t_adj)
+        cs.sin(2.0 * cs.pi * freq_fast * t_adj)
+        * cs.cos(2.0 * cs.pi * freq_slow * t_adj)
     )
     pos_y = 1.0 + radius_y * (cs.cos(2.0 * cs.pi * freq_fast * t_adj))
     pos_z = 3.5 + radius_z * (
-        cs.sin(2.0 * cs.pi * freq_fast * t_adj) *
-        cs.sin(2.0 * cs.pi * freq_slow * t_adj)
+        cs.sin(2.0 * cs.pi * freq_fast * t_adj)
+        * cs.sin(2.0 * cs.pi * freq_slow * t_adj)
     )
 
     # TODO: define yaw trajectory
@@ -520,12 +529,12 @@ def compute_geometric_trajectory(quad, duration=30.0, dt=0.001):
         0.0, duration, int(duration / dt), endpoint=False, retstep=True
     )
 
-    f_t_adj = cs.Function('t_adj', [t], [t_adj])
-    f_pos = cs.Function('f_pos', [t], [pos])
-    f_vel = cs.Function('f_vel', [t], [vel])
-    f_acc = cs.Function('f_acc', [t], [acc])
-    f_jerk = cs.Function('f_jerk', [t], [jerk])
-    f_snap = cs.Function('f_snap', [t], [snap])
+    f_t_adj = cs.Function("t_adj", [t], [t_adj])
+    f_pos = cs.Function("f_pos", [t], [pos])
+    f_vel = cs.Function("f_vel", [t], [vel])
+    f_acc = cs.Function("f_acc", [t], [acc])
+    f_jerk = cs.Function("f_jerk", [t], [jerk])
+    f_snap = cs.Function("f_snap", [t], [snap])
 
     # evaluation seems to only work for scalar inputs --> iterate over time vector
     pos_list = []
@@ -568,7 +577,7 @@ def load_prepare_trajectory(base_dir, dt, speed_factor, test=False):
     #     quad, arena_bound_max, arena_bound_min, .9, .7, .7,
     #     10, 0.01, seed=np.random.randint(10000)
     # )
-    folder = 'test' if test else "train"
+    folder = "test" if test else "train"
     data_list = os.listdir(os.path.join(base_dir, folder))
     rand_traj = np.random.choice(data_list)
     trajectory = np.load(os.path.join(base_dir, folder, rand_traj))
@@ -587,8 +596,9 @@ def load_prepare_trajectory(base_dir, dt, speed_factor, test=False):
     # only use pos and vel
     transformed_ref = np.hstack(
         (
-            taken_every[:, :3], euler_angles * speed_factor,
-            taken_every[:, 7:10] * speed_factor * 2
+            taken_every[:, :3],
+            euler_angles * speed_factor,
+            taken_every[:, 7:10] * speed_factor * 2,
         )
     )
     # print("transformed shape", transformed_ref.shape)
@@ -598,7 +608,7 @@ def load_prepare_trajectory(base_dir, dt, speed_factor, test=False):
 def make_dataset():
     config = {
         "duration": 10,
-        "train_split": .9,
+        "train_split": 0.9,
         "freq_x": 0.9,
         "freq_y": 0.7,
         "freq_z": 0.7,
@@ -625,7 +635,7 @@ def make_dataset():
         [train_rand_states, test_rand_states], ["train", "test"]
     ):
         out_path = os.path.join(config["out_dir"], train_test_dir)
-        for rand in rand_states:
+        for rand in tqdm(rand_states):
             # compute trajectory
             trajectory, _, _ = compute_random_trajectory(
                 quad,
@@ -636,11 +646,9 @@ def make_dataset():
                 config["freq_z"],
                 config["duration"],
                 0.01,
-                seed=rand
+                seed=rand,
             )
-            np.save(
-                os.path.join(out_path, f"traj_{rand}.npy"), trajectory[:, :10]
-            )
+            np.save(os.path.join(out_path, f"traj_{rand}.npy"), trajectory[:, :10])
 
     traj_len = len(trajectory)
     config["traj_len"] = traj_len

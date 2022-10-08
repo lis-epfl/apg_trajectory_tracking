@@ -189,7 +189,10 @@ class TrainCartpole(TrainBase):
         # increase thresholds
         if epoch % 3 == 0 and self.config["thresh_div"] < self.thresh_div_end:
             self.config["thresh_div"] += self.config["thresh_div_step"]
-            print("Increased thresh div to", self.config["thresh_div"])
+            print(
+                "Curriculum learning: increase divergence threshold to",
+                self.config["thresh_div"]
+            )
 
         if (epoch + 1) % self.config["resample_every"] == 0:
             print("resample data...")
