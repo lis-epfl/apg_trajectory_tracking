@@ -22,6 +22,7 @@ class NetworkWrapper:
         render=0,
         dt=0.02,
         take_every_x=1000,
+        nr_actions_rnn=10,
         **kwargs
     ):
         self.dataset = dataset
@@ -34,6 +35,7 @@ class NetworkWrapper:
         self.optimizer = optimizer
         self.take_every_x = take_every_x
         self.action_counter = 0
+        self.nr_actions_rnn = nr_actions_rnn
 
         # four control signals
         self.action_dim = 4
@@ -51,13 +53,14 @@ class NetworkWrapper:
         )
 
         with torch.no_grad():
-            suggested_action = self.net(in_state, ref)
+            suggested_action = self.net(in_state, ref[:, :self.nr_actions_rnn])
 
             suggested_action = torch.sigmoid(suggested_action)
 
-            suggested_action = torch.reshape(
-                suggested_action, (1, self.horizon, self.action_dim)
-            )
+            if suggested_action.size()[-1] > self.action_dim:
+                suggested_action = torch.reshape(
+                    suggested_action, (1, self.horizon, self.action_dim)
+                )
 
         numpy_action_seq = suggested_action[0].detach().numpy()
         # print([round(a, 2) for a in numpy_action_seq[0]])

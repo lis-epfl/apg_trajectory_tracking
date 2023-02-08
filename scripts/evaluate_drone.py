@@ -40,6 +40,7 @@ class QuadEvaluator():
         dt=0.05,
         test_time=0,
         speed_factor=.6,
+        recurrent=0,
         **kwargs
     ):
         self.controller = controller
@@ -51,6 +52,7 @@ class QuadEvaluator():
         self.action_counter = 0
         self.test_time = test_time
         self.speed_factor = speed_factor
+        self.recurrent = recurrent
 
     def help_render(self, t_prev):
         """
@@ -143,7 +145,10 @@ class QuadEvaluator():
 
             # possible average with previous actions
             # use_action = average_action(action, i, do_avg_act=do_avg_act)
-            use_action = action[0]
+            if self.recurrent:
+                use_action = action
+            else:
+                use_action = action[0]
             actions.append(action)
 
             current_np_state, stable = self.eval_env.step(

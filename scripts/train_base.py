@@ -59,6 +59,7 @@ class TrainBase:
         speed_factor=.6,
         resample_every=3,
         suc_up_down=1,
+        recurrent=0, 
         system="quad",
         save_name="test_model",
         **kwargs
@@ -89,6 +90,7 @@ class TrainBase:
         self.suc_up_down = suc_up_down
         self.learning_rate_controller = learning_rate_controller
         self.learning_rate_dynamics = learning_rate_dynamics
+        self.recurrent = recurrent
 
         # performance logging:
         self.results_dict = defaultdict(list)
@@ -184,24 +186,19 @@ class TrainBase:
             # order to correctly apply the action
             in_state, current_state, in_ref_state, ref_states = data
 
-            actions = self.net(in_state, in_ref_state)
-            actions = torch.sigmoid(actions)
-            action_seq = torch.reshape(
-                actions, (-1, self.nr_actions, self.action_dim)
-            )
-
-            if train == "controller":
+            if self.recurrent:
+                loss = self.train_recurrent_model(
+                        in_state, current_state, in_ref_state, ref_states
+                    )
+            else:
+                actions = self.net(in_state, in_ref_state)
+                actions = torch.sigmoid(actions)
+                action_seq = torch.reshape(
+                    actions, (-1, self.nr_actions, self.action_dim)
+                )
                 loss = self.train_controller_model(
                     current_state, action_seq, in_ref_state, ref_states
                 )
-                # # ---- recurrent --------
-                # loss = self.train_controller_recurrent(
-                #     current_state, action_seq, in_ref_state, ref_states
-                # )
-            else:
-                # should work for both recurrent and normal
-                loss = self.train_dynamics_model(current_state, action_seq)
-                self.count_finetune_data += len(current_state)
 
             running_loss += loss.item()
         # time_epoch = time.time() - tic

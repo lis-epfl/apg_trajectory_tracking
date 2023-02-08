@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from neural_control.dataset import QuadDataset
+from neural_control.dataset import QuadDataset, state_preprocessing
 from train_base import TrainBase
 from neural_control.drone_loss import quad_mpc_loss
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
@@ -76,11 +76,19 @@ class TrainDrone(TrainBase):
             )
             in_state_size = self.state_data.normed_states.size()[1]
             # +9 because adding 12 things but deleting position (3)
+            if self.recurrent:
+                actions_net_dim = self.nr_actions_rnn
+                actions_out_dim = self.action_dim
+                self.actual_horizon = self.nr_actions - self.nr_actions_rnn
+            else:
+                actions_net_dim = self.nr_actions
+                actions_out_dim = self.action_dim * self.nr_actions
+                self.actual_horizon = self.nr_actions
             self.net = Net(
                 in_state_size,
-                self.nr_actions,
+                actions_net_dim,
                 self.ref_dim,
-                self.action_dim * self.nr_actions,
+                actions_out_dim,
                 conv=1
             )
             (data_std, data_mean) = (self.state_data.std, self.state_data.mean)
@@ -107,6 +115,64 @@ class TrainDrone(TrainBase):
         # init dataset
         self.state_data = QuadDataset(self.epoch_size, **self.config)
         self.init_optimizer()
+
+    def train_recurrent_model(
+        self, in_state, current_state, in_ref_states, ref_states
+    ):
+        # zero the parameter gradients
+        self.optimizer_controller.zero_grad()
+        # save the reached states
+        # RNN: collect all intermediate states and actions
+        intermediate_states = torch.zeros(
+            current_state.size()[0], self.actual_horizon, self.state_size
+        )
+        action_seq = torch.zeros(
+            current_state.size()[0], self.actual_horizon, self.action_dim
+        )
+        # in_state_first = state_preprocessing(current_state)
+        # print(in_state_first == in_state_first)
+        # print("ref states", ref_states[0])
+
+        for k in range(self.actual_horizon):
+            # RNN: need to do the preprocessing of reference and state for each
+            # time step
+            # subtract position for relative position
+            rel_in_ref_states = in_ref_states[:, k:k + self.nr_actions_rnn]
+            rel_in_ref_states[:, :, :3] = (
+                rel_in_ref_states[:, :, :3] -
+                torch.unsqueeze(current_state[:, :3], 1)
+            )
+            # preprocess state
+            in_state = state_preprocessing(current_state)
+            # RNN DEBUGGING:
+            # print("current state", current_state[0])
+            # print("in_state", in_state[0])
+            # print("rel_in_ref_states", rel_in_ref_states[0])
+            # predict action
+            action = self.net(in_state, rel_in_ref_states)
+            action = torch.sigmoid(action)
+            action_seq[:, k] = action
+            # action = action_seq[:, k]
+            current_state = self.train_dynamics(
+                current_state, action, dt=self.delta_t
+            )
+            intermediate_states[:, k] = current_state
+
+        loss = quad_mpc_loss(
+            intermediate_states,
+            # RNN:
+            ref_states[:, :self.actual_horizon],
+            action_seq,
+            printout=0
+        )
+
+        # Backprop
+        loss.backward()
+        for name, param in self.net.named_parameters():
+            if param.grad is not None:
+                self.writer.add_histogram(name + ".grad", param.grad)
+        self.optimizer_controller.step()
+        return loss
 
     def train_controller_model(
         self, current_state, action_seq, in_ref_states, ref_states
