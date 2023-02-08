@@ -17,6 +17,7 @@ from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.environments.drone_env import QuadRotorEnvBase
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
+from neural_control.models.rnn import LSTM_NEW
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -76,7 +77,7 @@ class TrainDrone(TrainBase):
             )
             in_state_size = self.state_data.normed_states.size()[1]
             # +9 because adding 12 things but deleting position (3)
-            if self.recurrent:
+            if self.train_mode in ["recurrent", "LSTM"]:
                 actions_net_dim = self.nr_actions_rnn
                 actions_out_dim = self.action_dim
                 self.actual_horizon = self.nr_actions - self.nr_actions_rnn
@@ -84,7 +85,8 @@ class TrainDrone(TrainBase):
                 actions_net_dim = self.nr_actions
                 actions_out_dim = self.action_dim * self.nr_actions
                 self.actual_horizon = self.nr_actions
-            self.net = Net(
+            net_class = LSTM_NEW if self.train_mode == "LSTM" else Net
+            self.net = net_class(
                 in_state_size,
                 actions_net_dim,
                 self.ref_dim,
@@ -123,12 +125,16 @@ class TrainDrone(TrainBase):
         self.optimizer_controller.zero_grad()
         # save the reached states
         # RNN: collect all intermediate states and actions
+        batch_size = current_state.size()[0]
         intermediate_states = torch.zeros(
-            current_state.size()[0], self.actual_horizon, self.state_size
+            batch_size, self.actual_horizon, self.state_size
         )
         action_seq = torch.zeros(
-            current_state.size()[0], self.actual_horizon, self.action_dim
+            batch_size, self.actual_horizon, self.action_dim
         )
+        if self.train_mode == "LSTM":
+            # reset
+            self.net.reset_hidden_state(batch_size)
         # in_state_first = state_preprocessing(current_state)
         # print(in_state_first == in_state_first)
         # print("ref states", ref_states[0])
@@ -314,7 +320,7 @@ if __name__ == "__main__":
     # config["thresh_div_start"] = 1
     # config["thresh_stable_start"] = 1.5
 
-    config["save_name"] = "mpc_loss"
+    config["save_name"] = "lstm"
 
     config["nr_epochs"] = 400
 

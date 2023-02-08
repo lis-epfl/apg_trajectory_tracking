@@ -59,7 +59,7 @@ class TrainBase:
         speed_factor=.6,
         resample_every=3,
         suc_up_down=1,
-        recurrent=0, 
+        train_mode="concurrent", 
         system="quad",
         save_name="test_model",
         **kwargs
@@ -90,7 +90,7 @@ class TrainBase:
         self.suc_up_down = suc_up_down
         self.learning_rate_controller = learning_rate_controller
         self.learning_rate_dynamics = learning_rate_dynamics
-        self.recurrent = recurrent
+        self.train_mode = train_mode
 
         # performance logging:
         self.results_dict = defaultdict(list)
@@ -186,7 +186,8 @@ class TrainBase:
             # order to correctly apply the action
             in_state, current_state, in_ref_state, ref_states = data
 
-            if self.recurrent:
+            if self.train_mode != "concurrent":
+                # if recurrent or recurrent_LSTM, use this one
                 loss = self.train_recurrent_model(
                         in_state, current_state, in_ref_state, ref_states
                     )

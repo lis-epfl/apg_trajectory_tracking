@@ -16,7 +16,7 @@
     "state_size": 12,
     "nr_actions": 20,
     "nr_actions_rnn": 10,
-    "recurrent": 1,
+    "train_mode": "LSTM",
     "ref_dim": 9,
     "action_dim": 4,
     "l2_lambda": 0.01,
