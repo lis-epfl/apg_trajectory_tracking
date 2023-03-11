@@ -21,16 +21,16 @@ class LSTM_NEW(nn.Module):
         self.conv = conv
         self.reshape_len = 20 * (horizon - 2) if conv else 64
         self.ref_in = nn.Linear(horizon * ref_dim, 64)
-        self.fc_out = nn.Linear(64, nr_actions_predict)
+        self.fc_out = nn.Linear(8, nr_actions_predict)
 
         # init lstm cell
-        self.lstm = nn.LSTMCell(state_dim + self.reshape_len, 64)
+        self.lstm = nn.LSTMCell(state_dim + self.reshape_len, 8)
         self.reset_hidden_state(1)
 
     def reset_hidden_state(self, batch_size=1):
         # we need to reset the hidden state whenever starting a new sequence (?)
-        self.hidden_state = torch.randn(batch_size, 64)
-        self.cell_state = torch.randn(batch_size, 64)
+        self.hidden_state = torch.randn(batch_size, 8)
+        self.cell_state = torch.randn(batch_size, 8)
 
     def forward(self, state, ref):
         # process state and reference differently
