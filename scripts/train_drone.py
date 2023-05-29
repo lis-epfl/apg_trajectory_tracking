@@ -67,30 +67,23 @@ class TrainDrone(TrainBase):
             data_std = np.array(previous_parameters["std"]).astype(float)
             data_mean = np.array(previous_parameters["mean"]).astype(float)
         else:
+            # create dataset
             self.state_data = QuadDataset(
                 self.epoch_size,
                 self.self_play,
                 reset_strength=self.reset_strength,
                 max_drone_dist=self.max_drone_dist,
-                ref_length=self.nr_actions,
+                ref_length=self.ref_length,
                 dt=self.delta_t
             )
             in_state_size = self.state_data.normed_states.size()[1]
-            # +9 because adding 12 things but deleting position (3)
-            if self.train_mode in ["recurrent", "LSTM"]:
-                actions_net_dim = self.nr_actions_rnn
-                actions_out_dim = self.action_dim
-                self.actual_horizon = self.nr_actions - self.nr_actions_rnn
-            else:
-                actions_net_dim = self.nr_actions
-                actions_out_dim = self.action_dim * self.nr_actions
-                self.actual_horizon = self.nr_actions
+
             net_class = LSTM_NEW if self.train_mode == "LSTM" else Net
             self.net = net_class(
                 in_state_size,
-                actions_net_dim,
+                self.horizon,
                 self.ref_dim,
-                actions_out_dim,
+                self.actions_out_dim,
                 conv=1
             )
             (data_std, data_mean) = (self.state_data.std, self.state_data.mean)
@@ -100,8 +93,7 @@ class TrainDrone(TrainBase):
         self.config["mean"] = data_mean.tolist()
 
         # update the used parameters:
-        self.config["horizon"] = self.nr_actions
-        self.config["ref_length"] = self.nr_actions
+        self.config["ref_length"] = self.ref_length
         self.config["thresh_div"] = self.thresh_div_start
         self.config["dt"] = self.delta_t
         self.config["take_every_x"] = self.self_play_every_x
@@ -127,10 +119,10 @@ class TrainDrone(TrainBase):
         # RNN: collect all intermediate states and actions
         batch_size = current_state.size()[0]
         intermediate_states = torch.zeros(
-            batch_size, self.actual_horizon, self.state_size
+            batch_size, self.horizon, self.state_size
         )
         action_seq = torch.zeros(
-            batch_size, self.actual_horizon, self.action_dim
+            batch_size, self.horizon, self.action_dim
         )
         if self.train_mode == "LSTM":
             # reset
@@ -139,11 +131,11 @@ class TrainDrone(TrainBase):
         # print(in_state_first == in_state_first)
         # print("ref states", ref_states[0])
 
-        for k in range(self.actual_horizon):
+        for k in range(self.horizon):
             # RNN: need to do the preprocessing of reference and state for each
             # time step
             # subtract position for relative position
-            rel_in_ref_states = in_ref_states[:, k:k + self.nr_actions_rnn]
+            rel_in_ref_states = in_ref_states[:, k:k + self.horizon]
             rel_in_ref_states[:, :, :3] = (
                 rel_in_ref_states[:, :, :3] -
                 torch.unsqueeze(current_state[:, :3], 1)
@@ -167,7 +159,7 @@ class TrainDrone(TrainBase):
         loss = quad_mpc_loss(
             intermediate_states,
             # RNN:
-            ref_states[:, :self.actual_horizon],
+            ref_states[:, :self.horizon],
             action_seq,
             printout=0
         )
@@ -187,9 +179,9 @@ class TrainDrone(TrainBase):
         self.optimizer_controller.zero_grad()
         # save the reached states
         intermediate_states = torch.zeros(
-            current_state.size()[0], self.nr_actions, self.state_size
+            current_state.size()[0], self.horizon, self.state_size
         )
-        for k in range(self.nr_actions):
+        for k in range(self.horizon):
             # extract action
             action = action_seq[:, k]
             current_state = self.train_dynamics(

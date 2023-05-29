@@ -163,17 +163,17 @@ class CartPoleEnvRL(gym.Env, CartPoleEnv):
 
 class QuadEnvRL(QuadRotorEnvBase, gym.Env):
 
-    def __init__(self, dynamics, dt, speed_factor=.2, nr_actions=10, **kwargs):
+    def __init__(self, dynamics, dt, speed_factor=.2, horizon=10, **kwargs):
         self.dt = dt
         self.speed_factor = speed_factor
-        self.nr_actions = nr_actions
+        self.horizon = horizon
 
         QuadRotorEnvBase.__init__(self, dynamics, dt)
         self.action_space = spaces.Box(low=-1, high=1, shape=(4, ))
 
         # state and reference
         self.state_inp_dim = 15
-        self.obs_dim = self.state_inp_dim + nr_actions * 9
+        self.obs_dim = self.state_inp_dim + horizon * 9
         high = np.array([10 for _ in range(self.obs_dim)])
         self.observation_space = spaces.Box(
             -high, high, shape=(self.obs_dim, )
@@ -191,7 +191,7 @@ class QuadEnvRL(QuadRotorEnvBase, gym.Env):
         obs_state, _, obs_ref, _ = self.dataset.prepare_data(
             self.state.copy(),
             self.current_ref[self.current_ind + 1:self.current_ind +
-                             self.nr_actions + 1].copy()
+                             self.horizon + 1].copy()
         )
         return obs_state, obs_ref
 
@@ -324,7 +324,7 @@ class QuadEnvRL(QuadRotorEnvBase, gym.Env):
 
         done = (
             (not is_stable) or pos_div > self.thresh_div
-            or self.current_ind > len(self.current_ref) - self.nr_actions - 2
+            or self.current_ind > len(self.current_ref) - self.horizon - 2
         )
 
         reward = 0
@@ -445,9 +445,9 @@ class WingEnvRL(gym.Env, SimpleWingEnv):
 
 class QuadEnvMario(QuadEnvRL):
 
-    def __init__(self, dynamics, dt, speed_factor=.5, nr_actions=1):
+    def __init__(self, dynamics, dt, speed_factor=.5, horizon=1):
         super().__init__(
-            dynamics, dt, speed_factor=speed_factor, nr_actions=nr_actions
+            dynamics, dt, speed_factor=speed_factor, horizon=horizon
         )
         self.action_space = spaces.Box(low=-1, high=1, shape=(4, ))
 

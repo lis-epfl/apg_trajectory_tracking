@@ -30,6 +30,12 @@ class TrainFixedWing(TrainBase):
         self.config = config
         super().__init__(train_dynamics, eval_dynamics, **config)
 
+        if self.train_mode != "concurrent":
+            raise ValueError(
+                "autoregressive / LSTM training is only implemented\
+                              for the Quadrotor! Use concurrent as train mode"
+            )
+
         # specify  self.sample_in to collect more data (exploration)
         if self.sample_in == "eval_env":
             self.eval_env = SimpleWingEnv(self.eval_dynamics, self.delta_t)
@@ -62,7 +68,7 @@ class TrainFixedWing(TrainBase):
                 self.state_size - self.ref_dim,
                 1,
                 self.ref_dim,
-                self.action_dim * self.nr_actions,
+                self.action_dim * self.horizon,
                 conv=False
             )
 
@@ -71,8 +77,6 @@ class TrainFixedWing(TrainBase):
         # update mean and std:
         self.config = self.state_data.get_means_stds(self.config)
         # add other parameters
-        self.config["horizon"] = self.nr_actions
-        self.config["ref_length"] = self.nr_actions
         self.config["thresh_div"] = self.thresh_div_start
         self.config["dt"] = self.delta_t
         self.config["take_every_x"] = self.self_play_every_x
@@ -89,9 +93,9 @@ class TrainFixedWing(TrainBase):
         # zero the parameter gradients
         self.optimizer_controller.zero_grad()
         intermediate_states = torch.zeros(
-            current_state.size()[0], self.nr_actions_rnn, self.state_size
+            current_state.size()[0], self.horizon, self.state_size
         )
-        for k in range(self.nr_actions_rnn):
+        for k in range(self.horizon):
             # extract action
             action = action_seq[:, k]
             current_state = self.train_dynamics(
@@ -115,8 +119,8 @@ class TrainFixedWing(TrainBase):
         self, current_state, action_seq, in_ref_state, ref_states
     ):
         target_pos = self._compute_target_pos(current_state, in_ref_state)
-        # ------------ VERSION 2: recurrent -------------------
-        for k in range(self.nr_actions_rnn):
+        # ------------ VERSION 2: autoregressive -------------------
+        for k in range(self.horizon):
             in_state, _, in_ref_state, _ = self.state_data.prepare_data(
                 current_state, ref_states
             )

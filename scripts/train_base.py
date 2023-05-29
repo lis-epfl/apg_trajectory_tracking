@@ -49,8 +49,7 @@ class TrainBase:
         thresh_stable_start=.4,
         thresh_stable_end=.8,
         state_size=12,
-        nr_actions=10,
-        nr_actions_rnn=10,
+        horizon=10,
         ref_dim=3,
         action_dim=4,
         l2_lambda=0.1,
@@ -79,8 +78,7 @@ class TrainBase:
         self.thresh_stable_start = thresh_stable_start
         self.thresh_stable_end = thresh_stable_end
         self.state_size = state_size
-        self.nr_actions = nr_actions
-        self.nr_actions_rnn = nr_actions_rnn
+        self.horizon = horizon
         self.ref_dim = ref_dim
         self.action_dim = action_dim
         self.l2_lambda = l2_lambda
@@ -101,10 +99,7 @@ class TrainBase:
         self.save_name = save_name
         self.save_path = os.path.join("trained_models", system, save_name)
         self.save_model_name = "model_" + system
-        if not os.path.exists(self.save_path):
-            os.makedirs(self.save_path)
-        else:
-            input("Save directory already exists. Continue?")
+        os.makedirs(self.save_path, exist_ok=True)
 
         # dynamics
         self.eval_dynamics = eval_dynamics
@@ -119,6 +114,14 @@ class TrainBase:
         self.net = None
 
         self.writer = SummaryWriter()
+
+        # set horizon / ref length parameters
+        if self.train_mode in ["autoregressive", "LSTM"]:
+            self.actions_out_dim = self.action_dim
+            self.ref_length = self.horizon * 2
+        else:
+            self.actions_out_dim = self.action_dim * self.horizon
+            self.ref_length = self.horizon
 
     def init_optimizer(self):
         # Init train loader
@@ -187,15 +190,15 @@ class TrainBase:
             in_state, current_state, in_ref_state, ref_states = data
 
             if self.train_mode != "concurrent":
-                # if recurrent or recurrent_LSTM, use this one
+                # if autoregressive or recurrent_LSTM, use this one
                 loss = self.train_recurrent_model(
-                        in_state, current_state, in_ref_state, ref_states
-                    )
+                    in_state, current_state, in_ref_state, ref_states
+                )
             else:
                 actions = self.net(in_state, in_ref_state)
                 actions = torch.sigmoid(actions)
                 action_seq = torch.reshape(
-                    actions, (-1, self.nr_actions, self.action_dim)
+                    actions, (-1, self.horizon, self.action_dim)
                 )
                 loss = self.train_controller_model(
                     current_state, action_seq, in_ref_state, ref_states
@@ -226,9 +229,7 @@ class TrainBase:
     def save_model(self, epoch, success, suc_std):
         # check if we either are higher than the current score (if measuring
         # the number of epochs) or lower (if measuring tracking error)
-        if epoch > 0: # and (
-            # success > self.current_score and self.suc_up_down == 1
-        # ) or (success < self.current_score and self.suc_up_down == -1):
+        if epoch > 0:
             self.current_score = success
             print("Save model with score ", round(success, 2))
             torch.save(

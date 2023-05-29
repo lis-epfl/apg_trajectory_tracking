@@ -77,7 +77,7 @@ class TrainCartpole(TrainBase):
         if base_model is not None:
             self.net = torch.load(os.path.join(base_model, base_model_name))
         else:
-            self.net = Net(self.state_size, self.nr_actions * self.action_dim)
+            self.net = Net(self.state_size, self.horizon * self.action_dim)
         self.state_data = CartpoleDataset(
             num_states=self.config["sample_data"], **self.config
         )
@@ -97,12 +97,11 @@ class TrainCartpole(TrainBase):
 
     def make_reference(self, current_state):
         ref_states = torch.zeros(
-            current_state.size()[0], self.nr_actions, self.state_size
+            current_state.size()[0], self.horizon, self.state_size
         )
-        for k in range(self.nr_actions - 1):
-            ref_states[:, k] = (
-                current_state * (1 - 1 / (self.nr_actions - 1) * k)
-            )
+        for k in range(self.horizon - 1):
+            ref_states[:,
+                       k] = (current_state * (1 - 1 / (self.horizon - 1) * k))
         return ref_states
 
     def loss_logging(self, epoch_loss, train="controller"):
@@ -122,7 +121,7 @@ class TrainCartpole(TrainBase):
 
             actions = self.net(in_state)
             action_seq = torch.reshape(
-                actions, (-1, self.nr_actions, self.action_dim)
+                actions, (-1, self.horizon, self.action_dim)
             )
 
             if train == "controller":
@@ -131,7 +130,7 @@ class TrainCartpole(TrainBase):
                 ref_states = self.make_reference(current_state)
 
                 intermediate_states = torch.zeros(
-                    current_state.size()[0], self.nr_actions, self.state_size
+                    current_state.size()[0], self.horizon, self.state_size
                 )
                 for k in range(action_seq.size()[1]):
                     current_state = self.train_dynamics(
@@ -150,7 +149,7 @@ class TrainCartpole(TrainBase):
                 #         self.writer.add_histogram(name, param)
                 self.optimizer_controller.step()
             else:
-                # should work for both recurrent and normal
+                # should work for both autoregressive and normal
                 loss = self.train_dynamics_model(current_state, action_seq)
                 self.count_finetune_data += len(current_state)
 

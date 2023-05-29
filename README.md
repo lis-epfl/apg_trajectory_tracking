@@ -50,6 +50,8 @@ python scripts/train_fixed_wing.py
 python scripts/train_cartpole.py
 ```
 
+As reported in our paper, we tested three training modes for the quadrotor: concurrent, autoregressive, or recurrently with an LSTM. This mode can be set in the config [file](configs/quad_config.json). The argument `horizon` in the config file determines the training horizon k. In the case of concurrent training, the model gets the next k reference states as input, we predict k actions at once, and then backpropagate. In the case of autoregressive or LSTM-based training, the model still sees the next k reference states, but only outputs one action at a time. With the LSTM, the hidden state serves as a memory of the past states and actions.
+
 See our [training documentation](training_details.pdf) for further information.
 
 ### Evaluation

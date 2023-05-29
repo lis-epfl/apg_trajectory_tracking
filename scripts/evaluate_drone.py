@@ -34,7 +34,7 @@ class QuadEvaluator():
         self,
         controller,
         environment,
-        horizon=5,
+        ref_length=5,
         max_drone_dist=0.1,
         render=0,
         dt=0.05,
@@ -45,7 +45,7 @@ class QuadEvaluator():
     ):
         self.controller = controller
         self.eval_env = environment
-        self.horizon = horizon
+        self.horizon = ref_length
         self.max_drone_dist = max_drone_dist
         self.render = render
         self.dt = dt

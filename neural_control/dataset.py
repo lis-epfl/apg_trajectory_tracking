@@ -269,11 +269,11 @@ class WingDataset(DroneDataset):
         ref_mean=None,
         ref_std=None,
         delta_t=0.05,
-        nr_actions=10,
+        horizon=10,
         **kwargs
     ):
         self.dt = delta_t
-        self.nr_actions = nr_actions
+        self.horizon = horizon
         super().__init__(num_states, self_play, mean=mean, std=std, **kwargs)
         if self.mean is None:
             self.set_fixed_mean()
@@ -311,8 +311,8 @@ class WingDataset(DroneDataset):
         # speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
         vec_len_per_step = 12 * self.dt
         # form auxiliary array with linear reference for loss computation
-        target_pos = torch.zeros((current_state.size()[0], self.nr_actions, 3))
-        for i in range(self.nr_actions):
+        target_pos = torch.zeros((current_state.size()[0], self.horizon, 3))
+        for i in range(self.horizon):
             for j in range(3):
                 target_pos[:, i, j] = current_state[:, j] + (
                     ref_vector[:, j] * vec_len_per_step * (i + 1)
