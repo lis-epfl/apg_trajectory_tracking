@@ -66,6 +66,11 @@ class TrainCartpole(TrainBase):
         # self.state_to_img_optim = optim.SGD(
         #     self.state_to_img_net.parameters(), lr=0.0001, momentum=0.9
         # )
+        if self.train_mode != "concurrent":
+            raise ValueError(
+                "autoregressive / LSTM training is only implemented\
+                              for the Quadrotor! Use concurrent as train mode"
+            )
 
     def initialize_model(
         self,

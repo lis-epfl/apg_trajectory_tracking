@@ -119,9 +119,13 @@ class TrainBase:
         if self.train_mode in ["autoregressive", "LSTM"]:
             self.actions_out_dim = self.action_dim
             self.ref_length = self.horizon * 2
-        else:
+        elif self.train_mode == "concurrent":
             self.actions_out_dim = self.action_dim * self.horizon
             self.ref_length = self.horizon
+        else:
+            raise ValueError(
+                "Train mode must be one of concurrent, autoregressive, or LSTM"
+            )
 
     def init_optimizer(self):
         # Init train loader
