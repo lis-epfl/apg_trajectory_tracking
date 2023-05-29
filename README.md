@@ -9,11 +9,12 @@ For an overview of our method and trajectory tracking examples, check out our [v
 If you use any of this code, please cite the following publication:
 
 ```bibtex
-@Article{wiedemannwueest2022training,
-  title   = {Training Efficient Controllers via Analytic Policy Gradient},
-  author  = {Wiedemann, Nina and W{\"u}est, Valentin and Loquercio, Antonio and M{\"u}ller, Matthias and Floreano, Dario and Scaramuzza, Davide},
-  journal = {arXiv preprint arXiv:2209.13052},
-  year    = {2022}
+@inproceedings{wiedemannwueest2023training,
+  title        = {Training Efficient Controllers via Analytic Policy Gradient},
+  author       = {Wiedemann, Nina and W{\"u}est, Valentin and Loquercio, Antonio and M{\"u}ller, Matthias and Floreano, Dario and Scaramuzza, Davide},
+  booktitle    = {2023 International Conference on Robotics and Automation (ICRA)},
+  year         = {2023},
+  organization = {IEEE}
 }
 ```
 
@@ -23,7 +24,7 @@ Control design for robotic systems is complex and often requires solving an opti
 
 ## Installation
 
-Install all requirements in a virtual environment with:
+We recommend using python 3.8 or newer. Install all requirements in a virtual environment with:
 ``` bash
 python -m venv env
 source env/bin/activate
@@ -74,3 +75,4 @@ PPO models can be trained and evaluated with the script `baselines/ppo_baseline.
 
 3) PETS:
 PETS training is done with the [mbrl](https://github.com/facebookresearch/mbrl-lib) library provided by Facebook Research. Our code can be found in the script `baselines/pets_baseline.py`.
+
