@@ -107,10 +107,10 @@ def cartpole_loss(action, state, lambda_factor=.4, printout=0):
     # bring action into -1 1 range
     action = torch.sigmoid(action) - .5
 
-    nr_actions = action.size()[1]
+    horizon = action.size()[1]
 
     # update state iteratively for each proposed action
-    for i in range(nr_actions):
+    for i in range(horizon):
         state = simulate_cartpole(state, action[:, i])
     abs_state = torch.abs(state)
 

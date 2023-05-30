@@ -143,7 +143,8 @@ class QuadDataset(DroneDataset):
         )
         return states, ref_states
 
-    def rot_world_to_body(self, state_vector, world_to_body):
+    @staticmethod
+    def rot_world_to_body(state_vector, world_to_body):
         """
         world_to_body is rotation matrix
         vector is array of size (?, 3)
@@ -203,6 +204,22 @@ class QuadDataset(DroneDataset):
         return inp_drone_states, drone_states, inp_ref_states, torch_ref_states
 
 
+def state_preprocessing(drone_states):
+    # get rotation matrix
+    drone_vel = drone_states[:, 6:9]
+    world_to_body = Dynamics.world_to_body_matrix(drone_states[:, 3:6])
+    drone_vel_body = QuadDataset.rot_world_to_body(drone_vel, world_to_body)
+    # first two columns of rotation matrix
+    drone_rotation_matrix = torch.reshape(world_to_body[:, :, :2], (-1, 6))
+    inp_drone_states = torch.hstack(
+        (
+            drone_vel, drone_rotation_matrix, drone_vel_body,
+            drone_states[:, 9:12]
+        )
+    )
+    return inp_drone_states
+
+
 class CartpoleDataset(torch.utils.data.Dataset):
     """
     Dataset for training on cartpole task
@@ -252,11 +269,11 @@ class WingDataset(DroneDataset):
         ref_mean=None,
         ref_std=None,
         delta_t=0.05,
-        nr_actions=10,
+        horizon=10,
         **kwargs
     ):
         self.dt = delta_t
-        self.nr_actions = nr_actions
+        self.horizon = horizon
         super().__init__(num_states, self_play, mean=mean, std=std, **kwargs)
         if self.mean is None:
             self.set_fixed_mean()
@@ -294,8 +311,8 @@ class WingDataset(DroneDataset):
         # speed = torch.sqrt(torch.sum(current_state[:, 3:6]**2, dim=1))
         vec_len_per_step = 12 * self.dt
         # form auxiliary array with linear reference for loss computation
-        target_pos = torch.zeros((current_state.size()[0], self.nr_actions, 3))
-        for i in range(self.nr_actions):
+        target_pos = torch.zeros((current_state.size()[0], self.horizon, 3))
+        for i in range(self.horizon):
             for j in range(3):
                 target_pos[:, i, j] = current_state[:, j] + (
                     ref_vector[:, j] * vec_len_per_step * (i + 1)

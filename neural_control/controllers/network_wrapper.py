@@ -17,7 +17,7 @@ class NetworkWrapper:
         model,
         dataset,
         optimizer=None,
-        horizon=5,
+        horizon=10,
         max_drone_dist=0.1,
         render=0,
         dt=0.02,
@@ -34,6 +34,7 @@ class NetworkWrapper:
         self.optimizer = optimizer
         self.take_every_x = take_every_x
         self.action_counter = 0
+        self.horizon = horizon
 
         # four control signals
         self.action_dim = 4
@@ -51,13 +52,14 @@ class NetworkWrapper:
         )
 
         with torch.no_grad():
-            suggested_action = self.net(in_state, ref)
+            suggested_action = self.net(in_state, ref[:, :self.horizon])
 
             suggested_action = torch.sigmoid(suggested_action)
 
-            suggested_action = torch.reshape(
-                suggested_action, (1, self.horizon, self.action_dim)
-            )
+            if suggested_action.size()[-1] > self.action_dim:
+                suggested_action = torch.reshape(
+                    suggested_action, (1, self.horizon, self.action_dim)
+                )
 
         numpy_action_seq = suggested_action[0].detach().numpy()
         # print([round(a, 2) for a in numpy_action_seq[0]])
@@ -87,9 +89,10 @@ class FixedWingNetWrapper:
             suggested_action = self.net(normed_state, normed_ref)
             suggested_action = torch.sigmoid(suggested_action)[0]
 
-            suggested_action = torch.reshape(
-                suggested_action, (self.horizon, self.action_dim)
-            )
+            if suggested_action.size()[-1] > self.action_dim:
+                suggested_action = torch.reshape(
+                    suggested_action, (self.horizon, self.action_dim)
+                )
 
         self.action_counter += 1
         return suggested_action.detach().numpy()
@@ -97,8 +100,8 @@ class FixedWingNetWrapper:
 
 class CartpoleWrapper:
 
-    def __init__(self, model, nr_actions=3, action_dim=1, **kwargs):
-        self.nr_actions = nr_actions
+    def __init__(self, model, horizon=10, action_dim=1, **kwargs):
+        self.horizon = horizon
         self.action_dim = action_dim
         self.net = model
 
@@ -138,9 +141,10 @@ class CartpoleWrapper:
     def predict_actions(self, state, ref_state):
         torch_state = self.raw_states_to_torch(state)
         action_seq = self.net(torch_state)
-        action_seq = torch.reshape(
-            action_seq, (-1, self.nr_actions, self.action_dim)
-        )
+        if action_seq.size()[-1] > self.action_dim:
+            action_seq = torch.reshape(
+                action_seq, (-1, self.horizon, self.action_dim)
+            )
         return action_seq
 
 
@@ -150,14 +154,14 @@ class CartpoleImageWrapper:
         self,
         net,
         dataset,
-        nr_actions=3,
+        horizon=3,
         action_dim=1,
         self_play=1,
         take_every_x=5,
         **kwargs
     ):
         self.dataset = dataset
-        self.nr_actions = nr_actions
+        self.horizon = horizon
         self.action_dim = action_dim
         self.net = net
         self.self_play = (self_play == "all" or self_play > 0)
@@ -174,7 +178,7 @@ class CartpoleImageWrapper:
         # img_input = self.to_torch(image)
         action_seq = self.net(img_input)
         action_seq = torch.reshape(
-            action_seq, (-1, self.nr_actions, self.action_dim)
+            action_seq, (-1, self.horizon, self.action_dim)
         )
         if self.self_play and (
             self.action_counter + 1
@@ -192,7 +196,7 @@ class SequenceCartpoleWrapper(CartpoleImageWrapper):
 
         action_seq = self.net(network_input)
         action_seq = torch.reshape(
-            action_seq, (-1, self.nr_actions, self.action_dim)
+            action_seq, (-1, self.horizon, self.action_dim)
         )
         if self.self_play and (
             self.action_counter + 1

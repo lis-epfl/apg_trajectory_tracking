@@ -9,11 +9,12 @@ For an overview of our method and trajectory tracking examples, check out our [v
 If you use any of this code, please cite the following publication:
 
 ```bibtex
-@Article{wiedemannwueest2022training,
-  title   = {Training Efficient Controllers via Analytic Policy Gradient},
-  author  = {Wiedemann, Nina and W{\"u}est, Valentin and Loquercio, Antonio and M{\"u}ller, Matthias and Floreano, Dario and Scaramuzza, Davide},
-  journal = {arXiv preprint arXiv:2209.13052},
-  year    = {2022}
+@inproceedings{wiedemannwueest2023training,
+  title        = {Training Efficient Controllers via Analytic Policy Gradient},
+  author       = {Wiedemann, Nina and W{\"u}est, Valentin and Loquercio, Antonio and M{\"u}ller, Matthias and Floreano, Dario and Scaramuzza, Davide},
+  booktitle    = {2023 International Conference on Robotics and Automation (ICRA)},
+  year         = {2023},
+  organization = {IEEE}
 }
 ```
 
@@ -23,7 +24,7 @@ Control design for robotic systems is complex and often requires solving an opti
 
 ## Installation
 
-Install all requirements in a virtual environment with:
+We recommend using python 3.8 or newer. Install all requirements in a virtual environment with:
 ``` bash
 python -m venv env
 source env/bin/activate
@@ -48,6 +49,8 @@ Similarly, the cartpole or fixed wing drone can be trained (without generating a
 python scripts/train_fixed_wing.py
 python scripts/train_cartpole.py
 ```
+
+As reported in our paper, we tested three training modes for the quadrotor: concurrent, autoregressive, or recurrently with an LSTM. This mode can be set in the config [file](configs/quad_config.json). The argument `horizon` in the config file determines the training horizon k. In the case of concurrent training, the model gets the next k reference states as input, we predict k actions at once, and then backpropagate. In the case of autoregressive or LSTM-based training, the model still sees the next k reference states, but only outputs one action at a time. With the LSTM, the hidden state serves as a memory of the past states and actions.
 
 See our [training documentation](training_details.pdf) for further information.
 
@@ -74,3 +77,4 @@ PPO models can be trained and evaluated with the script `baselines/ppo_baseline.
 
 3) PETS:
 PETS training is done with the [mbrl](https://github.com/facebookresearch/mbrl-lib) library provided by Facebook Research. Our code can be found in the script `baselines/pets_baseline.py`.
+

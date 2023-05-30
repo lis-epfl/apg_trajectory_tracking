@@ -385,7 +385,7 @@ def evaluate_quad(model, env, max_steps=500, nr_iters=1, render=0, test=0):
 def test_rl_quad(save_name, modified_params={}, max_steps=1000, nr_iters=30):
     dyn = FlightmareDynamics(modified_params=modified_params)
     env = QuadEnvRL(
-        dyn, quad_dt, speed_factor=quad_speed, nr_actions=quad_horizon
+        dyn, quad_dt, speed_factor=quad_speed, horizon=quad_horizon
     )
     env.thresh_div = 3
     model = PPO.load(save_name)
@@ -422,7 +422,7 @@ def test_ours_quad(model_path, modified_params={}, max_steps=500):
 def train_quad(model_path, load_model=None, modified_params={}):
     dyn = FlightmareDynamics(modified_params=modified_params)
     env = QuadEnvRL(
-        dyn, quad_dt, speed_factor=quad_speed, nr_actions=quad_horizon
+        dyn, quad_dt, speed_factor=quad_speed, horizon=quad_horizon
     )
     train_main(
         model_path,

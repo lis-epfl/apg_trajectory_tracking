@@ -34,23 +34,28 @@ class QuadEvaluator():
         self,
         controller,
         environment,
-        horizon=5,
+        ref_length=5,
         max_drone_dist=0.1,
         render=0,
         dt=0.05,
         test_time=0,
         speed_factor=.6,
+        train_mode="concurrent",
         **kwargs
     ):
         self.controller = controller
         self.eval_env = environment
-        self.horizon = horizon
+        self.horizon = ref_length
         self.max_drone_dist = max_drone_dist
         self.render = render
         self.dt = dt
         self.action_counter = 0
         self.test_time = test_time
         self.speed_factor = speed_factor
+        self.train_mode = train_mode
+        if hasattr(self.controller.net, "reset_hidden_state"):
+            # if it's an lstm based model, reset the hidden state
+            self.controller.net.reset_hidden_state()
 
     def help_render(self, t_prev):
         """
@@ -143,7 +148,10 @@ class QuadEvaluator():
 
             # possible average with previous actions
             # use_action = average_action(action, i, do_avg_act=do_avg_act)
-            use_action = action[0]
+            if self.train_mode == "concurrent":
+                use_action = action[0]
+            else:
+                use_action = action
             actions.append(action)
 
             current_np_state, stable = self.eval_env.step(

@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from neural_control.dataset import QuadDataset
+from neural_control.dataset import QuadDataset, state_preprocessing
 from train_base import TrainBase
 from neural_control.drone_loss import quad_mpc_loss
 from neural_control.dynamics.quad_dynamics_simple import SimpleDynamics
@@ -17,6 +17,7 @@ from neural_control.controllers.network_wrapper import NetworkWrapper
 from neural_control.environments.drone_env import QuadRotorEnvBase
 from evaluate_drone import QuadEvaluator
 from neural_control.models.hutter_model import Net
+from neural_control.models.rnn import LSTM_NEW
 try:
     from neural_control.flightmare import FlightmareWrapper
 except ModuleNotFoundError:
@@ -66,21 +67,23 @@ class TrainDrone(TrainBase):
             data_std = np.array(previous_parameters["std"]).astype(float)
             data_mean = np.array(previous_parameters["mean"]).astype(float)
         else:
+            # create dataset
             self.state_data = QuadDataset(
                 self.epoch_size,
                 self.self_play,
                 reset_strength=self.reset_strength,
                 max_drone_dist=self.max_drone_dist,
-                ref_length=self.nr_actions,
+                ref_length=self.ref_length,
                 dt=self.delta_t
             )
             in_state_size = self.state_data.normed_states.size()[1]
-            # +9 because adding 12 things but deleting position (3)
-            self.net = Net(
+
+            net_class = LSTM_NEW if self.train_mode == "LSTM" else Net
+            self.net = net_class(
                 in_state_size,
-                self.nr_actions,
+                self.horizon,
                 self.ref_dim,
-                self.action_dim * self.nr_actions,
+                self.actions_out_dim,
                 conv=1
             )
             (data_std, data_mean) = (self.state_data.std, self.state_data.mean)
@@ -90,8 +93,7 @@ class TrainDrone(TrainBase):
         self.config["mean"] = data_mean.tolist()
 
         # update the used parameters:
-        self.config["horizon"] = self.nr_actions
-        self.config["ref_length"] = self.nr_actions
+        self.config["ref_length"] = self.ref_length
         self.config["thresh_div"] = self.thresh_div_start
         self.config["dt"] = self.delta_t
         self.config["take_every_x"] = self.self_play_every_x
@@ -108,6 +110,68 @@ class TrainDrone(TrainBase):
         self.state_data = QuadDataset(self.epoch_size, **self.config)
         self.init_optimizer()
 
+    def train_recurrent_model(
+        self, in_state, current_state, in_ref_states, ref_states
+    ):
+        # zero the parameter gradients
+        self.optimizer_controller.zero_grad()
+        # save the reached states
+        # RNN: collect all intermediate states and actions
+        batch_size = current_state.size()[0]
+        intermediate_states = torch.zeros(
+            batch_size, self.horizon, self.state_size
+        )
+        action_seq = torch.zeros(
+            batch_size, self.horizon, self.action_dim
+        )
+        if self.train_mode == "LSTM":
+            # reset
+            self.net.reset_hidden_state(batch_size)
+        # in_state_first = state_preprocessing(current_state)
+        # print(in_state_first == in_state_first)
+        # print("ref states", ref_states[0])
+
+        for k in range(self.horizon):
+            # RNN: need to do the preprocessing of reference and state for each
+            # time step
+            # subtract position for relative position
+            rel_in_ref_states = in_ref_states[:, k:k + self.horizon]
+            rel_in_ref_states[:, :, :3] = (
+                rel_in_ref_states[:, :, :3] -
+                torch.unsqueeze(current_state[:, :3], 1)
+            )
+            # preprocess state
+            in_state = state_preprocessing(current_state)
+            # RNN DEBUGGING:
+            # print("current state", current_state[0])
+            # print("in_state", in_state[0])
+            # print("rel_in_ref_states", rel_in_ref_states[0])
+            # predict action
+            action = self.net(in_state, rel_in_ref_states)
+            action = torch.sigmoid(action)
+            action_seq[:, k] = action
+            # action = action_seq[:, k]
+            current_state = self.train_dynamics(
+                current_state, action, dt=self.delta_t
+            )
+            intermediate_states[:, k] = current_state
+
+        loss = quad_mpc_loss(
+            intermediate_states,
+            # RNN:
+            ref_states[:, :self.horizon],
+            action_seq,
+            printout=0
+        )
+
+        # Backprop
+        loss.backward()
+        for name, param in self.net.named_parameters():
+            if param.grad is not None:
+                self.writer.add_histogram(name + ".grad", param.grad)
+        self.optimizer_controller.step()
+        return loss
+
     def train_controller_model(
         self, current_state, action_seq, in_ref_states, ref_states
     ):
@@ -115,9 +179,9 @@ class TrainDrone(TrainBase):
         self.optimizer_controller.zero_grad()
         # save the reached states
         intermediate_states = torch.zeros(
-            current_state.size()[0], self.nr_actions, self.state_size
+            current_state.size()[0], self.horizon, self.state_size
         )
-        for k in range(self.nr_actions):
+        for k in range(self.horizon):
             # extract action
             action = action_seq[:, k]
             current_state = self.train_dynamics(
@@ -248,7 +312,7 @@ if __name__ == "__main__":
     # config["thresh_div_start"] = 1
     # config["thresh_stable_start"] = 1.5
 
-    config["save_name"] = "mpc_loss"
+    config["save_name"] = "lstm"
 
     config["nr_epochs"] = 400
 
