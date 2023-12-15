@@ -98,7 +98,7 @@ class FlightmareDynamics(Dynamics):
         omega = av: current angular velocity
         command = body_rates: body rates in command
         """
-        force = torch.unsqueeze(0.723 * thrust, 1)
+        force = torch.unsqueeze(self.mass * thrust, 1)
 
         # constants
         omega_change = torch.unsqueeze(body_rates - av, 2)
