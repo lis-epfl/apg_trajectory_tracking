@@ -397,7 +397,7 @@ def set_axes_equal(ax):
 
 def animate_quad(ref, trajectories, savefile=None, names=["APG"]):
     fig = plt.figure(figsize=(11, 10))
-    ax = axes3d.Axes3D(fig)
+    ax = plt.axes(projection="3d")
 
     ax = plot_ref_quad(ax, ref)
     cols = ["blue", "red", "orange", "purple"]
