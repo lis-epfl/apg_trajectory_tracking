@@ -268,25 +268,32 @@ class QuadEvaluator():
             # stable.append(len(drone_traj))
 
         # Output results
-        # print("DIV")
-        # print(div)
-        # print("STABLE STEPS"),
-        # print(stable)
+        # get maximum steps we could make (depends on speed)
+        max_steps_stable = len(reference_traj)
         stable = np.array(stable)
-        div_of_full_runs = np.array(div)[stable == max_steps]
+        div = np.array(div)
+        # ratio of runs that were stable
+        ratio_stable = np.sum(stable == max_steps_stable) / len(stable)
+        # get tracking error only for the runs that were completed
+        div_of_full_runs = div[stable == max_steps_stable]
         print(
-            "%s: Average div of full runs: %3.2f (%3.2f)" %
-            (reference, np.mean(div_of_full_runs), np.std(div_of_full_runs))
+            "Average tracking error: %3.2f (%3.2f)" %
+            (np.mean(div), np.std(div))
         )
+        if 0 < ratio_stable < 1:
+            print(
+                "Average error of full runs: %3.2f (%3.2f)" %
+                (np.mean(div_of_full_runs), np.std(div_of_full_runs))
+            )
         print(
-            "Ratio of stable runs: %3.2f" % (len(div_of_full_runs) / len(div))
+            "Ratio of stable runs: %3.2f" % (ratio_stable)
         )
 
         if return_dict:
             return {
                 "avg_tracking_error": np.mean(div_of_full_runs),
                 "std_tracking_error": np.std(div_of_full_runs),
-                "ratio_stable": len(div_of_full_runs) / len(div)
+                "ratio_stable": ratio_stable
             }
         return np.mean(stable), np.std(stable), np.mean(
             div_of_full_runs
